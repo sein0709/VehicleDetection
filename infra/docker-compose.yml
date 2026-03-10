@@ -1,0 +1,233 @@
+###############################################################################
+# GreyEye — Local Development Stack
+#
+# Provides: PostgreSQL 16, Redis 7, NATS JetStream, MinIO (S3-compatible)
+#
+# Usage:
+#   make dev-up        # start all services
+#   make dev-down      # stop and remove containers
+###############################################################################
+
+services:
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: greyeye-postgres
+    environment:
+      POSTGRES_USER: greyeye
+      POSTGRES_PASSWORD: greyeye_dev
+      POSTGRES_DB: greyeye
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greyeye"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Redis 7 ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: greyeye-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── NATS JetStream ─────────────────────────────────────────────────────────
+  nats:
+    image: nats:2-alpine
+    container_name: greyeye-nats
+    command: >
+      --jetstream
+      --store_dir /data
+      --http_port 8222
+    ports:
+      - "4222:4222"   # client connections
+      - "8222:8222"   # monitoring HTTP
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── MinIO (S3-compatible object storage) ───────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: greyeye-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: greyeye
+      MINIO_ROOT_PASSWORD: greyeye_dev
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── MinIO bucket initialiser (one-shot) ────────────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: greyeye-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 greyeye greyeye_dev &&
+        mc mb --ignore-existing local/greyeye-frames &&
+        mc mb --ignore-existing local/greyeye-exports &&
+        mc mb --ignore-existing local/greyeye-models &&
+        mc mb --ignore-existing local/greyeye-hard-examples &&
+        echo 'Buckets ready.'
+      "
+
+  # ── API Gateway (Nginx reverse proxy) ──────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../
+      dockerfile: services/api_gateway/Dockerfile
+    container_name: greyeye-api-gateway
+    environment:
+      TLS_ENABLED: "false"
+      AUTH_SERVICE_HOST: host.docker.internal
+      CONFIG_SERVICE_HOST: host.docker.internal
+      INGEST_SERVICE_HOST: host.docker.internal
+      REPORTING_API_HOST: host.docker.internal
+      AGGREGATOR_HOST: host.docker.internal
+      NOTIFICATION_SERVICE_HOST: host.docker.internal
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ── Alertmanager ──────────────────────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: greyeye-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://localhost:9093"
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanagerdata:/alertmanager
+    ports:
+      - "9093:9093"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Prometheus ─────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: greyeye-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-remote-write-receiver"
+      - "--enable-feature=exemplar-storage"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheusdata:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: greyeye-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: greyeye
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Loki (log aggregation) ────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: greyeye-loki
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - lokidata:/loki
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Tempo (distributed tracing) ──────────────────────────────────────────
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: greyeye-tempo
+    command: -config.file=/etc/tempo/tempo-config.yml
+    volumes:
+      - ./observability/tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:
+  natsdata:
+  miniodata:
+  alertmanagerdata:
+  prometheusdata:
+  grafanadata:
+  lokidata:
+  tempodata:

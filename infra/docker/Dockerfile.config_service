@@ -1,0 +1,41 @@
+# ── GreyEye Config Service ───────────────────────────────────────────────────
+# Multi-stage build: builder installs deps, runtime is minimal.
+# Build context: repository root.
+
+FROM python:3.11-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /build
+
+COPY pyproject.toml ./
+COPY libs/shared_contracts/ libs/shared_contracts/
+COPY services/config_service/ services/config_service/
+
+RUN uv pip install --system --no-cache \
+    ./libs/shared_contracts \
+    ./services/config_service
+
+# ── Runtime ──────────────────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+RUN groupadd -r greyeye && useradd -r -g greyeye -d /app -s /sbin/nologin greyeye
+
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+WORKDIR /app
+COPY services/config_service/config_service/ config_service/
+
+USER greyeye
+
+EXPOSE 8002
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/healthz')" || exit 1
+
+CMD ["uvicorn", "config_service.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8002", "--workers", "2"]

@@ -1,0 +1,45 @@
+# GreyEye 12-class vehicle classifier training configuration
+# Framework: PyTorch + timm
+
+model:
+  backbone: "efficientnet_b0"     # efficientnet_b0 | mobilenetv3_large_100
+  pretrained: true                # ImageNet pre-trained
+  input_size: 224
+  num_classes: 12
+  dropout: 0.3
+
+training:
+  epochs: 50
+  batch_size: 64
+  optimizer: "AdamW"
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  scheduler: "cosine_warm_restarts"
+  warmup_epochs: 2
+  t_0: 10                        # cosine restart period
+  t_mult: 2                      # period multiplier after each restart
+  early_stopping:
+    enabled: true
+    patience: 10
+    metric: "val_f1_macro"
+
+loss:
+  type: "focal"                   # focal | label_smoothing_ce
+  gamma: 2.0
+  label_smoothing: 0.1
+  class_weights: true             # use inverse-frequency weights
+
+sampling:
+  weighted: true
+  smoothing: 0.5                  # sqrt-smoothed inverse frequency
+
+data:
+  train_dir: ""                   # set via CLI
+  val_dir: ""                     # set via CLI
+  workers: 8
+  min_crop_px: 16
+
+output:
+  project: "runs/classifier"
+  name: "base"
+  save_period: 5

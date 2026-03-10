@@ -1,0 +1,536 @@
+###############################################################################
+# GreyEye — Service Alerting Rules
+#
+# Covers all microservices: inference pipeline, API latency, NATS queue depth,
+# Redis, database connections, and general availability. Severity levels follow
+# the P1-P4 incident classification in infra/runbooks/.
+###############################################################################
+
+groups:
+  # ── Inference Pipeline ────────────────────────────────────────────────────
+  - name: greyeye-inference
+    interval: 30s
+    rules:
+      - alert: InferenceLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            rate(greyeye_inference_duration_seconds_bucket{stage="total"}[5m])
+          ) > 1.5
+        for: 5m
+        labels:
+          severity: critical
+          team: ml
+        annotations:
+          summary: "Inference p95 latency exceeds 1.5s SLO ({{ $value | printf \"%.2f\" }}s)"
+          description: >-
+            End-to-end inference latency (p95) is {{ $value | printf "%.2f" }}s,
+            breaching the NFR-2 target of <=1.5s. Check GPU utilisation,
+            model loading, and queue depth.
+          runbook_url: "https://wiki.greyeye.io/runbooks/inference-latency"
+
+      - alert: InferenceErrorRateHigh
+        expr: |
+          rate(greyeye_inference_errors_total[5m])
+          / (rate(greyeye_inference_frames_total[5m]) + 1e-10) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: ml
+        annotations:
+          summary: "Inference error rate >5% ({{ $value | printf \"%.1f\" }}%)"
+          description: >-
+            More than 5% of inference frames are failing. Possible causes:
+            corrupt frames, OOM on GPU, or model loading failure.
+
+      - alert: InferenceWorkerDown
+        expr: |
+          up{job=~".*inference-worker.*"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Inference worker {{ $labels.instance }} is down"
+          description: >-
+            Inference worker has been unreachable for 3 minutes.
+            Check pod status and GPU node health.
+
+      - alert: InferenceGPUUtilHigh
+        expr: |
+          greyeye_gpu_utilization_percent > 90
+        for: 10m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "GPU utilisation sustained >90% on {{ $labels.instance }}"
+          description: >-
+            GPU is near saturation. HPA should be scaling inference workers.
+            Verify HPA is functioning and GPU node pool can expand.
+
+      - alert: InferenceQueueDepthHigh
+        expr: |
+          greyeye_inference_queue_depth > 50
+        for: 5m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "Inference queue depth >50 ({{ $value }} pending)"
+          description: >-
+            Frames are accumulating faster than workers can process.
+            HPA target threshold is 50 pending items.
+
+      - alert: DetectorConfidenceLow
+        expr: |
+          avg_over_time(greyeye_detector_mean_confidence[15m]) < 0.4
+        for: 15m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "Detector mean confidence dropped below 0.4"
+          description: >-
+            Average detection confidence is unusually low. Possible causes:
+            camera misalignment, weather conditions, or model degradation.
+
+      - alert: ClassifierClassFlipRate
+        expr: |
+          rate(greyeye_classifier_class_flips_total[15m])
+          / (rate(greyeye_classifier_classifications_total[15m]) + 1e-10) > 0.15
+        for: 15m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "Classifier class-flip rate >15%"
+          description: >-
+            Temporal smoothing is correcting more than 15% of classifications.
+            The classifier model may need retraining or the camera feed quality
+            has degraded.
+
+  # ── API Services ──────────────────────────────────────────────────────────
+  - name: greyeye-api
+    interval: 30s
+    rules:
+      - alert: APILatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{job=~"greyeye-.*"}[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "{{ $labels.job }} p95 latency >2s ({{ $value | printf \"%.2f\" }}s)"
+          description: >-
+            API response time is degraded. Check database query performance,
+            connection pool saturation, and downstream service health.
+
+      - alert: APIErrorRate5xx
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m])
+          / (rate(http_requests_total[5m]) + 1e-10) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "{{ $labels.job }} 5xx error rate >1% ({{ $value | printf \"%.2f\" }}%)"
+          description: >-
+            Server errors are elevated. Check application logs for stack traces
+            and downstream dependency health.
+
+      - alert: APIServiceDown
+        expr: |
+          up{job=~"greyeye-.*-service|greyeye-aggregator|greyeye-reporting-api"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: >-
+            Service has been unreachable for 3 minutes. Check pod status,
+            readiness probes, and recent deployments.
+
+      - alert: LiveKPIRefreshSlow
+        expr: |
+          histogram_quantile(0.95,
+            rate(greyeye_live_kpi_push_duration_seconds_bucket[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Live KPI refresh p95 >2s SLO ({{ $value | printf \"%.2f\" }}s)"
+          description: >-
+            WebSocket KPI push latency exceeds the NFR-1 target of <=2s.
+            Check Redis read latency and WebSocket connection count.
+
+      - alert: WebSocketConnectionsHigh
+        expr: |
+          greyeye_websocket_connections > 5000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "WebSocket connections >5000 ({{ $value }})"
+          description: >-
+            High number of concurrent WebSocket connections. Verify
+            connection lifecycle management and consider scaling reporting-api.
+
+  # ── Rate Limiting & Gateway ───────────────────────────────────────────────
+  - name: greyeye-gateway
+    interval: 30s
+    rules:
+      - alert: RateLimitTriggeredHigh
+        expr: |
+          rate(nginx_http_requests_total{status="429"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Rate limiting triggered >10 req/s"
+          description: >-
+            Elevated 429 responses. Could indicate a misbehaving client,
+            DDoS attempt, or rate limits that are too aggressive.
+
+      - alert: GatewayUpstreamErrors
+        expr: |
+          rate(nginx_http_requests_total{status=~"502|503|504"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Gateway upstream errors (502/503/504) >1/s"
+          description: >-
+            Backend services are returning errors through the gateway.
+            Check circuit breaker state and upstream pod health.
+
+  # ── NATS JetStream ───────────────────────────────────────────────────────
+  - name: greyeye-nats
+    interval: 30s
+    rules:
+      - alert: NATSConsumerPendingHigh
+        expr: |
+          nats_consumer_num_pending > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "NATS consumer {{ $labels.consumer_name }} has {{ $value }} pending messages"
+          description: >-
+            Consumer is falling behind. Check consumer pod health and
+            processing throughput.
+
+      - alert: NATSConsumerPendingCritical
+        expr: |
+          nats_consumer_num_pending > 50000
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "NATS consumer {{ $labels.consumer_name }} backlog critical ({{ $value }})"
+          description: >-
+            Consumer backlog is critically high. Messages may be dropped
+            when stream limits are reached. Scale consumers immediately.
+
+      - alert: NATSDLQMessages
+        expr: |
+          increase(nats_stream_messages{stream=~".*DLQ.*"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Messages arriving in DLQ stream {{ $labels.stream }}"
+          description: >-
+            Dead-letter queue is receiving messages. Investigate processing
+            failures in the originating consumer.
+
+      - alert: NATSStreamStorageHigh
+        expr: |
+          nats_stream_bytes / 1073741824 > 5
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "NATS stream {{ $labels.stream }} using >5 GiB storage"
+          description: >-
+            Stream storage is growing. Check consumer lag and retention
+            policy configuration.
+
+  # ── Aggregation Pipeline ──────────────────────────────────────────────────
+  - name: greyeye-aggregation
+    interval: 30s
+    rules:
+      - alert: AggregationBucketLagHigh
+        expr: |
+          greyeye_aggregation_bucket_lag_seconds > 120
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Aggregation bucket lag >2 min ({{ $value | printf \"%.0f\" }}s)"
+          description: >-
+            15-minute aggregation buckets are falling behind real-time.
+            Check aggregator pod health and database write latency.
+
+      - alert: AggregationFlushErrors
+        expr: |
+          rate(greyeye_aggregation_flush_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Aggregation flush errors detected"
+          description: >-
+            Aggregator is failing to write buckets to the database.
+            Check PostgreSQL connectivity and ON CONFLICT upsert logic.
+
+      - alert: LateEventRateHigh
+        expr: |
+          rate(greyeye_aggregation_late_events_total[15m])
+          / (rate(greyeye_aggregation_events_total[15m]) + 1e-10) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Late event rate >10%"
+          description: >-
+            More than 10% of crossing events are arriving late (past bucket
+            boundary). Check NTP sync and network latency between services.
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  - name: greyeye-database
+    interval: 30s
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          greyeye_db_pool_active_connections
+          / greyeye_db_pool_max_connections > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "DB connection pool >85% utilised ({{ $value | printf \"%.0f\" }}%)"
+          description: >-
+            Connection pool is nearing saturation. Consider increasing pool
+            size or investigating long-running queries.
+
+      - alert: DatabaseConnectionPoolFull
+        expr: |
+          greyeye_db_pool_active_connections >= greyeye_db_pool_max_connections
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "DB connection pool fully exhausted"
+          description: >-
+            All database connections are in use. New requests will queue or
+            fail. Immediate investigation required.
+
+      - alert: DatabaseSlowQueries
+        expr: |
+          rate(greyeye_db_slow_queries_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Slow database queries >1/s"
+          description: >-
+            Elevated slow query rate. Check query plans, missing indexes,
+            and table bloat.
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  - name: greyeye-redis
+    interval: 30s
+    rules:
+      - alert: RedisMemoryHigh
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Redis memory >85% ({{ $value | printf \"%.0f\" }}%)"
+          description: >-
+            Redis is approaching memory limit. Check key expiration policies
+            and live-state data volume.
+
+      - alert: RedisDown
+        expr: |
+          redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Redis is unreachable"
+          description: >-
+            Redis instance is down. Live KPI push, inference state cache,
+            and session data are affected.
+
+      - alert: RedisLatencyHigh
+        expr: |
+          redis_commands_duration_seconds_total
+          / redis_commands_processed_total > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Redis command latency >10ms average"
+          description: >-
+            Redis is responding slowly. Check memory pressure, network
+            latency, and slow log.
+
+  # ── Camera & Ingest ──────────────────────────────────────────────────────
+  - name: greyeye-cameras
+    interval: 1m
+    rules:
+      - alert: CameraOffline
+        expr: |
+          (time() - greyeye_camera_last_heartbeat_timestamp) > 300
+        for: 5m
+        labels:
+          severity: warning
+          team: operations
+        annotations:
+          summary: "Camera {{ $labels.camera_id }} offline (>5 min since heartbeat)"
+          description: >-
+            No heartbeat received from camera {{ $labels.camera_id }} at
+            site {{ $labels.site_id }}. Check network connectivity and
+            edge device status.
+
+      - alert: IngestBackpressure
+        expr: |
+          rate(greyeye_ingest_rejected_total{reason="backpressure"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Ingest service applying backpressure (429s)"
+          description: >-
+            Frames are being rejected due to queue depth exceeding threshold.
+            Scale ingest service or inference workers.
+
+      - alert: IngestFrameDropRate
+        expr: |
+          rate(greyeye_ingest_frames_dropped_total[5m])
+          / (rate(greyeye_ingest_frames_received_total[5m]) + 1e-10) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Frame drop rate >5%"
+          description: >-
+            More than 5% of incoming frames are being dropped. Data loss
+            is occurring. Scale the pipeline immediately.
+
+  # ── Alerts & Notifications ───────────────────────────────────────────────
+  - name: greyeye-notifications
+    interval: 1m
+    rules:
+      - alert: AlertDeliveryFailures
+        expr: |
+          rate(greyeye_alert_delivery_failures_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Alert delivery failures on channel {{ $labels.channel }}"
+          description: >-
+            Notification delivery is failing for {{ $labels.channel }}.
+            Check FCM/APNs credentials, SMTP config, or webhook endpoints.
+
+      - alert: AlertRuleEvaluationSlow
+        expr: |
+          greyeye_alert_rule_evaluation_duration_seconds > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Alert rule evaluation taking >5s"
+          description: >-
+            Alert rule engine is slow. Check rule complexity and
+            underlying data query performance.
+
+  # ── Kubernetes Pod Health ─────────────────────────────────────────────────
+  - name: greyeye-pods
+    interval: 30s
+    rules:
+      - alert: PodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total{namespace=~"greyeye-.*"}[15m]) > 0
+        for: 15m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash-looping"
+          description: >-
+            Container {{ $labels.container }} in pod {{ $labels.pod }}
+            (namespace {{ $labels.namespace }}) is restarting repeatedly.
+
+      - alert: PodNotReady
+        expr: |
+          kube_pod_status_ready{namespace=~"greyeye-.*", condition="true"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.pod }} not ready for >10 min"
+          description: >-
+            Pod {{ $labels.pod }} in namespace {{ $labels.namespace }}
+            has not passed readiness checks. Check probe configuration
+            and dependent services.
+
+      - alert: HPAMaxedOut
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas{namespace=~"greyeye-.*"}
+          == kube_horizontalpodautoscaler_spec_max_replicas{namespace=~"greyeye-.*"}
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "HPA {{ $labels.horizontalpodautoscaler }} at max replicas"
+          description: >-
+            Autoscaler has reached maximum replicas and cannot scale further.
+            Consider increasing max replicas or optimising the service.
+
+      - alert: PVCNearFull
+        expr: |
+          kubelet_volume_stats_used_bytes{namespace=~"greyeye-.*"}
+          / kubelet_volume_stats_capacity_bytes{namespace=~"greyeye-.*"} > 0.85
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "PVC {{ $labels.persistentvolumeclaim }} >85% full"
+          description: >-
+            Persistent volume is running low on space. Expand the PVC or
+            clean up old data.

@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth-service.fullname" . }}
+  labels:
+    {{- include "auth-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "auth-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "auth-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "greyeye.podSecurityContext" . | nindent 6 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "greyeye.containerSecurityContext" . | nindent 10 }}
+          ports:
+            - name: http
+              containerPort: 8001
+              protocol: TCP
+          env:
+            - name: DEBUG
+              value: {{ .Values.env.DEBUG | default "false" | quote }}
+            {{- if .Values.global.supabase.url }}
+            - name: SUPABASE_URL
+              value: {{ .Values.global.supabase.url | quote }}
+            {{- end }}
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.supabase.existingSecret | default "greyeye-supabase-credentials" }}
+                  key: service-role-key
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.jwt.existingSecret | default "greyeye-jwt-secret" }}
+                  key: jwt-secret
+            {{- if .Values.global.postgresql }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.postgresql.existingSecret | default "greyeye-db-credentials" }}
+                  key: connection-string
+            {{- end }}
+            {{- if .Values.global.redis }}
+            - name: REDIS_URL
+              value: "redis://{{ .Values.global.redis.host | default "greyeye-redis" }}:{{ .Values.global.redis.port | default 6379 }}"
+            {{- end }}
+            - name: GREYEYE_LOG_LEVEL
+              value: {{ .Values.observability.logLevel | default "INFO" | quote }}
+            - name: GREYEYE_JSON_LOGS
+              value: {{ .Values.observability.jsonLogs | default "true" | quote }}
+            - name: GREYEYE_TRACING_ENABLED
+              value: {{ .Values.observability.tracingEnabled | default "true" | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otlpEndpoint | default "http://greyeye-tempo:4317" | quote }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

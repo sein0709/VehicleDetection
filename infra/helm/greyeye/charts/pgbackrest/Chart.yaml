@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pgbackrest
+description: pgBackRest backup CronJobs for GreyEye PostgreSQL
+type: application
+version: 0.1.0
+appVersion: "2.51"

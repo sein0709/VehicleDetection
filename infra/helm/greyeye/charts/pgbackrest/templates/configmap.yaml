@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pgbackrest.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pgbackrest.labels" . | nindent 4 }}
+data:
+  pgbackrest.conf: |
+    [{{ .Values.stanza }}]
+    pg1-host={{ .Values.postgresql.host }}
+    pg1-port={{ .Values.postgresql.port }}
+    pg1-user={{ .Values.postgresql.user }}
+    pg1-path=/var/lib/postgresql/data
+
+    [global]
+    repo1-type=s3
+    repo1-s3-bucket={{ .Values.s3.bucket }}
+    repo1-s3-region={{ .Values.s3.region }}
+    repo1-s3-endpoint={{ .Values.s3.endpoint }}
+    repo1-path=/pgbackrest
+    repo1-retention-full={{ .Values.retention.full }}
+    repo1-retention-diff={{ .Values.retention.differential }}
+    repo1-cipher-type={{ .Values.encryption.type }}
+    repo1-s3-key-type=auto
+
+    process-max=4
+    compress-type=zst
+    compress-level=6
+    log-level-console=info
+    log-level-file=detail
+    start-fast=y
+    stop-auto=y
+    delta=y
+    archive-timeout=300

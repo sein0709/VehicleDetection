@@ -1,0 +1,74 @@
+replicaCount: 1
+
+image:
+  repository: greyeye/inference-worker
+  tag: ""
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "1000m"
+    nvidia.com/gpu: "1"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+    nvidia.com/gpu: "1"
+
+gpu:
+  enabled: true
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: nats_consumer_pending_messages
+          selector:
+            matchLabels:
+              consumer: inference-worker
+        target:
+          type: AverageValue
+          averageValue: "50"
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+env:
+  NATS_URL: ""
+  REDIS_URL: ""
+  MODEL_DIR: "/app/models"
+
+modelVolume:
+  enabled: true
+  storageClass: ""
+  size: 5Gi
+  mountPath: /app/models
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+observability:
+  logLevel: INFO
+  jsonLogs: "true"
+  tracingEnabled: "true"
+  otlpEndpoint: "http://greyeye-tempo:4317"
+
+serviceMonitor:
+  enabled: false
+  interval: 15s
+  scrapeTimeout: 10s

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inference-worker.fullname" . }}
+  labels:
+    {{- include "inference-worker.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "inference-worker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8004"
+        prometheus.io/path: "/metrics"
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "inference-worker.labels" . | nindent 8 }}
+    spec:
+      {{- $nodeSelector := dict }}
+      {{- if .Values.gpu.enabled }}
+      {{- $nodeSelector = mergeOverwrite (dict) .Values.gpu.nodeSelector }}
+      {{- end }}
+      {{- $nodeSelector = mergeOverwrite $nodeSelector .Values.nodeSelector }}
+      {{- if $nodeSelector }}
+      nodeSelector:
+        {{- toYaml $nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $tolerations := .Values.tolerations }}
+      {{- if .Values.gpu.enabled }}
+      {{- $tolerations = concat .Values.gpu.tolerations .Values.tolerations }}
+      {{- end }}
+      {{- if $tolerations }}
+      tolerations:
+        {{- toYaml $tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: health
+              containerPort: 8004
+              protocol: TCP
+          env:
+            - name: NATS_URL
+              value: {{ .Values.global.nats.url | quote }}
+            - name: REDIS_URL
+              value: "redis://{{ .Values.global.redis.host }}:{{ .Values.global.redis.port }}"
+            - name: MODEL_DIR
+              value: {{ .Values.env.MODEL_DIR | default .Values.modelVolume.mountPath | quote }}
+            {{- range $key, $value := .Values.env }}
+            {{- if and (ne $key "NATS_URL") (ne $key "REDIS_URL") (ne $key "MODEL_DIR") }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            - name: GREYEYE_LOG_LEVEL
+              value: {{ .Values.observability.logLevel | default "INFO" | quote }}
+            - name: GREYEYE_JSON_LOGS
+              value: {{ .Values.observability.jsonLogs | default "true" | quote }}
+            - name: GREYEYE_TRACING_ENABLED
+              value: {{ .Values.observability.tracingEnabled | default "true" | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otlpEndpoint | default "http://greyeye-tempo:4317" | quote }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8004
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.modelVolume.enabled }}
+          volumeMounts:
+            - name: models
+              mountPath: {{ .Values.modelVolume.mountPath }}
+          {{- end }}
+      {{- if .Values.modelVolume.enabled }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ include "inference-worker.fullname" . }}-models
+      {{- end }}

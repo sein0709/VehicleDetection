@@ -1,0 +1,75 @@
+###############################################################################
+# GreyEye — Post-Deploy Burn-In Monitor
+#
+# Runs after a production deploy to monitor SLO compliance, pod health, and
+# Prometheus alerts over a configurable window (default 24h). Reports status
+# to Slack and fails if critical thresholds are breached.
+###############################################################################
+
+name: Burn-In Monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_hours:
+        description: "Burn-in duration in hours"
+        required: false
+        type: number
+        default: 24
+      interval_minutes:
+        description: "Check interval in minutes"
+        required: false
+        type: number
+        default: 15
+
+env:
+  AWS_REGION: ap-northeast-2
+  K8S_NAMESPACE: greyeye-production
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  burn-in:
+    name: "Burn-In (${{ inputs.duration_hours }}h)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 1500
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PRODUCTION }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name greyeye-production --region ${{ env.AWS_REGION }}
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bc
+
+      - name: Run burn-in monitor
+        env:
+          API_BASE_URL: https://api.greyeye.io
+          PROMETHEUS_URL: https://prometheus.greyeye.io
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          K8S_NAMESPACE: ${{ env.K8S_NAMESPACE }}
+        run: |
+          bash infra/scripts/burn-in-monitor.sh \
+            --duration ${{ inputs.duration_hours }} \
+            --interval ${{ inputs.interval_minutes }}
+
+      - name: Upload burn-in log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-in-log-${{ github.run_id }}
+          path: /tmp/greyeye-burn-in-*.log
+          retention-days: 30

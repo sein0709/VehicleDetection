@@ -1,0 +1,42 @@
+{{- if .Values.podSecurity.enabled }}
+###############################################################################
+# Pod Security Standards (SEC-6, Container Security)
+#
+# Enforces baseline/restricted pod security standards across namespaces.
+# Requires Kubernetes 1.25+ with PodSecurity admission controller.
+###############################################################################
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greyeye-api
+  labels:
+    app.kubernetes.io/part-of: greyeye
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greyeye-processing
+  labels:
+    app.kubernetes.io/part-of: greyeye
+    # Baseline for processing (GPU workloads may need elevated privileges)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greyeye-data
+  labels:
+    app.kubernetes.io/part-of: greyeye
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+{{- end }}

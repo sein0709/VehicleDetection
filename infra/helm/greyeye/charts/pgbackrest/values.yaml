@@ -1,0 +1,59 @@
+###############################################################################
+# pgBackRest Backup — Default Values
+###############################################################################
+
+enabled: true
+
+image:
+  repository: pgbackrest/pgbackrest
+  tag: "2.51"
+  pullPolicy: IfNotPresent
+
+postgresql:
+  host: ""
+  port: 5432
+  user: ""
+  existingSecret: greyeye-db-credentials
+  secretKeys:
+    password: password
+
+s3:
+  bucket: ""
+  region: ap-northeast-2
+  endpoint: s3.ap-northeast-2.amazonaws.com
+  existingSecret: greyeye-backup-s3-credentials
+  secretKeys:
+    accessKey: access-key
+    secretKey: secret-key
+
+encryption:
+  type: aes-256-cbc
+  existingSecret: greyeye-pgbackrest-encryption
+  secretKey: cipher-pass
+
+stanza: greyeye
+
+schedule:
+  full: "0 2 * * *"
+  differential: "0 */6 * * *"
+
+retention:
+  full: 30
+  differential: 7
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 2Gi
+    cpu: 1000m
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+serviceAccount:
+  create: true
+  name: pgbackrest
+  annotations: {}

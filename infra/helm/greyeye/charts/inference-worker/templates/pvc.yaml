@@ -1,0 +1,17 @@
+{{- if .Values.modelVolume.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "inference-worker.fullname" . }}-models
+  labels:
+    {{- include "inference-worker.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.modelVolume.storageClass }}
+  storageClassName: {{ .Values.modelVolume.storageClass | quote }}
+  {{- end }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.modelVolume.size | quote }}
+{{- end }}

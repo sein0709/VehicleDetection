@@ -1,0 +1,37 @@
+# GreyEye gitleaks configuration
+# Extends the default ruleset with project-specific patterns and allowlists.
+
+title = "GreyEye Secret Scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''\.env\.example$''',
+    '''docs/''',
+    '''\.md$''',
+    '''test_.*\.py$''',
+    '''tests/''',
+    '''fixtures/''',
+    '''__snapshots__/''',
+]
+
+[[rules]]
+id = "greyeye-fernet-key"
+description = "Fernet encryption key"
+regex = '''(?i)fernet[_-]?key\s*[=:]\s*['\"]?[A-Za-z0-9_-]{44}={0,2}['\"]?'''
+tags = ["key", "fernet"]
+
+[[rules]]
+id = "greyeye-supabase-key"
+description = "Supabase service role key"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'''
+tags = ["key", "supabase", "jwt"]
+
+[[rules]]
+id = "greyeye-rtsp-url"
+description = "RTSP URL with credentials"
+regex = '''rtsp://[^:]+:[^@]+@[^\s'"]+'''
+tags = ["credential", "rtsp"]

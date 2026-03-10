@@ -1,0 +1,47 @@
+# GreyEye detector training configuration
+# Framework: Ultralytics YOLOv8/v9
+
+model:
+  architecture: "yolov8m"        # yolov8s | yolov8m | yolov8l | yolov9c
+  pretrained: "yolov8m.pt"       # COCO pre-trained checkpoint
+  input_size: 640
+  num_classes: 1                  # single-class "vehicle" detection
+
+training:
+  epochs: 100
+  batch_size: 16
+  optimizer: "AdamW"
+  lr: 1.0e-3
+  weight_decay: 5.0e-4
+  scheduler: "cosine"
+  warmup_epochs: 3
+  early_stopping:
+    enabled: true
+    patience: 15
+    metric: "mAP50"
+
+augmentation:
+  mosaic: 1.0
+  mixup: 0.15
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  flipud: 0.0
+  fliplr: 0.5
+  scale: 0.5
+  translate: 0.1
+
+detection:
+  confidence_threshold: 0.25
+  nms_iou_threshold: 0.45
+  max_detections: 100
+
+data:
+  train_dir: ""                   # set via CLI
+  val_dir: ""                     # set via CLI
+  workers: 8
+
+output:
+  project: "runs/detector"
+  name: "base"
+  save_period: 10                 # checkpoint every N epochs

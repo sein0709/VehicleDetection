@@ -1,0 +1,29 @@
+[project]
+name = "ingest-service"
+version = "0.1.0"
+description = "GreyEye Ingest Service — frame upload and health heartbeat"
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "nats-py>=2.9",
+    "redis>=5.2",
+    "PyJWT>=2.8",
+    "python-multipart>=0.0.9",
+    "shared-contracts",
+    "greyeye-observability",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ingest_service"]
+
+[tool.uv.sources]
+shared-contracts = { workspace = true }
+greyeye-observability = { workspace = true }

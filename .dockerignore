@@ -1,0 +1,47 @@
+# Version control
+.git
+.gitignore
+
+# IDE / editor
+.vscode
+.cursor
+.idea
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+dist
+build
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Virtual environments
+.venv
+venv
+.uv
+
+# Node (Flutter web, tooling)
+node_modules
+
+# Infrastructure (don't send infra into service builds)
+infra/terraform
+
+# Documentation
+docs
+
+# ML data and large artifacts
+ml/data/*.tar.gz
+ml/data/*.zip
+ml/data/raw
+
+# OS files
+.DS_Store
+Thumbs.db

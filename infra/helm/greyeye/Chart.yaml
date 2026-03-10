@@ -1,0 +1,35 @@
+apiVersion: v2
+name: greyeye
+description: GreyEye Traffic Analysis AI — Umbrella Helm Chart
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: api-gateway
+    version: 0.1.0
+    condition: api-gateway.enabled
+  - name: auth-service
+    version: 0.1.0
+    condition: auth-service.enabled
+  - name: config-service
+    version: 0.1.0
+    condition: config-service.enabled
+  - name: ingest-service
+    version: 0.1.0
+    condition: ingest-service.enabled
+  - name: inference-worker
+    version: 0.1.0
+    condition: inference-worker.enabled
+  - name: aggregator
+    version: 0.1.0
+    condition: aggregator.enabled
+  - name: reporting-api
+    version: 0.1.0
+    condition: reporting-api.enabled
+  - name: notification-service
+    version: 0.1.0
+    condition: notification-service.enabled
+  - name: pgbackrest
+    version: 0.1.0
+    condition: pgbackrest.enabled

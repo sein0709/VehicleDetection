@@ -1,0 +1,126 @@
+###############################################################################
+# GreyEye — Staging Values Override
+#
+# Usage:
+#   helm install greyeye ./infra/helm/greyeye \
+#     -f ./infra/helm/greyeye/values-staging.yaml \
+#     --set global.supabase.url=https://xxx.supabase.co
+###############################################################################
+
+global:
+  imageRegistry: "ghcr.io/greyeye"
+
+  postgresql:
+    host: greyeye-postgres-rw.greyeye-data.svc
+    port: 5432
+    database: greyeye
+
+  redis:
+    host: greyeye-redis-master.greyeye-data.svc
+    port: 6379
+
+  nats:
+    url: nats://greyeye-nats.greyeye-data.svc:4222
+
+  s3:
+    endpoint: https://s3.ap-northeast-2.amazonaws.com
+    bucketFrames: greyeye-frames-staging
+    bucketExports: greyeye-exports-staging
+    bucketModels: greyeye-models-staging
+    bucketHardExamples: greyeye-hard-examples-staging
+
+# ── API Gateway ──────────────────────────────────────────────────────────────
+api-gateway:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+# ── Auth Service ─────────────────────────────────────────────────────────────
+auth-service:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── Config Service ───────────────────────────────────────────────────────────
+config-service:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── Ingest Service ───────────────────────────────────────────────────────────
+ingest-service:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── Inference Worker ─────────────────────────────────────────────────────────
+inference-worker:
+  replicaCount: 1
+  gpu:
+    enabled: true
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 1000m
+      nvidia.com/gpu: "1"
+    limits:
+      memory: 4Gi
+      cpu: 2000m
+      nvidia.com/gpu: "1"
+  modelVolume:
+    enabled: true
+    storageClass: gp3
+    size: 5Gi
+
+# ── Aggregator ───────────────────────────────────────────────────────────────
+aggregator:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── Reporting API ────────────────────────────────────────────────────────────
+reporting-api:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+# ── Notification Service ────────────────────────────────────────────────────
+notification-service:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 250m

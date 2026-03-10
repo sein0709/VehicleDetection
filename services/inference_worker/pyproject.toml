@@ -1,0 +1,51 @@
+[project]
+name = "inference-worker"
+version = "0.1.0"
+description = "GreyEye Inference Worker — detection, tracking, classification pipeline"
+requires-python = ">=3.11"
+
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "nats-py>=2.9",
+    "redis>=5.2",
+    "numpy>=1.26",
+    "Pillow>=10.0",
+    "shared-contracts",
+    "greyeye-observability",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "onnxruntime-gpu>=1.19",
+    "torch>=2.4",
+]
+cpu = [
+    "onnxruntime>=1.19",
+]
+cv = [
+    "opencv-python-headless>=4.8",
+]
+s3 = [
+    "boto3>=1.34",
+]
+scipy = [
+    "scipy>=1.11",
+]
+all = [
+    "inference-worker[cpu,cv,s3,scipy]",
+]
+
+[project.scripts]
+inference-worker = "inference_worker.worker:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["inference_worker"]
+
+[tool.uv.sources]
+shared-contracts = { workspace = true }
+greyeye-observability = { workspace = true }

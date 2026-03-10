@@ -1,0 +1,200 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "pgbackrest.fullname" . }}-restore-drill
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pgbackrest.labels" . | nindent 4 }}
+    greyeye.io/backup-type: restore-drill
+spec:
+  # 1st Saturday of each month at 03:00 UTC (per docs/07-backup-and-recovery.md §10)
+  schedule: "0 3 1-7 * 6"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 6
+  failedJobsHistoryLimit: 6
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "pgbackrest.labels" . | nindent 8 }}
+        greyeye.io/backup-type: restore-drill
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 21600
+      template:
+        metadata:
+          labels:
+            {{- include "pgbackrest.labels" . | nindent 12 }}
+            greyeye.io/backup-type: restore-drill
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name | default (include "pgbackrest.fullname" .) }}
+          restartPolicy: Never
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          initContainers:
+            - name: restore
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  PITR_TARGET=$(date -u -d '30 minutes ago' +%Y-%m-%d\ %H:%M:%S 2>/dev/null || \
+                                date -u -v-30M +%Y-%m-%d\ %H:%M:%S)
+                  echo "Restore drill: PITR target = ${PITR_TARGET}"
+
+                  mkdir -p /var/lib/postgresql/drill-data
+
+                  pgbackrest --stanza={{ .Values.stanza }} \
+                    --type=time \
+                    --target="${PITR_TARGET}" \
+                    --target-action=promote \
+                    --pg1-path=/var/lib/postgresql/drill-data \
+                    --delta \
+                    restore
+
+                  echo "pgBackRest restore completed"
+              env:
+                - name: PGBACKREST_CONFIG
+                  value: /etc/pgbackrest/pgbackrest.conf
+                - name: PGBACKREST_REPO1_S3_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.s3.existingSecret }}
+                      key: {{ .Values.s3.secretKeys.accessKey }}
+                - name: PGBACKREST_REPO1_S3_KEY_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.s3.existingSecret }}
+                      key: {{ .Values.s3.secretKeys.secretKey }}
+                - name: PGBACKREST_REPO1_CIPHER_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.encryption.existingSecret }}
+                      key: {{ .Values.encryption.secretKey }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: config
+                  mountPath: /etc/pgbackrest
+                  readOnly: true
+                - name: drill-data
+                  mountPath: /var/lib/postgresql/drill-data
+            - name: start-ephemeral-pg
+              image: postgres:16-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "Starting ephemeral PostgreSQL on restored data..."
+                  chown -R postgres:postgres /var/lib/postgresql/drill-data
+                  su - postgres -c "pg_ctl -D /var/lib/postgresql/drill-data -l /tmp/pg.log start -w -t 120"
+                  echo "Ephemeral PostgreSQL started"
+                  su - postgres -c "pg_isready -h localhost -t 30"
+              volumeMounts:
+                - name: drill-data
+                  mountPath: /var/lib/postgresql/drill-data
+          containers:
+            - name: validate
+              image: postgres:16-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "=== Restore Drill Validation ==="
+                  echo "Started at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+                  PASS=0
+                  FAIL=0
+
+                  run_check() {
+                    local desc="$1"
+                    local query="$2"
+                    local result
+                    result=$(psql -h localhost -U postgres -d greyeye -t -A -c "$query" 2>&1) || true
+                    if [ -n "$result" ] && [ "$result" != "0" ] && [ "$result" != "" ]; then
+                      echo "  PASS: $desc (result: $result)"
+                      PASS=$((PASS + 1))
+                    else
+                      echo "  FAIL: $desc (result: $result)"
+                      FAIL=$((FAIL + 1))
+                    fi
+                  }
+
+                  echo ""
+                  echo "--- Table Existence Checks ---"
+                  run_check "organizations table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='organizations'"
+                  run_check "users table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='users'"
+                  run_check "sites table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='sites'"
+                  run_check "cameras table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='cameras'"
+                  run_check "vehicle_crossings table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='vehicle_crossings'"
+                  run_check "agg_vehicle_counts_15m table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='agg_vehicle_counts_15m'"
+                  run_check "alert_rules table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='alert_rules'"
+                  run_check "audit_logs table exists" \
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name='audit_logs'"
+
+                  echo ""
+                  echo "--- Row Count Checks ---"
+                  run_check "organizations has rows" \
+                    "SELECT count(*) FROM organizations"
+                  run_check "users has rows" \
+                    "SELECT count(*) FROM users"
+
+                  echo ""
+                  echo "--- Data Freshness Checks ---"
+                  run_check "recent vehicle_crossings exist" \
+                    "SELECT count(*) FROM vehicle_crossings WHERE crossed_at > now() - interval '2 days'"
+                  run_check "recent aggregation buckets exist" \
+                    "SELECT count(*) FROM agg_vehicle_counts_15m WHERE bucket_start > now() - interval '2 days'"
+
+                  echo ""
+                  echo "--- Constraint & Index Checks ---"
+                  run_check "RLS is enabled on organizations" \
+                    "SELECT count(*) FROM pg_tables WHERE tablename='organizations' AND rowsecurity=true"
+                  run_check "indexes exist on vehicle_crossings" \
+                    "SELECT count(*) FROM pg_indexes WHERE tablename='vehicle_crossings'"
+
+                  echo ""
+                  echo "--- Function & Trigger Checks ---"
+                  run_check "trigger functions exist" \
+                    "SELECT count(*) FROM information_schema.routines WHERE routine_schema='public' AND routine_type='FUNCTION'"
+
+                  echo ""
+                  echo "=== Drill Summary ==="
+                  echo "  Passed: $PASS"
+                  echo "  Failed: $FAIL"
+                  echo "  Completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+                  # Shut down ephemeral PG
+                  su - postgres -c "pg_ctl -D /var/lib/postgresql/drill-data stop -m fast" || true
+
+                  if [ "$FAIL" -gt 0 ]; then
+                    echo "RESTORE DRILL FAILED — $FAIL checks did not pass"
+                    exit 1
+                  fi
+                  echo "RESTORE DRILL PASSED"
+              volumeMounts:
+                - name: drill-data
+                  mountPath: /var/lib/postgresql/drill-data
+          volumes:
+            - name: config
+              configMap:
+                name: {{ include "pgbackrest.fullname" . }}-config
+            - name: drill-data
+              emptyDir:
+                sizeLimit: 50Gi

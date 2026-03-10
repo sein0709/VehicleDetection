@@ -1,0 +1,141 @@
+###############################################################################
+# GreyEye — Monthly Restore Drill
+#
+# Triggers the restore drill CronJob on demand or on a monthly schedule.
+# Per docs/07-backup-and-recovery.md Section 10 (DM-8):
+#   Automated PITR drill: 1st Saturday 03:00 UTC
+#
+# The K8s CronJob handles the actual drill; this workflow provides
+# visibility, notifications, and audit trail in GitHub Actions.
+###############################################################################
+
+name: Restore Drill
+
+on:
+  schedule:
+    # 1st Saturday of each month at 03:00 UTC
+    # (CronJob also runs on this schedule as a fallback)
+    - cron: "0 3 1-7 * 6"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+concurrency:
+  group: restore-drill-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+  AWS_REGION: ap-northeast-2
+  K8S_NAMESPACE: greyeye-data
+
+jobs:
+  trigger-drill:
+    name: Trigger Restore Drill
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PRODUCTION }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --name greyeye-${{ env.ENVIRONMENT }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Trigger restore drill job
+        id: trigger
+        run: |
+          JOB_NAME="greyeye-pgbackrest-drill-gh-$(date +%s)"
+          echo "job_name=${JOB_NAME}" >> "$GITHUB_OUTPUT"
+
+          kubectl create job \
+            --from=cronjob/greyeye-pgbackrest-restore-drill \
+            "${JOB_NAME}" \
+            -n "$K8S_NAMESPACE"
+
+          echo "Triggered restore drill job: ${JOB_NAME}"
+
+      - name: Wait for drill completion
+        timeout-minutes: 360
+        run: |
+          echo "Waiting for job ${{ steps.trigger.outputs.job_name }} to complete..."
+          kubectl wait --for=condition=complete \
+            --timeout=21000s \
+            "job/${{ steps.trigger.outputs.job_name }}" \
+            -n "$K8S_NAMESPACE" || {
+              echo "::error::Restore drill job did not complete within timeout"
+              kubectl logs "job/${{ steps.trigger.outputs.job_name }}" \
+                -n "$K8S_NAMESPACE" --all-containers --tail=100
+              exit 1
+            }
+
+      - name: Collect drill results
+        if: always()
+        run: |
+          echo "=== Restore Drill Results ==="
+          kubectl logs "job/${{ steps.trigger.outputs.job_name }}" \
+            -n "$K8S_NAMESPACE" --all-containers
+
+      - name: Check drill outcome
+        run: |
+          STATUS=$(kubectl get job "${{ steps.trigger.outputs.job_name }}" \
+            -n "$K8S_NAMESPACE" \
+            -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
+
+          if [[ "$STATUS" == "True" ]]; then
+            echo "Restore drill PASSED"
+          else
+            echo "::error::Restore drill FAILED"
+            exit 1
+          fi
+
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: trigger-drill
+    if: always()
+    steps:
+      - name: Send notification
+        run: |
+          STATUS="${{ needs.trigger-drill.result }}"
+          if [[ "$STATUS" == "success" ]]; then
+            EMOJI="✅"
+            MSG="Monthly restore drill PASSED"
+          else
+            EMOJI="❌"
+            MSG="Monthly restore drill FAILED — immediate investigation required"
+          fi
+
+          echo "${EMOJI} ${MSG}"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Webhook notification (Slack/Teams/PagerDuty)
+          if [[ -n "${WEBHOOK_URL:-}" ]]; then
+            curl -s -X POST "$WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"${EMOJI} ${MSG}\",
+                \"environment\": \"${{ env.ENVIRONMENT }}\",
+                \"run_url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+              }" || true
+          fi
+        env:
+          WEBHOOK_URL: ${{ secrets.BACKUP_WEBHOOK_URL }}

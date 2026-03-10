@@ -1,0 +1,85 @@
+[project]
+name = "greyeye"
+version = "0.1.0"
+description = "GreyEye Traffic Analysis AI — Monorepo"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "libs/shared_contracts",
+    "libs/db_models",
+    "libs/test_utils",
+    "libs/observability",
+    "services/auth_service",
+    "services/config_service",
+    "services/ingest_service",
+    "services/inference_worker",
+    "services/aggregator",
+    "services/reporting_api",
+    "services/notification_service",
+    "ml",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "shared_contracts",
+    "db_models",
+    "test_utils",
+    "observability",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["nats.*", "minio.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["libs", "services", "ml"]
+asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "loadtest: marks tests as load/performance tests (deselect with '-m \"not loadtest\"')",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "ml/data", "infra"]
+skips = ["B101"]  # assert used in tests

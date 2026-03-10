@@ -1,0 +1,23 @@
+{{- if .Values.createNamespaces | default false }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greyeye-api
+  labels:
+    app.kubernetes.io/part-of: greyeye
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greyeye-processing
+  labels:
+    app.kubernetes.io/part-of: greyeye
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greyeye-data
+  labels:
+    app.kubernetes.io/part-of: greyeye
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: reporting-api
+description: "GreyEye Reporting API — analytics queries and report export"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

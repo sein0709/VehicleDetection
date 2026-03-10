@@ -1,0 +1,129 @@
+###############################################################################
+# GreyEye — Deploy to Staging
+#
+# Automatically deploys to staging after CI passes on main. Runs Helm upgrade
+# with staging values, then executes smoke tests. Failure triggers automatic
+# rollback.
+###############################################################################
+
+name: Deploy Staging
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/greyeye
+  HELM_RELEASE: greyeye
+  HELM_CHART: infra/helm/greyeye
+  K8S_NAMESPACE: greyeye-staging
+  AWS_REGION: ap-northeast-2
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  # ── Guard: only deploy if CI succeeded ─────────────────────────────────────
+  check-ci:
+    name: Verify CI
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    outputs:
+      image_tag: ${{ steps.tag.outputs.sha }}
+    steps:
+      - name: Resolve image tag
+        id: tag
+        run: echo "sha=$(echo '${{ github.event.workflow_run.head_sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  deploy:
+    name: Helm Deploy
+    runs-on: ubuntu-latest
+    needs: check-ci
+    environment:
+      name: staging
+      url: https://api-staging.greyeye.io/healthz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_STAGING }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name greyeye-staging --region ${{ env.AWS_REGION }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Helm dependency update
+        run: helm dependency update ${{ env.HELM_CHART }}
+
+      - name: Deploy to staging
+        run: |
+          IMAGE_TAG="${{ needs.check-ci.outputs.image_tag }}"
+          helm upgrade --install ${{ env.HELM_RELEASE }} ${{ env.HELM_CHART }} \
+            --namespace ${{ env.K8S_NAMESPACE }} \
+            --create-namespace \
+            -f ${{ env.HELM_CHART }}/values-staging.yaml \
+            --set global.imageTag="${IMAGE_TAG}" \
+            --wait \
+            --timeout 10m
+
+      - name: Verify rollout
+        run: |
+          SERVICES=(api-gateway auth-service config-service ingest-service inference-worker aggregator reporting-api notification-service)
+          for svc in "${SERVICES[@]}"; do
+            echo "Checking deployment: ${svc}..."
+            kubectl rollout status deployment/${HELM_RELEASE}-${svc} \
+              --namespace ${{ env.K8S_NAMESPACE }} \
+              --timeout=5m || true
+          done
+
+  # ── Smoke Tests ────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Wait for services to stabilize
+        run: sleep 30
+
+      - name: Run smoke tests
+        uses: ./.github/actions/smoke-test
+        with:
+          api_base_url: https://api-staging.greyeye.io
+          smoke_test_password: ${{ secrets.SMOKE_TEST_PASSWORD }}
+
+      - name: Configure AWS credentials (for rollback)
+        if: failure()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_STAGING }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig (for rollback)
+        if: failure()
+        run: aws eks update-kubeconfig --name greyeye-staging --region ${{ env.AWS_REGION }}
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "::warning::Smoke tests failed — rolling back staging deployment."
+          helm rollback ${{ env.HELM_RELEASE }} --namespace ${{ env.K8S_NAMESPACE }} --wait --timeout 5m

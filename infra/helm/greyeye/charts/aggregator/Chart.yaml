@@ -1,0 +1,6 @@
+apiVersion: v2
+name: aggregator
+description: "GreyEye Aggregation Service — 15-minute bucket computation"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

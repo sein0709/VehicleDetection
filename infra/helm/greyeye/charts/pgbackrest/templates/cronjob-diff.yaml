@@ -1,0 +1,86 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "pgbackrest.fullname" . }}-diff
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pgbackrest.labels" . | nindent 4 }}
+    greyeye.io/backup-type: differential
+spec:
+  schedule: {{ .Values.schedule.differential | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "pgbackrest.labels" . | nindent 8 }}
+        greyeye.io/backup-type: differential
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            {{- include "pgbackrest.labels" . | nindent 12 }}
+            greyeye.io/backup-type: differential
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name | default (include "pgbackrest.fullname" .) }}
+          restartPolicy: OnFailure
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: pgbackrest-diff
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "Starting differential backup at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                  pgbackrest --stanza={{ .Values.stanza }} --type=diff backup
+                  echo "Differential backup completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              env:
+                - name: PGBACKREST_CONFIG
+                  value: /etc/pgbackrest/pgbackrest.conf
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.postgresql.existingSecret }}
+                      key: {{ .Values.postgresql.secretKeys.password }}
+                - name: PGBACKREST_REPO1_S3_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.s3.existingSecret }}
+                      key: {{ .Values.s3.secretKeys.accessKey }}
+                - name: PGBACKREST_REPO1_S3_KEY_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.s3.existingSecret }}
+                      key: {{ .Values.s3.secretKeys.secretKey }}
+                - name: PGBACKREST_REPO1_CIPHER_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.encryption.existingSecret }}
+                      key: {{ .Values.encryption.secretKey }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: config
+                  mountPath: /etc/pgbackrest
+                  readOnly: true
+          volumes:
+            - name: config
+              configMap:
+                name: {{ include "pgbackrest.fullname" . }}-config

@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+
+# uv
+.uv/
+uv.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+test-results.xml
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+!.env.loadtest.example
+
+# Load test results
+tests/loadtest/results/*.json
+tests/loadtest/results/*.csv
+!tests/loadtest/results/.gitkeep
+
+# Secrets
+credentials.json
+*.pem
+*.key
+
+# ML artefacts
+*.onnx
+*.pt
+*.pth
+*.torchscript
+wandb/
+mlruns/
+
+# Supabase local
+supabase/.temp/
+
+# MinIO data
+minio-data/
+
+# Reference documents (not source code)
+Documents/
+교통량 조사프로그램 관련*/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
