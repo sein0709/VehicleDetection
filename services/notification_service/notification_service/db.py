@@ -6,6 +6,7 @@ Uses SQLAlchemy Core with asyncpg for non-blocking Postgres access.
 from __future__ import annotations
 
 import logging
+import ssl
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -75,10 +76,20 @@ class NotificationDB:
     """Async database client for alert rules and events."""
 
     def __init__(self, settings: Settings) -> None:
+        dsn = settings.database_url
+        if not dsn.startswith("postgresql+asyncpg://"):
+            dsn = dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+        connect_args: dict[str, Any] = {}
+        if ".supabase.com" in dsn or ".supabase.co" in dsn:
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+            connect_args["ssl"] = ssl_ctx
         self._engine: AsyncEngine = create_async_engine(
-            settings.database_url,
+            dsn,
             pool_size=5,
             max_overflow=10,
+            connect_args=connect_args,
         )
 
     async def close(self) -> None:

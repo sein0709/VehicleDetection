@@ -135,7 +135,7 @@ class SupabaseAuthClient:
             .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     async def create_user_record(
         self,
@@ -173,7 +173,7 @@ class SupabaseAuthClient:
             .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     async def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         result = (
@@ -183,7 +183,7 @@ class SupabaseAuthClient:
             .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     async def get_users_by_org(self, org_id: UUID) -> list[dict[str, Any]]:
         result = (

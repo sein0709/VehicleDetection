@@ -14,6 +14,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+import ssl
+
 import asyncpg
 
 logger = logging.getLogger(__name__)
@@ -24,8 +26,26 @@ _pool: asyncpg.Pool | None = None
 async def connect(database_url: str) -> None:
     """Create the module-level connection pool."""
     global _pool
-    dsn = database_url.replace("postgresql://", "postgres://", 1)
-    _pool = await asyncpg.create_pool(dsn, min_size=2, max_size=10)
+    from urllib.parse import urlparse
+
+    dsn = database_url.replace("postgresql+asyncpg://", "postgresql://")
+    kwargs: dict[str, Any] = {"min_size": 2, "max_size": 10}
+    if ".supabase.co" in dsn or ".supabase.com" in dsn:
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        kwargs["ssl"] = ssl_ctx
+        parsed = urlparse(dsn)
+        kwargs.update(
+            host=parsed.hostname,
+            port=parsed.port or 5432,
+            user=parsed.username,
+            password=parsed.password,
+            database=parsed.path.lstrip("/") or "postgres",
+        )
+        _pool = await asyncpg.create_pool(**kwargs)
+    else:
+        _pool = await asyncpg.create_pool(dsn, **kwargs)
     logger.info("AsyncPG pool connected")
 
 

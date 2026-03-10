@@ -84,7 +84,7 @@ class ConfigDB:
             .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     async def list_sites(
         self,
@@ -204,7 +204,7 @@ class ConfigDB:
             .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     async def list_cameras(
         self,
@@ -355,7 +355,7 @@ class ConfigDB:
             .maybe_single()
             .execute()
         )
-        if not result.data:
+        if not result or not result.data:
             return None
         preset = result.data
         preset["counting_lines"] = self._get_counting_lines_sync(preset_id)
@@ -549,7 +549,7 @@ class ConfigDB:
             .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     def rollback_entity_version(self, entity_type: str, entity_id: UUID, new_version: int) -> None:
         """Update the active version number on the entity table after rollback."""

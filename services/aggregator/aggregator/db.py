@@ -7,6 +7,7 @@ from Section 5.6 of the software design doc.
 from __future__ import annotations
 
 import logging
+import ssl
 from datetime import datetime  # noqa: TC003
 from typing import Any
 
@@ -94,8 +95,26 @@ class AggregatorDB:
         self._pool: asyncpg.Pool | None = None
 
     async def connect(self, database_url: str) -> None:
+        from urllib.parse import urlparse
+
         dsn = database_url.replace("postgresql+asyncpg://", "postgresql://")
-        self._pool = await asyncpg.create_pool(dsn, min_size=2, max_size=10)
+        kwargs: dict[str, Any] = {"min_size": 2, "max_size": 10}
+        if ".supabase.co" in dsn or ".supabase.com" in dsn:
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+            kwargs["ssl"] = ssl_ctx
+            parsed = urlparse(dsn)
+            kwargs.update(
+                host=parsed.hostname,
+                port=parsed.port or 5432,
+                user=parsed.username,
+                password=parsed.password,
+                database=parsed.path.lstrip("/") or "postgres",
+            )
+            self._pool = await asyncpg.create_pool(**kwargs)
+        else:
+            self._pool = await asyncpg.create_pool(dsn, **kwargs)
         logger.info("Database pool opened")
 
     async def close(self) -> None:
