@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import TEST_ORG_ID, TEST_SITE_ID, TEST_USER_ID
+from config_service.test_support import TEST_ORG_ID, TEST_SITE_ID, TEST_USER_ID
 
 
 def _make_version(

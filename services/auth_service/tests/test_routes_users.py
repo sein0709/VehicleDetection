@@ -8,7 +8,12 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from .conftest import TEST_ADMIN_ID, TEST_ORG_ID, TEST_USER_ID, _make_user_record
+from auth_service.test_support import (
+    TEST_ADMIN_ID,
+    TEST_ORG_ID,
+    TEST_USER_ID,
+    make_user_record as _make_user_record,
+)
 
 
 class TestGetMe:

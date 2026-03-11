@@ -14,7 +14,7 @@ from uuid import UUID
 import jwt
 from fastapi import Depends, Header, HTTPException, Request, status
 
-from reporting_api.settings import get_settings
+from reporting_api.settings import Settings, get_settings
 from shared_contracts.enums import UserRole
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ async def get_current_user(
         )
 
     token = authorization.removeprefix("Bearer ").strip()
-    settings = get_settings()
+    settings = _get_request_settings(request)
 
     try:
         payload = jwt.decode(
@@ -87,6 +87,13 @@ async def get_current_user(
         )
 
     return TokenClaims(payload)
+
+
+def _get_request_settings(request: Request) -> Settings:
+    settings = getattr(request.app.state, "settings", None)
+    if isinstance(settings, Settings):
+        return settings
+    return get_settings()
 
 
 CurrentUser = Annotated[TokenClaims, Depends(get_current_user)]

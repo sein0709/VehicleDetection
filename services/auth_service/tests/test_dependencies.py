@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from auth_service.tokens import TokenService
 
-from .conftest import TEST_ADMIN_ID, TEST_ORG_ID, TEST_USER_ID
+from auth_service.test_support import TEST_ADMIN_ID, TEST_ORG_ID, TEST_USER_ID
 
 
 class TestAuthDependency:

@@ -5,6 +5,7 @@ Implements the site endpoints from 02-software-design.md Section 3.2.
 
 from __future__ import annotations
 
+import struct
 import logging
 from uuid import UUID
 
@@ -22,6 +23,54 @@ from shared_contracts.pagination import PaginatedResponse, PaginationMeta
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/sites", tags=["sites"])
+
+
+def _normalize_site(site: dict) -> dict:
+    normalized = dict(site)
+    normalized["location"] = _normalize_location(site.get("location"))
+    return normalized
+
+
+def _normalize_location(value: object) -> dict | None | object:
+    if value is None or isinstance(value, dict):
+        return value
+    if not isinstance(value, str):
+        return value
+
+    if value.startswith("POINT(") and value.endswith(")"):
+        try:
+            longitude, latitude = value[6:-1].split()
+            return {
+                "type": "Point",
+                "coordinates": [float(longitude), float(latitude)],
+            }
+        except ValueError:
+            return value
+
+    try:
+        raw = bytes.fromhex(value)
+    except ValueError:
+        return value
+
+    if len(raw) < 21:
+        return value
+
+    byte_order = raw[0]
+    endian = "<" if byte_order == 1 else ">"
+    geom_type = struct.unpack(f"{endian}I", raw[1:5])[0]
+    has_srid = bool(geom_type & 0x20000000)
+    base_type = geom_type & 0xFF
+    offset = 5
+    if has_srid:
+        offset += 4
+    if base_type != 1 or len(raw) < offset + 16:
+        return value
+
+    longitude, latitude = struct.unpack(f"{endian}dd", raw[offset : offset + 16])
+    return {
+        "type": "Point",
+        "coordinates": [longitude, latitude],
+    }
 
 
 @router.post("", response_model=SiteResponse, status_code=status.HTTP_201_CREATED)
@@ -54,7 +103,7 @@ async def create_site(
         user_agent=request.headers.get("user-agent"),
     )
 
-    return SiteResponse(**site)
+    return SiteResponse(**_normalize_site(site))
 
 
 @router.get("", response_model=PaginatedResponse[SiteResponse])
@@ -81,7 +130,7 @@ async def list_sites(
     next_cursor = sites[-1]["created_at"] if has_more and sites else None
 
     return PaginatedResponse[SiteResponse](
-        data=[SiteResponse(**s) for s in sites],
+        data=[SiteResponse(**_normalize_site(s)) for s in sites],
         pagination=PaginationMeta(
             cursor=next_cursor,
             has_more=has_more,
@@ -102,7 +151,7 @@ async def get_site(
     if not site:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
 
-    return SiteResponse(**site)
+    return SiteResponse(**_normalize_site(site))
 
 
 @router.patch("/{site_id}", response_model=SiteResponse)
@@ -147,7 +196,7 @@ async def update_site(
         user_agent=request.headers.get("user-agent"),
     )
 
-    return SiteResponse(**site)
+    return SiteResponse(**_normalize_site(site))
 
 
 @router.delete("/{site_id}", response_model=MessageResponse)

@@ -43,7 +43,7 @@ class AlertRule {
         conditionType: json['condition_type'] as String,
         cameraId: json['camera_id'] as String?,
         siteId: json['site_id'] as String?,
-        threshold: (json['threshold'] as num?)?.toDouble() ?? 0,
+        threshold: _deriveThreshold(json['condition_config']),
         severity: AlertSeverity.values.firstWhere(
           (s) => s.name == json['severity'],
           orElse: () => AlertSeverity.warning,
@@ -57,11 +57,32 @@ class AlertRule {
         'condition_type': conditionType,
         if (cameraId != null) 'camera_id': cameraId,
         if (siteId != null) 'site_id': siteId,
-        'threshold': threshold,
+        'condition_config': {'threshold': threshold},
         'severity': severity.name,
         'enabled': enabled,
         'cooldown_minutes': cooldownMinutes,
       };
+
+  static double _deriveThreshold(Object? config) {
+    if (config is! Map<String, dynamic>) {
+      return 0;
+    }
+
+    const keys = [
+      'threshold',
+      'speed_threshold_kmh',
+      'min_speed_kmh',
+      'max_speed_kmh',
+      'sigma_threshold',
+    ];
+    for (final key in keys) {
+      final value = config[key];
+      if (value is num) {
+        return value.toDouble();
+      }
+    }
+    return 0;
+  }
 }
 
 @immutable
@@ -106,8 +127,10 @@ class AlertEvent {
   factory AlertEvent.fromJson(Map<String, dynamic> json) => AlertEvent(
         id: json['id'] as String,
         ruleId: json['rule_id'] as String,
-        ruleName: json['rule_name'] as String? ?? '',
-        conditionType: json['condition_type'] as String,
+        ruleName: json['rule_name'] as String? ??
+            json['message'] as String? ??
+            'Alert',
+        conditionType: json['condition_type'] as String? ?? '',
         cameraId: json['camera_id'] as String?,
         siteId: json['site_id'] as String?,
         siteName: json['site_name'] as String?,

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
+from datetime import UTC
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
@@ -20,11 +20,13 @@ from auth_service.app import create_app
 from auth_service.redis_client import RedisTokenStore
 from auth_service.settings import Settings
 from auth_service.supabase_client import SupabaseAuthClient
+from auth_service.test_support import (
+    TEST_ADMIN_ID,
+    TEST_ORG_ID,
+    TEST_USER_ID,
+    make_user_record as _make_user_record,
+)
 from auth_service.tokens import TokenService
-
-TEST_ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
-TEST_USER_ID = UUID("00000000-0000-0000-0000-000000000010")
-TEST_ADMIN_ID = UUID("00000000-0000-0000-0000-000000000020")
 
 
 def _make_settings(**overrides: Any) -> Settings:
@@ -44,28 +46,6 @@ def _make_settings(**overrides: Any) -> Settings:
     defaults.update(overrides)
     return Settings(**defaults)
 
-
-def _make_user_record(
-    user_id: UUID = TEST_USER_ID,
-    org_id: UUID = TEST_ORG_ID,
-    role: str = "operator",
-    email: str = "operator@example.com",
-    name: str = "Test Operator",
-    is_active: bool = True,
-) -> dict[str, Any]:
-    return {
-        "id": str(user_id),
-        "org_id": str(org_id),
-        "email": email,
-        "name": name,
-        "role": role,
-        "auth_provider": "email",
-        "auth_provider_id": str(user_id),
-        "is_active": is_active,
-        "last_login_at": None,
-        "created_at": datetime.now(tz=UTC).isoformat(),
-        "updated_at": datetime.now(tz=UTC).isoformat(),
-    }
 
 
 @pytest.fixture

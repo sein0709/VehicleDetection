@@ -97,6 +97,40 @@ class TestListCameras:
         assert len(resp.json()["data"]) == 1
 
 
+class TestGetCamera:
+    def test_get_camera_success(
+        self,
+        client: TestClient,
+        mock_db: MagicMock,
+        operator_headers: dict,
+        sample_camera: dict[str, Any],
+    ) -> None:
+        mock_db.get_camera = AsyncMock(return_value=sample_camera)
+
+        resp = client.get(
+            f"/v1/cameras/{sample_camera['id']}",
+            headers=operator_headers,
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["name"] == sample_camera["name"]
+
+    def test_get_camera_not_found(
+        self,
+        client: TestClient,
+        mock_db: MagicMock,
+        operator_headers: dict,
+    ) -> None:
+        mock_db.get_camera = AsyncMock(return_value=None)
+
+        resp = client.get(
+            "/v1/cameras/00000000-0000-0000-0000-000000000000",
+            headers=operator_headers,
+        )
+
+        assert resp.status_code == 404
+
+
 class TestUpdateCamera:
     def test_update_camera_success(
         self,

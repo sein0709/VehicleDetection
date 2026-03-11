@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import TEST_CAMERA_ID, TEST_SITE_ID
+from reporting_api.test_support import TEST_CAMERA_ID, TEST_SITE_ID
 
 
 class TestGet15mBuckets:

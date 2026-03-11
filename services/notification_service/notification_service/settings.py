@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from shared_contracts.env import repo_env_file
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="GREYEYE_",
-        env_file=".env",
+        env_file=repo_env_file(),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

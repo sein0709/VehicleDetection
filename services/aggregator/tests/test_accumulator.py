@@ -14,7 +14,7 @@ from aggregator.accumulator import BucketAccumulator
 
 from shared_contracts.enums import VehicleClass12
 from shared_contracts.events import compute_bucket_start
-from tests.conftest import make_crossing_event
+from aggregator.test_support import make_crossing_event
 
 
 # -----------------------------------------------------------------------

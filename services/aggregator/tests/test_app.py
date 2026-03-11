@@ -37,24 +37,17 @@ class TestHealthEndpoints:
 
 
 class TestMetricsEndpoint:
-    """Verify /metrics returns accumulator and consumer stats."""
+    """Verify /metrics exposes Prometheus metrics."""
 
-    def test_metrics_returns_stats(self, client: TestClient) -> None:
+    def test_metrics_returns_prometheus_payload(self, client: TestClient) -> None:
         resp = client.get("/metrics")
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["service"] == "aggregator"
-        assert "accumulator" in data
-        assert "consumer" in data
+        assert "text/plain" in resp.headers["content-type"]
+        assert "greyeye_service_info" in resp.text
 
-    def test_metrics_accumulator_has_expected_keys(self, client: TestClient) -> None:
+    def test_metrics_includes_http_series(self, client: TestClient) -> None:
         resp = client.get("/metrics")
-        data = resp.json()
-        acc = data["accumulator"]
-        assert "pending_events" in acc
-        assert "distinct_buckets" in acc
-        assert "rejected_future" in acc
-        assert "late_events" in acc
+        assert "http_request_duration_seconds" in resp.text
 
 
 class TestRequestIdMiddleware:

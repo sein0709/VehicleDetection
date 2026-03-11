@@ -20,6 +20,7 @@ The audience includes developers, architects, QA engineers, and operations staff
 | 05 | [05-ai-ml-pipeline.md](05-ai-ml-pipeline.md) | Detection, tracking, classification, training pipeline, model versioning |
 | 06 | [06-security-and-compliance.md](06-security-and-compliance.md) | Auth, RBAC, encryption, privacy controls, audit logging |
 | 07 | [07-backup-and-recovery.md](07-backup-and-recovery.md) | Backup strategy, RPO/RTO targets, disaster recovery, restore drills |
+| 08 | [08-deployment-readiness-checklist.md](08-deployment-readiness-checklist.md) | Current pre-deploy checklist, fixed blockers, and remaining launch risks |
 
 ---
 

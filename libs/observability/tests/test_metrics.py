@@ -44,37 +44,37 @@ class TestMetricsRegistered:
     def test_http_metrics_exist(self) -> None:
         names = {m.name for m in REGISTRY.collect()}
         assert "http_request_duration_seconds" in names
-        assert "http_requests_total" in names
+        assert "http_requests" in names
         assert "http_active_requests" in names
 
     def test_inference_metrics_exist(self) -> None:
         names = {m.name for m in REGISTRY.collect()}
         assert "inference_frame_duration_seconds" in names
         assert "inference_stage_duration_seconds" in names
-        assert "inference_detections_total" in names
-        assert "inference_crossings_total" in names
+        assert "inference_detections" in names
+        assert "inference_crossings" in names
         assert "inference_queue_pending_messages" in names
 
     def test_aggregator_metrics_exist(self) -> None:
         names = {m.name for m in REGISTRY.collect()}
         assert "aggregator_bucket_lag_seconds" in names
         assert "aggregator_flush_rows" in names
-        assert "aggregator_events_consumed_total" in names
-        assert "aggregator_late_events_total" in names
+        assert "aggregator_events_consumed" in names
+        assert "aggregator_late_events" in names
 
     def test_alert_metrics_exist(self) -> None:
         names = {m.name for m in REGISTRY.collect()}
-        assert "alerts_fired_total" in names
-        assert "alerts_suppressed_total" in names
+        assert "alerts_fired" in names
+        assert "alerts_suppressed" in names
         assert "alert_delivery_duration_seconds" in names
-        assert "alert_delivery_failures_total" in names
+        assert "alert_delivery_failures" in names
 
     def test_nats_metrics_exist(self) -> None:
         names = {m.name for m in REGISTRY.collect()}
-        assert "nats_messages_received_total" in names
-        assert "nats_messages_acked_total" in names
-        assert "nats_messages_nacked_total" in names
-        assert "nats_dlq_messages_total" in names
+        assert "nats_messages_received" in names
+        assert "nats_messages_acked" in names
+        assert "nats_messages_nacked" in names
+        assert "nats_dlq_messages" in names
 
     def test_db_pool_metrics_exist(self) -> None:
         names = {m.name for m in REGISTRY.collect()}

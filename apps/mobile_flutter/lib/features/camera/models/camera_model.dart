@@ -79,12 +79,14 @@ class Camera {
             ? CameraSettings.fromJson(json['settings'] as Map<String, dynamic>)
             : const CameraSettings(),
         status: json['status'] as String? ?? 'offline',
-        configVersion: json['config_version'] as int? ?? 1,
+        configVersion: json['active_config_version'] as int? ??
+            json['config_version'] as int? ??
+            1,
         createdAt: json['created_at'] != null
             ? DateTime.parse(json['created_at'] as String)
             : null,
-        lastHeartbeat: json['last_heartbeat'] != null
-            ? DateTime.parse(json['last_heartbeat'] as String)
+        lastHeartbeat: json['last_seen_at'] != null
+            ? DateTime.parse(json['last_seen_at'] as String)
             : null,
       );
 

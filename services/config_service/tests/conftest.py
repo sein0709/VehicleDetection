@@ -15,10 +15,8 @@ from config_service.db import ConfigDB
 from config_service.redis_client import CameraHealthCache
 from config_service.settings import Settings
 from fastapi.testclient import TestClient
+from config_service.test_support import TEST_ORG_ID, TEST_SITE_ID, TEST_USER_ID
 
-TEST_ORG_ID = uuid4()
-TEST_USER_ID = uuid4()
-TEST_SITE_ID = uuid4()
 TEST_CAMERA_ID = uuid4()
 TEST_PRESET_ID = uuid4()
 

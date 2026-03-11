@@ -13,11 +13,13 @@ import pytest
 from fastapi.testclient import TestClient
 from reporting_api.app import create_app
 from reporting_api.settings import Settings
+from reporting_api.test_support import (
+    TEST_CAMERA_ID,
+    TEST_ORG_ID,
+    TEST_SITE_ID,
+    TEST_USER_ID,
+)
 
-TEST_ORG_ID = uuid4()
-TEST_USER_ID = uuid4()
-TEST_CAMERA_ID = uuid4()
-TEST_SITE_ID = uuid4()
 TEST_LINE_ID = uuid4()
 
 JWT_SECRET = "test-secret"

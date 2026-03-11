@@ -262,7 +262,7 @@ class MetricsMiddleware:
         path = _normalize_path(scope.get("path", ""))
         method = scope.get("method", "GET")
 
-        if path == "/metrics" or path == "/healthz":
+        if path in {"/metrics", "/metrics/", "/healthz"}:
             await self.app(scope, receive, send)
             return
 
@@ -305,4 +305,6 @@ def get_metrics_app() -> Any:
         body = generate_latest(_registry)
         return Response(content=body, media_type="text/plain; version=0.0.4; charset=utf-8")
 
-    return Starlette(routes=[Route("/metrics", metrics_endpoint)])
+    # This app is mounted at /metrics by each service, so its internal route
+    # must live at "/" to avoid a redirect to "/metrics/" followed by a 404.
+    return Starlette(routes=[Route("/", metrics_endpoint)])

@@ -17,6 +17,13 @@ from observability.logging import (
 )
 
 
+def _capture_json_line(capture) -> dict[str, object]:
+    captured = capture.readouterr()
+    output = captured.out.strip() or captured.err.strip()
+    line = output.split("\n")[-1]
+    return json.loads(line)
+
+
 class TestSetupLogging:
     def setup_method(self) -> None:
         reset_logging()
@@ -40,9 +47,7 @@ class TestSetupLogging:
         setup_logging(service_name="test-svc", log_level="INFO", json_output=True)
         logger = get_logger("test.json")
         logger.info("hello", key="value")
-        captured = capsys.readouterr()
-        line = captured.out.strip().split("\n")[-1]
-        data = json.loads(line)
+        data = _capture_json_line(capsys)
         assert data["event"] == "hello"
         assert data["key"] == "value"
 
@@ -65,42 +70,34 @@ class TestContextVarInjection:
         org_id_var.set("")
         reset_logging()
 
-    def test_request_id_injected(self, capsys) -> None:
+    def test_request_id_injected(self, caplog) -> None:
         request_id_var.set("req-abc-123")
         logger = get_logger("test.ctx")
         logger.info("with_request_id")
-        captured = capsys.readouterr()
-        line = captured.out.strip().split("\n")[-1]
-        data = json.loads(line)
+        data = caplog.records[-1].msg
         assert data["request_id"] == "req-abc-123"
 
-    def test_camera_id_injected(self, capsys) -> None:
+    def test_camera_id_injected(self, caplog) -> None:
         camera_id_var.set("cam-42")
         logger = get_logger("test.ctx")
         logger.info("with_camera")
-        captured = capsys.readouterr()
-        line = captured.out.strip().split("\n")[-1]
-        data = json.loads(line)
+        data = caplog.records[-1].msg
         assert data["camera_id"] == "cam-42"
 
-    def test_org_id_injected(self, capsys) -> None:
+    def test_org_id_injected(self, caplog) -> None:
         org_id_var.set("org-99")
         logger = get_logger("test.ctx")
         logger.info("with_org")
-        captured = capsys.readouterr()
-        line = captured.out.strip().split("\n")[-1]
-        data = json.loads(line)
+        data = caplog.records[-1].msg
         assert data["org_id"] == "org-99"
 
-    def test_empty_vars_not_injected(self, capsys) -> None:
+    def test_empty_vars_not_injected(self, caplog) -> None:
         request_id_var.set("")
         camera_id_var.set("")
         org_id_var.set("")
         logger = get_logger("test.ctx")
         logger.info("no_context")
-        captured = capsys.readouterr()
-        line = captured.out.strip().split("\n")[-1]
-        data = json.loads(line)
+        data = caplog.records[-1].msg
         assert "request_id" not in data
         assert "camera_id" not in data
         assert "org_id" not in data
@@ -116,12 +113,10 @@ class TestGetLogger:
 
     def test_returns_bound_logger(self) -> None:
         logger = get_logger("my.module")
-        assert isinstance(logger, structlog.stdlib.BoundLogger)
+        assert isinstance(logger, structlog._config.BoundLoggerLazyProxy)
 
-    def test_logger_name_in_output(self, capsys) -> None:
+    def test_logger_name_in_output(self, caplog) -> None:
         logger = get_logger("my.named.module")
         logger.info("named_test")
-        captured = capsys.readouterr()
-        line = captured.out.strip().split("\n")[-1]
-        data = json.loads(line)
+        data = caplog.records[-1].msg
         assert data.get("logger") == "my.named.module"

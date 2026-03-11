@@ -15,7 +15,7 @@ class AlertsNotifier extends StateNotifier<AsyncValue<List<AlertEvent>>> {
     try {
       final response =
           await _api.get<Map<String, dynamic>>(ApiConstants.alerts);
-      final items = (response.data?['items'] as List<dynamic>?)
+      final items = (response.data?['data'] as List<dynamic>?)
               ?.map((e) => AlertEvent.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];
@@ -53,7 +53,7 @@ class AlertRulesNotifier extends StateNotifier<AsyncValue<List<AlertRule>>> {
     try {
       final response =
           await _api.get<Map<String, dynamic>>(ApiConstants.alertRules);
-      final items = (response.data?['items'] as List<dynamic>?)
+      final items = (response.data?['data'] as List<dynamic>?)
               ?.map((e) => AlertRule.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];

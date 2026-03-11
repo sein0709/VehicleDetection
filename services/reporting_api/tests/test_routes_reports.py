@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import TEST_CAMERA_ID, TEST_ORG_ID, TEST_USER_ID
+from reporting_api.test_support import TEST_CAMERA_ID, TEST_ORG_ID, TEST_USER_ID
 
 
 class TestCreateExport:

@@ -15,7 +15,7 @@ class SitesNotifier extends StateNotifier<AsyncValue<List<Site>>> {
     try {
       final response = await _api.get<Map<String, dynamic>>(ApiConstants.sites);
       final data = response.data;
-      final items = (data?['items'] as List<dynamic>?)
+      final items = (data?['data'] as List<dynamic>?)
               ?.map((e) => Site.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];

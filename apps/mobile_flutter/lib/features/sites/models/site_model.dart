@@ -59,7 +59,9 @@ class Site {
             : null,
         timezone: json['timezone'] as String? ?? 'Asia/Seoul',
         orgId: json['org_id'] as String,
-        configVersion: json['config_version'] as int? ?? 1,
+        configVersion: json['active_config_version'] as int? ??
+            json['config_version'] as int? ??
+            1,
         status: json['status'] as String? ?? 'active',
         cameraCount: json['camera_count'] as int? ?? 0,
         activeCameraCount: json['active_camera_count'] as int? ?? 0,

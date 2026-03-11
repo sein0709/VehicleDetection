@@ -6,6 +6,26 @@
 -- Helper: extract org_id from Supabase Auth JWT
 -- NOTE: Uses public schema because auth schema is restricted on hosted Supabase
 -- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.schemata
+        WHERE schema_name = 'auth'
+    ) THEN
+        EXECUTE 'CREATE SCHEMA auth';
+        EXECUTE $fn$
+            CREATE FUNCTION auth.jwt() RETURNS JSONB AS $inner$
+                SELECT COALESCE(
+                    NULLIF(current_setting('request.jwt.claims', true), ''),
+                    '{"app_metadata": {}}'
+                )::JSONB;
+            $inner$ LANGUAGE sql STABLE
+        $fn$;
+    END IF;
+END
+$$;
+
 CREATE OR REPLACE FUNCTION public.get_org_id() RETURNS UUID AS $$
     SELECT (auth.jwt() -> 'app_metadata' ->> 'org_id')::UUID;
 $$ LANGUAGE sql STABLE;

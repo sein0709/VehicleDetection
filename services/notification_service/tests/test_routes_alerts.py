@@ -45,6 +45,28 @@ class TestCreateAlertRule:
         )
         assert resp.status_code == 401
 
+    def test_create_rule_applies_default_cooldown_when_omitted(
+        self,
+        client: TestClient,
+        mock_db: MagicMock,
+        operator_headers: dict,
+        sample_rule: dict[str, Any],
+    ) -> None:
+        mock_db.create_rule = AsyncMock(return_value=sample_rule)
+
+        resp = client.post(
+            "/v1/alerts/rules",
+            json={
+                "name": "속도 저하 알림",
+                "condition_type": "speed_drop",
+                "condition_config": {"min_speed_kmh": 10.0},
+            },
+            headers=operator_headers,
+        )
+
+        assert resp.status_code == 201
+        assert mock_db.create_rule.call_args.kwargs["data"]["cooldown_minutes"] == 15
+
     def test_create_rule_viewer_forbidden(
         self, client: TestClient, viewer_headers: dict
     ) -> None:

@@ -180,11 +180,11 @@ cd services/inference_worker && uv run python -m inference_worker.worker
 # Aggregator (port 8006)
 cd services/aggregator && uv run python -m aggregator.app
 
-# Reporting API (port 8007)
-cd services/reporting_api && uv run uvicorn reporting_api.app:app --port 8007 --reload
+# Reporting API (port 8005)
+cd services/reporting_api && uv run uvicorn reporting_api.app:app --port 8005 --reload
 
-# Notification service (port 8008)
-cd services/notification_service && uv run uvicorn notification_service.app:app --port 8008 --reload
+# Notification service (port 8007)
+cd services/notification_service && uv run uvicorn notification_service.app:app --port 8007 --reload
 ```
 
 The API gateway (Nginx) runs on port 8080 via Docker Compose and proxies to all services.
@@ -237,7 +237,8 @@ make test-cov
 
 ```bash
 # Requires local infrastructure to be running (make dev-up)
-make test-all
+# and explicit opt-in for NATS integration coverage.
+RUN_INTEGRATION_TESTS=1 make test-all
 ```
 
 ### Running tests for a specific service
@@ -251,6 +252,10 @@ uv run pytest services/inference_worker/tests/ -v
 
 # Example: shared contracts tests
 uv run pytest libs/shared_contracts/tests/ -v
+
+# Example: NATS JetStream integration tests
+RUN_INTEGRATION_TESTS=1 uv run pytest -m integration \
+  libs/shared_contracts/tests/test_nats_integration.py -v
 ```
 
 ### Test markers
@@ -654,6 +659,39 @@ uv run python -m ml.evaluation.evaluate --model <path> --dataset <path>
 uv run python ml/export/export_onnx.py --checkpoint <path> --output ml/export/output/
 ```
 
+### Local real-data pilot
+
+Once you have real ONNX artifacts loaded into the inference worker, you can
+push a local clip through the running dev stack with:
+
+```bash
+uv run python infra/scripts/local_video_eval.py /abs/path/to/video.mp4
+```
+
+The script will:
+- create or log into a local test user
+- create a site and camera
+- create an ingest session
+- upload sampled JPEG frames from the clip
+- poll Redis for live inference state and live KPI bucket data
+
+Current limitation: this repo does not automatically push counting-line config
+from the config service into the running inference worker, so bucket/count
+results may stay empty even when frame ingestion succeeds.
+
+To scan common local folders for detector/classifier artifacts and wire real
+ONNX files into the repo-default paths, use:
+
+```bash
+uv run python infra/scripts/prepare_local_models.py \
+  --detector /abs/path/to/detector/model.onnx \
+  --classifier /abs/path/to/classifier/model.onnx
+```
+
+This will validate the ONNX files and link them to:
+- `models/detector/model.onnx`
+- `models/classifier/model.onnx`
+
 The ML CI workflow (`.github/workflows/ml-pipeline.yml`) validates exports and runs non-GPU tests on every push to `ml/` or `libs/shared_contracts/`.
 
 ---
@@ -681,7 +719,7 @@ Run `make help` to see all targets. Full list:
 | `check` | Run all static checks (lint + typecheck) |
 | **Testing** | |
 | `test` | Run unit tests |
-| `test-all` | Run all tests including integration and slow |
+| `test-all` | Run all tests; set `RUN_INTEGRATION_TESTS=1` to include NATS integration |
 | `test-cov` | Run tests with coverage report |
 | **NATS** | |
 | `nats-bootstrap` | Create all JetStream streams and consumers |
@@ -774,6 +812,7 @@ Full design specification in `docs/`:
 | `05-ai-ml-pipeline.md` | Detection, tracking, classification, training pipeline |
 | `06-security-and-compliance.md` | Auth, encryption, privacy, audit logging |
 | `07-backup-and-recovery.md` | Backup strategy, RPO/RTO targets, disaster recovery |
+| `08-deployment-readiness-checklist.md` | Current deployment blockers, pre-deploy gate, and launch risks |
 
 Operational runbooks are in `infra/runbooks/`:
 

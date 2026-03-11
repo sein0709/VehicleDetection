@@ -18,7 +18,7 @@ class CameraListNotifier extends StateNotifier<AsyncValue<List<Camera>>> {
       final response = await _api.get<Map<String, dynamic>>(
         ApiConstants.siteCameras(_siteId),
       );
-      final items = (response.data?['items'] as List<dynamic>?)
+      final items = (response.data?['data'] as List<dynamic>?)
               ?.map((e) => Camera.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];

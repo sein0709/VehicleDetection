@@ -12,7 +12,7 @@ class AnalyticsParams {
     required this.cameraId,
     required this.start,
     required this.end,
-    this.groupBy = 'class12',
+    this.groupBy = 'class',
   });
 
   final String cameraId;

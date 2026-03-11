@@ -37,17 +37,11 @@ class BucketData {
 @immutable
 class AnalyticsResponse {
   const AnalyticsResponse({
-    required this.cameraId,
-    required this.start,
-    required this.end,
     required this.buckets,
     this.hasMore = false,
     this.cursor,
   });
 
-  final String cameraId;
-  final DateTime start;
-  final DateTime end;
   final List<BucketData> buckets;
   final bool hasMore;
   final String? cursor;
@@ -67,9 +61,6 @@ class AnalyticsResponse {
 
   factory AnalyticsResponse.fromJson(Map<String, dynamic> json) =>
       AnalyticsResponse(
-        cameraId: json['camera_id'] as String,
-        start: DateTime.parse(json['start'] as String),
-        end: DateTime.parse(json['end'] as String),
         buckets: (json['buckets'] as List<dynamic>)
             .map((b) => BucketData.fromJson(b as Map<String, dynamic>))
             .toList(),
@@ -95,20 +86,22 @@ class LiveKpiUpdate {
   });
 
   final String cameraId;
-  final DateTime currentBucket;
-  final int elapsedSeconds;
+  final DateTime? currentBucket;
+  final double elapsedSeconds;
   final int totalCount;
   final Map<int, int> byClass;
   final Map<String, int> byDirection;
   final int activeTracks;
-  final int flowRatePerHour;
+  final double flowRatePerHour;
 
   factory LiveKpiUpdate.fromJson(Map<String, dynamic> json) {
     final counts = json['counts'] as Map<String, dynamic>? ?? {};
     return LiveKpiUpdate(
       cameraId: json['camera_id'] as String,
-      currentBucket: DateTime.parse(json['current_bucket'] as String),
-      elapsedSeconds: json['elapsed_seconds'] as int? ?? 0,
+      currentBucket: json['current_bucket'] != null
+          ? DateTime.parse(json['current_bucket'] as String)
+          : null,
+      elapsedSeconds: (json['elapsed_seconds'] as num?)?.toDouble() ?? 0,
       totalCount: counts['total'] as int? ?? 0,
       byClass: (counts['by_class'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(int.parse(k), v as int),
@@ -119,7 +112,7 @@ class LiveKpiUpdate {
           ) ??
           {},
       activeTracks: json['active_tracks'] as int? ?? 0,
-      flowRatePerHour: json['flow_rate_per_hour'] as int? ?? 0,
+      flowRatePerHour: (json['flow_rate_per_hour'] as num?)?.toDouble() ?? 0,
     );
   }
 }

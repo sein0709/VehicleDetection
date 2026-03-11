@@ -72,8 +72,10 @@ async def create_export(
         "download_url": None,
     }
 
+    settings = getattr(request.app.state, "settings", get_settings())
+
     asyncio.get_event_loop().create_task(
-        _run_export(export_id, body, user.org_uuid)
+        _run_export(export_id, body, user.org_uuid, settings)
     )
 
     return ExportResponse(
@@ -84,7 +86,7 @@ async def create_export(
     )
 
 
-async def _run_export(export_id: str, body: ExportRequest, org_id) -> None:
+async def _run_export(export_id: str, body: ExportRequest, org_id, settings) -> None:
     """Background task: query data, generate file, upload to S3."""
     job = _exports.get(export_id)
     if job is None:
@@ -123,7 +125,6 @@ async def _run_export(export_id: str, body: ExportRequest, org_id) -> None:
         else:
             raise ValueError(f"Unsupported format: {body.format}")
 
-        settings = get_settings()
         ext = get_file_extension(body.format)
         s3_key = f"exports/{job['org_id']}/{export_id}.{ext}"
 
@@ -229,11 +230,12 @@ async def stream_csv_export(
 
 @router.post("/share", response_model=ShareLinkResponse, status_code=status.HTTP_201_CREATED)
 async def create_share_link(
+    request: Request,
     body: ShareLinkRequest,
     user: AnalystUser,
 ) -> ShareLinkResponse:
     """Create a time-limited shareable link for a report view."""
-    settings = get_settings()
+    settings = getattr(request.app.state, "settings", get_settings())
     ttl_days = min(body.ttl_days, settings.share_link_ttl_days)
     expires_at = datetime.now(tz=UTC) + timedelta(days=ttl_days)
 

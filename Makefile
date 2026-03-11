@@ -81,7 +81,7 @@ test: ## Run all unit tests
 	uv run pytest -m "not integration and not slow" --tb=short -q
 
 .PHONY: test-all
-test-all: ## Run all tests including integration and slow
+test-all: ## Run all tests; set RUN_INTEGRATION_TESTS=1 to include NATS integration
 	uv run pytest --tb=short
 
 .PHONY: test-cov
@@ -105,8 +105,16 @@ nats-dry-run: ## Print NATS stream/consumer definitions (no connection)
 # ── Database ─────────────────────────────────────────────────────────────────
 
 .PHONY: migrate
-migrate: ## Apply database migrations (Alembic)
-	cd libs/db_models && uv run alembic upgrade head
+migrate: ## Apply database migrations from supabase/migrations
+	@set -euo pipefail; \
+	for file in $$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort); do \
+		echo "Applying $$file"; \
+		if command -v psql >/dev/null 2>&1; then \
+			PGPASSWORD=greyeye_dev psql -v ON_ERROR_STOP=1 -h localhost -U greyeye -d greyeye -f "$$file"; \
+		else \
+			docker exec -i greyeye-postgres psql -v ON_ERROR_STOP=1 -U greyeye -d greyeye < "$$file"; \
+		fi; \
+	done
 
 .PHONY: migrate-down
 migrate-down: ## Rollback one migration step
@@ -114,7 +122,11 @@ migrate-down: ## Rollback one migration step
 
 .PHONY: seed
 seed: ## Load development seed data
-	PGPASSWORD=greyeye_dev psql -h localhost -U greyeye -d greyeye -f supabase/seed.sql
+	@if command -v psql >/dev/null 2>&1; then \
+		PGPASSWORD=greyeye_dev psql -v ON_ERROR_STOP=1 -h localhost -U greyeye -d greyeye -f supabase/seed.sql; \
+	else \
+		docker exec -i greyeye-postgres psql -v ON_ERROR_STOP=1 -U greyeye -d greyeye < supabase/seed.sql; \
+	fi
 
 # ── Docker Builds ────────────────────────────────────────────────────────────
 

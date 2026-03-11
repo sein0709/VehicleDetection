@@ -27,6 +27,7 @@ from notification_service.models import (
     SuppressRequest,
     UpdateAlertRuleRequest,
 )
+from notification_service.settings import get_settings
 from shared_contracts.enums import AlertStatus
 from shared_contracts.pagination import PaginatedResponse, PaginationMeta
 
@@ -71,6 +72,8 @@ async def create_alert_rule(
     db = _get_db(request)
 
     data = body.model_dump()
+    if data.get("cooldown_minutes") is None:
+        data["cooldown_minutes"] = get_settings().default_cooldown_minutes
     data["created_by"] = user.user_id
 
     rule = await db.create_rule(org_id=user.org_uuid, data=data)

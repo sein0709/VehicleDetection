@@ -46,6 +46,31 @@ class TestCreateSite:
         )
         assert resp.status_code == 403
 
+    def test_create_site_normalizes_postgis_location(
+        self,
+        client: TestClient,
+        mock_db: MagicMock,
+        operator_headers: dict,
+        sample_site: dict[str, Any],
+    ) -> None:
+        site_with_postgis = {
+            **sample_site,
+            "location": "0101000020E6100000A857CA32C4C15F40D656EC2FBBBF4240",
+        }
+        mock_db.create_site = AsyncMock(return_value=site_with_postgis)
+
+        resp = client.post(
+            "/v1/sites",
+            json={"name": "강남역 교차로"},
+            headers=operator_headers,
+        )
+
+        assert resp.status_code == 201
+        assert resp.json()["location"] == {
+            "type": "Point",
+            "coordinates": [127.0276, 37.4979],
+        }
+
 
 class TestListSites:
     def test_list_sites_success(

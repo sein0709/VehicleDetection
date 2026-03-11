@@ -108,6 +108,21 @@ async def list_cameras_for_site(
     )
 
 
+@router.get("/v1/cameras/{camera_id}", response_model=CameraResponse)
+async def get_camera(
+    camera_id: UUID,
+    request: Request,
+    user: CurrentUser,
+) -> CameraResponse:
+    db: ConfigDB = request.app.state.config_db
+
+    camera = await db.get_camera(camera_id, user.org_uuid)
+    if not camera:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+
+    return CameraResponse(**camera)
+
+
 @router.patch("/v1/cameras/{camera_id}", response_model=CameraResponse)
 async def update_camera(
     camera_id: UUID,

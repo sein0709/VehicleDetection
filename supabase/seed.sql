@@ -135,18 +135,19 @@ INSERT INTO data_retention_policies (org_id, data_type, retention_days, auto_del
 -- ============================================================
 -- 8. Sample Alert Rule
 -- ============================================================
-INSERT INTO alert_rules (id, org_id, site_id, camera_id, name, condition_type, condition_params, severity, channels, recipients, cooldown_minutes) VALUES (
+INSERT INTO alert_rules (id, org_id, site_id, camera_id, name, condition_type, condition_config, severity, channels, recipients, cooldown_minutes, created_by) VALUES (
     'aa000000-0000-0000-0000-000000000001',
     'a0000000-0000-0000-0000-000000000001',
     'c0000000-0000-0000-0000-000000000001',
     'd0000000-0000-0000-0000-000000000001',
     '강남역 혼잡 경보',
     'congestion',
-    '{"threshold": 200, "window_minutes": 15}',
+    '{"speed_threshold_kmh": 15.0}',
     'warning',
-    ARRAY['push', 'email'],
-    ARRAY['b0000000-0000-0000-0000-000000000001'::UUID],
-    15
+    '["push", "email"]'::JSONB,
+    '[{"email": "admin@greyeye.dev"}]'::JSONB,
+    15,
+    'b0000000-0000-0000-0000-000000000001'
 );
 
 -- ============================================================

@@ -1,6 +1,12 @@
 abstract final class ApiConstants {
-  static const String baseUrl = 'http://localhost:8080';
-  static const String wsBaseUrl = 'ws://localhost:8080';
+  static const String baseUrl = String.fromEnvironment(
+    'GREYEYE_API_BASE_URL',
+    defaultValue: 'http://localhost:8080',
+  );
+  static const String wsBaseUrl = String.fromEnvironment(
+    'GREYEYE_WS_BASE_URL',
+    defaultValue: 'ws://localhost:8080',
+  );
 
   static const String authLogin = '/v1/auth/login';
   static const String authRegister = '/v1/auth/register';

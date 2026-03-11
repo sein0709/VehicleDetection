@@ -6,7 +6,8 @@ publish/subscribe, DLQ routing, and message replay.
 
 Run with::
 
-    uv run pytest -m integration libs/shared_contracts/tests/test_nats_integration.py
+    RUN_INTEGRATION_TESTS=1 uv run pytest -m integration \
+        libs/shared_contracts/tests/test_nats_integration.py
 """
 
 from __future__ import annotations
@@ -42,8 +43,26 @@ from shared_contracts.nats_streams import (
 )
 
 NATS_URL = os.environ.get("NATS_URL", "nats://localhost:4222")
+RUN_INTEGRATION_TESTS = os.environ.get("RUN_INTEGRATION_TESTS") == "1"
 
 pytestmark = [pytest.mark.integration]
+
+
+@pytest.fixture(scope="module", autouse=True)
+async def require_nats_jetstream() -> None:
+    """Skip unless integration tests were explicitly enabled and NATS is reachable."""
+    if not RUN_INTEGRATION_TESTS:
+        pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run NATS integration tests")
+
+    nc = None
+    try:
+        nc = await asyncio.wait_for(nats.connect(NATS_URL, connect_timeout=2), timeout=3)
+        await asyncio.wait_for(nc.jetstream().account_info(), timeout=3)
+    except Exception as exc:
+        pytest.skip(f"NATS JetStream unavailable at {NATS_URL}: {exc}")
+    finally:
+        if nc is not None and nc.is_connected:
+            await nc.close()
 
 
 @pytest.fixture()
@@ -299,11 +318,22 @@ class TestDLQRouting:
         )
         assert result is False
 
-        await asyncio.sleep(0.5)
-        redelivered = await sub.fetch(batch=1, timeout=5)
-        assert len(redelivered) == 1
-        assert json.loads(redelivered[0].data)["retry"] is True
-        await redelivered[0].ack()
+        # JetStream redelivery after NAK can be slightly delayed under suite load,
+        # so poll briefly instead of assuming a single fetch will always catch it.
+        redelivered = None
+        for _ in range(10):
+            try:
+                batch = await sub.fetch(batch=1, timeout=1)
+            except nats.errors.TimeoutError:
+                await asyncio.sleep(0.25)
+                continue
+            if batch:
+                redelivered = batch[0]
+                break
+
+        assert redelivered is not None
+        assert json.loads(redelivered.data)["retry"] is True
+        await redelivered.ack()
 
 
 # ---------------------------------------------------------------------------

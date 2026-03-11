@@ -10,7 +10,7 @@ import pytest
 from aggregator.accumulator import BucketAccumulator
 from aggregator.nats_consumer import NatsCrossingConsumer
 
-from tests.conftest import make_crossing_event
+from aggregator.test_support import make_crossing_event
 
 
 def _make_nats_msg(payload: dict) -> MagicMock:
