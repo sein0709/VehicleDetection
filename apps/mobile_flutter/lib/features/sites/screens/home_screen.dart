@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:greyeye_mobile/features/sites/models/site_model.dart';
 import 'package:greyeye_mobile/features/sites/providers/sites_provider.dart';
+import 'package:greyeye_mobile/features/sites/models/site_model.dart';
 import 'package:greyeye_mobile/shared/widgets/empty_state.dart';
 import 'package:greyeye_mobile/shared/widgets/error_view.dart';
 
@@ -69,7 +69,7 @@ class HomeScreen extends ConsumerWidget {
 class _KpiRow extends StatelessWidget {
   const _KpiRow({required this.sites, required this.l10n});
 
-  final List<Site> sites;
+  final List<SiteView> sites;
   final AppLocalizations l10n;
 
   @override
@@ -159,7 +159,7 @@ class _KpiTile extends StatelessWidget {
 class _SiteCard extends ConsumerWidget {
   const _SiteCard({required this.site});
 
-  final Site site;
+  final SiteView site;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

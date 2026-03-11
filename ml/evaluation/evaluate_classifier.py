@@ -26,7 +26,7 @@ from torch.utils.data import DataLoader
 
 from ml.data.dataset import GreyEyeClassifierDataset
 from ml.training.augmentations import classifier_val_transform
-from shared_contracts.enums import VehicleClass12
+from ml.shared_contracts.enums import VehicleClass12
 
 logger = logging.getLogger(__name__)
 

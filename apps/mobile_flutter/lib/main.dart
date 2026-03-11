@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:greyeye_mobile/core/constants/api_constants.dart';
+import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/core/router/app_router.dart';
 import 'package:greyeye_mobile/core/theme/app_theme.dart';
 import 'package:greyeye_mobile/features/settings/providers/settings_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: ApiConstants.supabaseUrl,
+    anonKey: ApiConstants.supabaseAnonKey,
+  );
+
   runApp(const ProviderScope(child: GreyEyeApp()));
 }
 

@@ -9,8 +9,7 @@ class ShellScaffold extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/alerts')) return 1;
-    if (location.startsWith('/settings')) return 2;
+    if (location.startsWith('/settings')) return 1;
     return 0;
   }
 
@@ -27,8 +26,6 @@ class ShellScaffold extends StatelessWidget {
             case 0:
               context.go('/home');
             case 1:
-              context.go('/alerts');
-            case 2:
               context.go('/settings');
           }
         },
@@ -37,11 +34,6 @@ class ShellScaffold extends StatelessWidget {
             icon: const Icon(Icons.home_outlined),
             selectedIcon: const Icon(Icons.home),
             label: l10n.navHome,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.notifications_outlined),
-            selectedIcon: const Icon(Icons.notifications),
-            label: l10n.navAlerts,
           ),
           NavigationDestination(
             icon: const Icon(Icons.settings_outlined),

@@ -1,16 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:camera/camera.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:greyeye_mobile/core/constants/api_constants.dart';
 import 'package:greyeye_mobile/core/constants/vehicle_classes.dart';
+import 'package:greyeye_mobile/core/database/database.dart';
+import 'package:greyeye_mobile/core/database/database_provider.dart';
+import 'package:greyeye_mobile/core/inference/inference_isolate.dart';
+import 'package:greyeye_mobile/core/inference/models.dart';
+import 'package:greyeye_mobile/core/inference/pipeline_settings.dart';
 import 'package:greyeye_mobile/core/theme/app_colors.dart';
 import 'package:greyeye_mobile/features/analytics/models/analytics_model.dart';
 import 'package:greyeye_mobile/features/analytics/providers/analytics_provider.dart';
-import 'package:greyeye_mobile/features/monitor/models/live_track.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:greyeye_mobile/features/roi/models/roi_model.dart' as roi;
+import 'package:uuid/uuid.dart';
+
+const _uuid = Uuid();
 
 class LiveMonitorScreen extends ConsumerStatefulWidget {
   const LiveMonitorScreen({super.key, required this.cameraId});
@@ -22,56 +30,151 @@ class LiveMonitorScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
-  WebSocketChannel? _trackChannel;
-  StreamSubscription<dynamic>? _trackSub;
-  List<LiveTrack> _tracks = [];
-  bool _connected = false;
+  CameraController? _cameraController;
+  final InferenceIsolateRunner _inferenceRunner = InferenceIsolateRunner();
+  List<TrackSnapshot> _tracks = [];
+  bool _isRunning = false;
+  bool _initializing = true;
+  int _frameIndex = 0;
+  int _crossingCount = 0;
+  Timer? _frameTimer;
 
   @override
   void initState() {
     super.initState();
-    _connectTrackStream();
+    _initCamera();
   }
 
-  void _connectTrackStream() {
-    final uri = Uri.parse(
-      '${ApiConstants.wsBaseUrl}/v1/tracks/live/ws?camera_id=${widget.cameraId}',
-    );
-    _trackChannel = WebSocketChannel.connect(uri);
-    _trackSub = _trackChannel!.stream.listen(
-      (data) {
-        try {
-          final json = jsonDecode(data as String) as Map<String, dynamic>;
-          final tracks = (json['tracks'] as List<dynamic>?)
-                  ?.map((t) => LiveTrack.fromJson(t as Map<String, dynamic>))
-                  .toList() ??
-              [];
-          setState(() {
-            _tracks = tracks;
-            _connected = true;
-          });
-        } on Exception {
-          // ignore
-        }
-      },
-      onError: (_) => _reconnect(),
-      onDone: _reconnect,
-    );
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        setState(() => _initializing = false);
+        return;
+      }
+
+      final backCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+
+      _cameraController = CameraController(
+        backCamera,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+
+      await _cameraController!.initialize();
+
+      await _inferenceRunner.start(PipelineSettings());
+
+      final roiDao = ref.read(roiDaoProvider);
+      final activePreset =
+          await roiDao.activePresetForCamera(widget.cameraId);
+      if (activePreset != null) {
+        final dbLines = await roiDao.linesForPreset(activePreset.id);
+        final countingLines = dbLines
+            .map((l) => roi.CountingLine(
+                  name: l.id,
+                  start: roi.Point2D(x: l.startX, y: l.startY),
+                  end: roi.Point2D(x: l.endX, y: l.endY),
+                  direction: l.direction,
+                ))
+            .toList();
+        _inferenceRunner.updateCountingLines(widget.cameraId, countingLines);
+      }
+
+      if (mounted) {
+        setState(() => _initializing = false);
+        _startProcessing();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _initializing = false);
+    }
   }
 
-  void _reconnect() {
-    _trackSub?.cancel();
-    _trackChannel?.sink.close();
-    setState(() => _connected = false);
-    Future<void>.delayed(const Duration(seconds: 3), () {
-      if (mounted) _connectTrackStream();
+  void _startProcessing() {
+    if (_isRunning) return;
+    setState(() => _isRunning = true);
+
+    _frameTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      _captureAndProcess();
     });
+  }
+
+  void _stopProcessing() {
+    _frameTimer?.cancel();
+    _frameTimer = null;
+    setState(() => _isRunning = false);
+  }
+
+  Future<void> _captureAndProcess() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+
+    try {
+      final xFile = await _cameraController!.takePicture();
+      final bytes = await xFile.readAsBytes();
+
+      final result = await _inferenceRunner.processFrame(
+        jpegBytes: bytes,
+        cameraId: widget.cameraId,
+        frameIndex: _frameIndex++,
+      );
+
+      if (mounted) {
+        setState(() {
+          _tracks = result.tracks;
+        });
+      }
+
+      if (result.crossings.isNotEmpty) {
+        _persistCrossings(result.crossings);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistCrossings(List<VehicleCrossingEvent> crossings) async {
+    final dao = ref.read(crossingsDaoProvider);
+    final entries = crossings.map((c) {
+      return VehicleCrossingsCompanion.insert(
+        id: _uuid.v4(),
+        cameraId: c.cameraId,
+        lineId: c.lineId,
+        trackId: c.trackId,
+        crossingSeq: Value(c.crossingSeq),
+        class12: c.classCode,
+        confidence: c.confidence,
+        direction: c.direction,
+        frameIndex: c.frameIndex,
+        speedEstimateKmh: Value(c.speedEstimateKmh),
+        bboxJson: Value(jsonEncode({
+          'x': c.bbox.x,
+          'y': c.bbox.y,
+          'w': c.bbox.w,
+          'h': c.bbox.h,
+        })),
+        timestampUtc: c.timestampUtc,
+      );
+    }).toList();
+
+    await dao.insertCrossingsBatch(entries);
+
+    if (mounted) {
+      setState(() {
+        _crossingCount += crossings.length;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _trackSub?.cancel();
-    _trackChannel?.sink.close();
+    _frameTimer?.cancel();
+    _cameraController?.dispose();
+    _inferenceRunner.resetCamera(widget.cameraId);
+    _inferenceRunner.dispose();
     super.dispose();
   }
 
@@ -88,9 +191,22 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
           Icon(
             Icons.circle,
             size: 12,
-            color: _connected ? AppColors.cameraOnline : AppColors.cameraOffline,
+            color: _isRunning ? AppColors.cameraOnline : AppColors.cameraOffline,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow),
+            onPressed: _initializing
+                ? null
+                : () {
+                    if (_isRunning) {
+                      _stopProcessing();
+                    } else {
+                      _startProcessing();
+                    }
+                  },
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
@@ -108,20 +224,28 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (!_connected)
-                      Center(
+                    if (_initializing)
+                      const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const CircularProgressIndicator(
-                              color: Colors.white54,
-                            ),
-                            const SizedBox(height: 12),
+                            CircularProgressIndicator(color: Colors.white54),
+                            SizedBox(height: 12),
                             Text(
-                              l10n.monitorNoFeed,
-                              style: const TextStyle(color: Colors.white54),
+                              'Initializing camera & ML models...',
+                              style: TextStyle(color: Colors.white54),
                             ),
                           ],
+                        ),
+                      )
+                    else if (_cameraController != null &&
+                        _cameraController!.value.isInitialized)
+                      CameraPreview(_cameraController!)
+                    else
+                      Center(
+                        child: Text(
+                          l10n.monitorNoFeed,
+                          style: const TextStyle(color: Colors.white54),
                         ),
                       ),
                     CustomPaint(
@@ -140,7 +264,7 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '${_tracks.length} tracks',
+                          '${_tracks.length} tracks · $_crossingCount crossings',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -198,18 +322,9 @@ class _LiveKpiPanel extends StatelessWidget {
             Expanded(
               child: _KpiCard(
                 label: 'Flow Rate/h',
-                value: '${kpi.flowRatePerHour}',
+                value: '${kpi.flowRatePerHour.round()}',
                 icon: Icons.speed,
                 color: theme.colorScheme.secondary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _KpiCard(
-                label: 'Active Tracks',
-                value: '${kpi.activeTracks}',
-                icon: Icons.track_changes,
-                color: theme.colorScheme.tertiary,
               ),
             ),
           ],
@@ -401,12 +516,12 @@ class _DirectionBar extends StatelessWidget {
 class _TrackOverlayPainter extends CustomPainter {
   _TrackOverlayPainter({required this.tracks});
 
-  final List<LiveTrack> tracks;
+  final List<TrackSnapshot> tracks;
 
   @override
   void paint(Canvas canvas, Size size) {
     for (final track in tracks) {
-      final vc = VehicleClass.fromCode(track.classCode);
+      final vc = VehicleClass.fromCode(track.classCode ?? 0);
       final color = vc?.color ?? Colors.white;
 
       final rect = Rect.fromLTWH(

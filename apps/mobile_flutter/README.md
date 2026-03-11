@@ -1,161 +1,211 @@
 # GreyEye Mobile
 
-This app can run on a physical Android phone or iPhone against the local
-GreyEye backend stack.
+Self-contained Flutter app for vehicle detection and traffic monitoring. All
+inference runs on-device using TFLite models — no backend servers required.
 
-## 1. Prerequisites
+## Architecture
 
-- Flutter installed and working on macOS
-- A phone connected to the same Wi-Fi network as this Mac
-- Local backend stack already running
-- For iPhone: an Apple developer signing setup in Xcode
+The app runs a 5-stage inference pipeline entirely on the phone:
 
-## 2. Start the backend locally
+1. **TFLite Detector** (YOLOv8m) — detects vehicles in camera frames
+2. **ByteTrack Tracker** — assigns persistent IDs across frames
+3. **TFLite Classifier** (EfficientNet-B0) — classifies each vehicle into 12 KICT/MOLIT classes
+4. **Temporal Smoother** — stabilises class predictions over time
+5. **Line Crossing Detector** — counts vehicles crossing user-defined lines
 
-From the repo root:
+All traffic data is stored locally in SQLite via Drift. Supabase is used
+only for authentication.
 
-```bash
-make dev-up
-```
+## Prerequisites
 
-Then start the host-run services in separate shells:
+- Flutter SDK 3.3+
+- Xcode (for iOS builds)
+- Android Studio or Android SDK (for Android builds)
+- TFLite model files in `assets/models/` (see [Exporting models](#exporting-models))
 
-```bash
-cd services/auth_service && uv run uvicorn auth_service.app:app --port 8001 --reload
-cd services/config_service && uv run uvicorn config_service.app:app --port 8002 --reload
-cd services/ingest_service && uv run uvicorn ingest_service.app:app --port 8003 --reload
-cd services/inference_worker && uv run python -m inference_worker.worker
-cd services/reporting_api && uv run uvicorn reporting_api.app:app --port 8005 --reload
-cd services/aggregator && uv run python -m aggregator.app
-cd services/notification_service && uv run uvicorn notification_service.app:app --port 8007 --reload
-```
+## Setup
 
-Confirm the gateway responds:
+### 1. Install dependencies
 
 ```bash
-curl http://127.0.0.1:8080/healthz
+flutter pub get
 ```
 
-## 3. Find this Mac's LAN IP
+### 2. Configure Supabase
 
-Use one of:
+The app reads Supabase credentials from the root `.env` file. From the repo
+root:
 
 ```bash
-ipconfig getifaddr en0
-ipconfig getifaddr en1
+cp .env.example .env
+# Fill in GREYEYE_SUPABASE_URL and GREYEYE_SUPABASE_ANON_KEY
 ```
 
-Assume the result is `192.168.0.25`. The phone must reach:
+### 3. Exporting models
 
-- `http://192.168.0.25:8080`
-- `ws://192.168.0.25:8080`
-
-If this does not work from the phone browser, fix the network first. The app
-will not be able to connect either.
-
-## 4. Phone launch command
-
-The mobile app now supports runtime API endpoints through `--dart-define`.
-From `apps/mobile_flutter`:
+TFLite model files must be placed in `assets/models/` before building. From
+the repo root:
 
 ```bash
-flutter run \
-  --dart-define=GREYEYE_API_BASE_URL=http://192.168.0.25:8080 \
-  --dart-define=GREYEYE_WS_BASE_URL=ws://192.168.0.25:8080
+make export-tflite
 ```
 
-If multiple devices are attached:
+This exports `detector.tflite` and `classifier.tflite` from trained
+checkpoints and copies them into `assets/models/`.
+
+### 4. Code generation
+
+After modifying Drift tables, Freezed models, or JSON-serializable classes:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Or from the repo root:
+
+```bash
+make flutter-codegen
+```
+
+## Running
+
+### Emulator or connected device
+
+```bash
+flutter run
+```
+
+### Specific device
 
 ```bash
 flutter devices
-flutter run -d <device-id> \
-  --dart-define=GREYEYE_API_BASE_URL=http://192.168.0.25:8080 \
-  --dart-define=GREYEYE_WS_BASE_URL=ws://192.168.0.25:8080
+flutter run -d <device-id>
 ```
 
-## 5. Android-specific notes
+### From the repo root
 
-USB:
+```bash
+make flutter-run
+```
+
+## Android-specific notes
+
+### USB debugging
 
 1. Enable Developer Options on the phone
 2. Enable USB debugging
-3. Trust the Mac when prompted
+3. Trust the computer when prompted
 
-The app is configured to allow local HTTP traffic in development.
+The app is configured to allow cleartext HTTP traffic in development (for
+Supabase on local emulators if needed).
 
-Optional shortcut with USB-only testing:
+## iPhone-specific notes
 
-```bash
-adb reverse tcp:8080 tcp:8080
-flutter run -d <android-device-id>
-```
-
-With `adb reverse`, the app can keep using the default `http://localhost:8080`.
-That only applies to Android over USB, not iPhone.
-
-## 6. iPhone-specific notes
-
-1. Open `apps/mobile_flutter/ios/Runner.xcworkspace` in Xcode
+1. Open `ios/Runner.xcworkspace` in Xcode
 2. Select the `Runner` target
 3. Set a valid Team under Signing & Capabilities
 4. Use a unique bundle identifier if needed
 5. Trust the developer certificate on the device if prompted
 
-Then run:
+Then:
 
 ```bash
-flutter run -d <iphone-device-id> \
-  --dart-define=GREYEYE_API_BASE_URL=http://192.168.0.25:8080 \
-  --dart-define=GREYEYE_WS_BASE_URL=ws://192.168.0.25:8080
+flutter run -d <iphone-device-id>
 ```
 
-The iOS app is configured to allow local HTTP traffic for development.
-
-## 7. What works today
-
-This is still a development client. The useful validation path on a phone is:
-
-- register or log in
-- create a site
-- create a camera
-- browse analytics and alerts against the local backend
-
-Current limits in this repo:
-
-- real inference quality still depends on loading real ONNX detector/classifier artifacts
-- counting-line config is not automatically pushed into the worker
-- some screens are still closer to scaffold quality than production quality
-
-## 8. Troubleshooting
-
-`SocketException` or timeouts:
-
-- Verify the phone and Mac are on the same network
-- Open `http://<mac-lan-ip>:8080/healthz` in the phone browser
-- Check macOS firewall settings
-
-Login works on desktop but not on phone:
-
-- Make sure you are not using `localhost` in the phone build
-- Re-run `flutter run` with the `--dart-define` values
-
-Android app installs but cannot call the backend:
-
-- Confirm the app was launched from this repo after the `usesCleartextTraffic`
-  change
-- If testing over USB, try `adb reverse tcp:8080 tcp:8080`
-
-iPhone build fails before launch:
-
-- Fix Xcode signing first
-- Open the Xcode project once and let it resolve provisioning issues
-
-## 9. Recommended command
-
-From `apps/mobile_flutter`, replace the IP and device id:
+## Testing
 
 ```bash
-flutter run -d <device-id> \
-  --dart-define=GREYEYE_API_BASE_URL=http://<mac-lan-ip>:8080 \
-  --dart-define=GREYEYE_WS_BASE_URL=ws://<mac-lan-ip>:8080
+flutter test
+
+# With coverage
+flutter test --coverage
 ```
+
+## Building
+
+```bash
+# Android APK
+flutter build apk --release
+
+# Android App Bundle
+flutter build appbundle --release
+
+# iOS
+flutter build ios --release
+```
+
+Or from the repo root:
+
+```bash
+make flutter-build
+```
+
+## Project structure
+
+```
+lib/
+├── core/
+│   ├── inference/           # On-device TFLite pipeline
+│   │   ├── detector.dart    #   YOLOv8m detection + NMS
+│   │   ├── classifier.dart  #   EfficientNet-B0 classification
+│   │   ├── tracker.dart     #   ByteTrack multi-object tracker
+│   │   ├── temporal_smoother.dart
+│   │   ├── line_crossing.dart
+│   │   ├── inference_pipeline.dart  # Orchestrator
+│   │   └── inference_isolate.dart   # Background isolate wrapper
+│   ├── database/            # Drift/SQLite schema and DAOs
+│   │   ├── tables.dart      #   Table definitions
+│   │   ├── database.dart    #   Database class
+│   │   └── daos/            #   Data access objects
+│   ├── network/             # API client (minimal, auth-related)
+│   ├── router/              # GoRouter navigation
+│   └── constants/           # App-wide constants
+├── features/
+│   ├── auth/                # Login, register (Supabase Auth)
+│   ├── sites/               # Site management (local SQLite)
+│   ├── camera/              # Camera management (local SQLite)
+│   ├── roi/                 # ROI editor, counting lines
+│   ├── monitor/             # Live camera feed with detection overlay
+│   ├── analytics/           # Charts and aggregated traffic data
+│   ├── onboarding/          # Quick setup wizard
+│   └── settings/            # App settings
+└── main.dart
+```
+
+## Key dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `tflite_flutter` | TFLite model inference |
+| `camera` | Live camera feed |
+| `image` | Frame preprocessing (resize, normalize) |
+| `drift` + `sqlite3_flutter_libs` | Local SQLite database |
+| `supabase_flutter` | Authentication only |
+| `fl_chart` | Analytics charts |
+| `csv` / `pdf` / `share_plus` | On-device export and sharing |
+| `flutter_riverpod` | State management |
+| `go_router` | Routing |
+
+## Troubleshooting
+
+**App crashes on launch:**
+- Ensure TFLite model files exist in `assets/models/`
+- Run `make export-tflite` from the repo root
+
+**Login fails:**
+- Check that `.env` has valid Supabase credentials
+- Verify the Supabase project is accessible
+
+**Detection is slow or inaccurate:**
+- Ensure you are using release mode (`flutter run --release`) for best
+  inference performance
+- The inference pipeline runs on a background isolate; debug mode adds
+  significant overhead
+
+**Build fails on iOS:**
+- Open `ios/Runner.xcworkspace` in Xcode and fix signing first
+- Run `pod install` in the `ios/` directory if CocoaPods are out of date
+
+**Code generation errors after editing tables:**
+- Run `dart run build_runner build --delete-conflicting-outputs`

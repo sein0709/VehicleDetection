@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/features/auth/providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -17,7 +18,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  final _orgController = TextEditingController();
 
   @override
   void dispose() {
@@ -25,7 +25,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
-    _orgController.dispose();
     super.dispose();
   }
 
@@ -35,7 +34,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
-          orgName: _orgController.text.trim(),
         );
   }
 
@@ -100,15 +98,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     if (!v.contains('@')) return l10n.loginInvalidEmail;
                     return null;
                   },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _orgController,
-                  decoration: InputDecoration(
-                    labelText: l10n.registerOrganization,
-                    prefixIcon: const Icon(Icons.business_outlined),
-                  ),
-                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

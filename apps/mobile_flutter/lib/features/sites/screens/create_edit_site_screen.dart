@@ -47,15 +47,19 @@ class _CreateEditSiteScreenState extends ConsumerState<CreateEditSiteScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
     try {
-      final body = {
-        'name': _nameController.text.trim(),
-        'address': _addressController.text.trim(),
-        'timezone': 'Asia/Seoul',
-      };
+      final name = _nameController.text.trim();
+      final address = _addressController.text.trim();
       if (_isEditing) {
-        await ref.read(sitesProvider.notifier).update(widget.siteId!, body);
+        await ref.read(sitesProvider.notifier).update(
+              widget.siteId!,
+              name: name,
+              address: address.isEmpty ? null : address,
+            );
       } else {
-        await ref.read(sitesProvider.notifier).create(body);
+        await ref.read(sitesProvider.notifier).create(
+              name: name,
+              address: address.isEmpty ? null : address,
+            );
       }
       if (mounted) context.pop();
     } on Exception catch (e) {

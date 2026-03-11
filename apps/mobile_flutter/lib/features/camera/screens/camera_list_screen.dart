@@ -3,8 +3,8 @@ import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:greyeye_mobile/core/theme/app_colors.dart';
-import 'package:greyeye_mobile/features/camera/models/camera_model.dart';
 import 'package:greyeye_mobile/features/camera/providers/camera_provider.dart';
+import 'package:greyeye_mobile/features/camera/models/camera_model.dart';
 import 'package:greyeye_mobile/shared/widgets/empty_state.dart';
 import 'package:greyeye_mobile/shared/widgets/error_view.dart';
 
@@ -66,7 +66,7 @@ class CameraListScreen extends ConsumerWidget {
 class _CameraCard extends StatelessWidget {
   const _CameraCard({required this.camera});
 
-  final Camera camera;
+  final CameraView camera;
 
   Color get _statusColor {
     switch (camera.status) {

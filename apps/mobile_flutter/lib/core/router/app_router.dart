@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:greyeye_mobile/core/router/shell_scaffold.dart';
-import 'package:greyeye_mobile/features/alerts/screens/alert_detail_screen.dart';
-import 'package:greyeye_mobile/features/alerts/screens/alert_rules_screen.dart';
-import 'package:greyeye_mobile/features/alerts/screens/alerts_list_screen.dart';
 import 'package:greyeye_mobile/features/analytics/screens/analytics_dashboard_screen.dart';
 import 'package:greyeye_mobile/features/analytics/screens/report_export_screen.dart';
 import 'package:greyeye_mobile/features/auth/providers/auth_provider.dart';
@@ -97,24 +94,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                     ],
                   ),
                 ],
-              ),
-            ],
-          ),
-          GoRoute(
-            path: '/alerts',
-            builder: (context, state) => const AlertsListScreen(),
-            routes: [
-              GoRoute(
-                path: ':alertId',
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (context, state) => AlertDetailScreen(
-                  alertId: state.pathParameters['alertId']!,
-                ),
-              ),
-              GoRoute(
-                path: 'rules',
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (context, state) => const AlertRulesScreen(),
               ),
             ],
           ),

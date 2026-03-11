@@ -1,6 +1,0 @@
-apiVersion: v2
-name: inference-worker
-description: "GreyEye Inference Worker — GPU-accelerated detection, tracking, classification"
-type: application
-version: 0.1.0
-appVersion: "0.1.0"

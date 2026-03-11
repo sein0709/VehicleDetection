@@ -26,7 +26,7 @@ import timm
 import torch
 import torch.nn as nn
 
-from shared_contracts.enums import VehicleClass12
+from ml.shared_contracts.enums import VehicleClass12
 
 logger = logging.getLogger(__name__)
 

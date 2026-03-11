@@ -1,4 +1,4 @@
-"""Export the GreyEye 12-class vehicle classifier to ONNX and TorchScript.
+"""Export the GreyEye 12-class vehicle classifier to ONNX, TorchScript, and TFLite.
 
 Loads a training checkpoint, rebuilds the ``timm`` model, and exports
 with proper input/output naming and dynamic batch axis.
@@ -9,6 +9,12 @@ Usage::
         --model runs/classifier/base/best.pt \
         --output-dir models/classifier/v1.0.0 \
         --input-size 224
+
+    # TFLite only (for on-device inference)
+    python -m ml.export.export_classifier \
+        --model runs/classifier/base/best.pt \
+        --output-dir models/classifier/v1.0.0 \
+        --format tflite
 """
 
 from __future__ import annotations
@@ -24,7 +30,7 @@ import timm
 import torch
 import torch.nn as nn
 
-from shared_contracts.enums import VehicleClass12
+from ml.shared_contracts.enums import VehicleClass12
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +120,37 @@ def export_torchscript(
     return dest
 
 
+def export_tflite(
+    model_path: Path,
+    output_dir: Path,
+    *,
+    input_size: int = 224,
+) -> Path:
+    """Export classifier to TFLite format via ``ai_edge_torch``.
+
+    Uses Google's ``ai_edge_torch`` to convert the PyTorch model directly
+    to TFLite without going through an intermediate ONNX or SavedModel.
+    The resulting model has a fixed batch size of 1 (suitable for on-device
+    single-image inference).
+
+    Returns the path to the exported ``.tflite`` file.
+    """
+    import ai_edge_torch
+
+    device = torch.device("cpu")
+    model, _ = _load_model(model_path, device)
+
+    sample_input = (torch.randn(1, 3, input_size, input_size, device=device),)
+    edge_model = ai_edge_torch.convert(model, sample_input)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dest = output_dir / "model.tflite"
+    edge_model.export(str(dest))
+
+    logger.info("TFLite classifier exported to %s (%.1f MB)", dest, dest.stat().st_size / 1e6)
+    return dest
+
+
 def write_metadata(
     output_dir: Path,
     *,
@@ -123,6 +160,14 @@ def write_metadata(
     config: dict | None = None,
 ) -> Path:
     """Write a ``metadata.json`` alongside the exported model."""
+    formats = []
+    if (output_dir / "model.onnx").exists():
+        formats.append("onnx")
+    if (output_dir / "model.torchscript").exists():
+        formats.append("torchscript")
+    if (output_dir / "model.tflite").exists():
+        formats.append("tflite")
+
     meta = {
         "model_type": "classifier",
         "architecture": config.get("model", {}).get("backbone", "efficientnet_b0")
@@ -132,6 +177,7 @@ def write_metadata(
         "input_size": input_size,
         "num_classes": NUM_CLASSES,
         "class_names": CLASS_NAMES,
+        "exported_formats": formats,
         "source_checkpoint": str(model_path),
         "exported_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -157,6 +203,7 @@ def export_all(
 
     onnx_path = export_onnx(model_path, output_dir, input_size=input_size, opset=opset)
     ts_path = export_torchscript(model_path, output_dir, input_size=input_size)
+    tflite_path = export_tflite(model_path, output_dir, input_size=input_size)
     meta_path = write_metadata(
         output_dir,
         model_path=model_path,
@@ -165,7 +212,12 @@ def export_all(
         config=cfg,
     )
 
-    return {"onnx": onnx_path, "torchscript": ts_path, "metadata": meta_path}
+    return {
+        "onnx": onnx_path,
+        "torchscript": ts_path,
+        "tflite": tflite_path,
+        "metadata": meta_path,
+    }
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -177,7 +229,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--opset", type=int, default=17)
     parser.add_argument(
         "--format",
-        choices=["onnx", "torchscript", "all"],
+        choices=["onnx", "torchscript", "tflite", "all"],
         default="all",
     )
     args = parser.parse_args(argv)
@@ -188,6 +240,8 @@ def main(argv: list[str] | None = None) -> None:
         export_onnx(args.model, args.output_dir, input_size=args.input_size, opset=args.opset)
     elif args.format == "torchscript":
         export_torchscript(args.model, args.output_dir, input_size=args.input_size)
+    elif args.format == "tflite":
+        export_tflite(args.model, args.output_dir, input_size=args.input_size)
     else:
         export_all(
             args.model,

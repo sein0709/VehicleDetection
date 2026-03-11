@@ -1,78 +1,75 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
-import 'package:greyeye_mobile/core/constants/api_constants.dart';
 import 'package:greyeye_mobile/features/auth/models/auth_state.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 export 'package:greyeye_mobile/features/auth/models/auth_state.dart';
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState.initial);
-
-  final Dio _dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {'Content-Type': 'application/json'},
-    ),
+AuthUser _mapUser(sb.User user) {
+  final meta = user.userMetadata;
+  return AuthUser(
+    id: user.id,
+    email: user.email ?? '',
+    name: meta?['name'] as String?,
+    avatarUrl: meta?['avatar_url'] as String?,
   );
+}
 
-  String _extractError(Object error) {
-    if (error is DioException) {
-      final data = error.response?.data;
-      if (data is Map<String, dynamic>) {
-        final detail = data['detail'];
-        if (detail is String && detail.isNotEmpty) {
-          return detail;
-        }
-        final nestedError = data['error'];
-        if (nestedError is Map<String, dynamic>) {
-          final message = nestedError['message'];
-          if (message is String && message.isNotEmpty) {
-            return message;
-          }
-        }
-      }
-      return error.message ?? 'Request failed';
-    }
-    return error.toString();
+class AuthNotifier extends StateNotifier<AuthState> {
+  AuthNotifier() : super(AuthState.initial) {
+    _init();
   }
 
-  AuthState _authenticatedState(Map<String, dynamic> data) {
-    final user = data['user'] as Map<String, dynamic>? ?? const {};
-    return state.copyWith(
-      status: AuthStatus.authenticated,
-      user: AuthUser(
-        id: user['id'] as String? ?? '',
-        email: user['email'] as String? ?? '',
-        name: user['name'] as String? ?? '',
-      ),
-      tokens: AuthTokens(
-        accessToken: data['access_token'] as String? ?? '',
-        refreshToken: data['refresh_token'] as String? ?? '',
-      ),
-      errorMessage: null,
-    );
+  final sb.SupabaseClient _client = sb.Supabase.instance.client;
+  StreamSubscription<sb.AuthState>? _authSub;
+
+  void _init() {
+    final session = _client.auth.currentSession;
+    if (session != null) {
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: _mapUser(session.user),
+      );
+    } else {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+
+    _authSub = _client.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      if (session != null) {
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          user: _mapUser(session.user),
+        );
+      } else {
+        state = const AuthState(status: AuthStatus.unauthenticated);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 
   Future<void> login({
     required String email,
     required String password,
   }) async {
-    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    state = state.copyWith(status: AuthStatus.loading);
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        ApiConstants.authLogin,
-        data: {
-          'email': email,
-          'password': password,
-        },
+      await _client.auth.signInWithPassword(email: email, password: password);
+    } on sb.AuthException catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.message,
       );
-      state = _authenticatedState(response.data ?? const {});
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: _extractError(e),
+        errorMessage: e.toString(),
       );
     }
   }
@@ -81,39 +78,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String name,
     required String email,
     required String password,
-    String? orgName,
   }) async {
-    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    state = state.copyWith(status: AuthStatus.loading);
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        ApiConstants.authRegister,
-        data: {
-          'name': name,
-          'email': email,
-          'password': password,
-          'org_name': (orgName != null && orgName.trim().isNotEmpty)
-              ? orgName.trim()
-              : '$name Organization',
-        },
+      await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'name': name},
       );
-      state = _authenticatedState(response.data ?? const {});
+    } on sb.AuthException catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.message,
+      );
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: _extractError(e),
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  Future<void> resetPassword(String email) async {
+    state = state.copyWith(status: AuthStatus.loading);
+    try {
+      await _client.auth.resetPasswordForEmail(email);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on sb.AuthException catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.toString(),
       );
     }
   }
 
   Future<void> logout() async {
+    try {
+      await _client.auth.signOut();
+    } catch (_) {}
     state = const AuthState(status: AuthStatus.unauthenticated);
-  }
-
-  Future<void> forgotPassword(String email) async {
-    state = state.copyWith(
-      status: AuthStatus.error,
-      errorMessage: 'Password reset is not implemented in the mobile client yet.',
-    );
   }
 }
 

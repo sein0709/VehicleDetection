@@ -1,50 +1,84 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:greyeye_mobile/core/constants/api_constants.dart';
-import 'package:greyeye_mobile/core/network/api_client.dart';
+import 'package:greyeye_mobile/core/database/database.dart' hide Site;
+import 'package:greyeye_mobile/core/database/database_provider.dart';
+import 'package:greyeye_mobile/core/database/daos/sites_dao.dart';
 import 'package:greyeye_mobile/features/sites/models/site_model.dart';
+import 'package:uuid/uuid.dart';
 
-class SitesNotifier extends StateNotifier<AsyncValue<List<Site>>> {
-  SitesNotifier(this._api) : super(const AsyncValue.loading()) {
+const _uuid = Uuid();
+
+class SitesNotifier extends StateNotifier<AsyncValue<List<SiteView>>> {
+  SitesNotifier(this._sitesDao)
+      : super(const AsyncValue.loading()) {
     load();
   }
 
-  final ApiClient _api;
+  final SitesDao _sitesDao;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
     try {
-      final response = await _api.get<Map<String, dynamic>>(ApiConstants.sites);
-      final data = response.data;
-      final items = (data?['data'] as List<dynamic>?)
-              ?.map((e) => Site.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [];
-      state = AsyncValue.data(items);
+      final rows = await _sitesDao.allSites();
+      final views = <SiteView>[];
+      for (final row in rows) {
+        final camCount = await _sitesDao.cameraCountForSite(row.id);
+        final activeCamCount =
+            await _sitesDao.activeCameraCountForSite(row.id);
+        views.add(SiteView.fromDbRow(
+          row,
+          cameraCount: camCount,
+          activeCameraCount: activeCamCount,
+        ));
+      }
+      state = AsyncValue.data(views);
     } on Exception catch (e, st) {
       state = AsyncValue.error(e, st);
     }
   }
 
-  Future<Site> create(Map<String, dynamic> body) async {
-    final response =
-        await _api.post<Map<String, dynamic>>(ApiConstants.sites, data: body);
-    final site = Site.fromJson(response.data!);
+  Future<SiteView> create({
+    required String name,
+    String? address,
+    double? latitude,
+    double? longitude,
+    String timezone = 'Asia/Seoul',
+  }) async {
+    final id = _uuid.v4();
+    await _sitesDao.insertSite(SitesCompanion.insert(
+      id: id,
+      name: name,
+      address: Value(address),
+      latitude: Value(latitude),
+      longitude: Value(longitude),
+      timezone: Value(timezone),
+    ));
+    final row = await _sitesDao.siteById(id);
+    final view = SiteView.fromDbRow(row!);
     state.whenData((sites) {
-      state = AsyncValue.data([...sites, site]);
+      state = AsyncValue.data([view, ...sites]);
     });
-    return site;
+    return view;
   }
 
-  Future<void> update(String siteId, Map<String, dynamic> body) async {
-    await _api.patch<Map<String, dynamic>>(
-      ApiConstants.site(siteId),
-      data: body,
-    );
+  Future<void> update(
+    String siteId, {
+    required String name,
+    String? address,
+    String? timezone,
+  }) async {
+    await _sitesDao.updateSite(SitesCompanion(
+      id: Value(siteId),
+      name: Value(name),
+      address: Value(address),
+      timezone: timezone != null ? Value(timezone) : const Value.absent(),
+      updatedAt: Value(DateTime.now()),
+    ));
     await load();
   }
 
   Future<void> delete(String siteId) async {
-    await _api.delete<void>(ApiConstants.site(siteId));
+    await _sitesDao.deleteSite(siteId);
     state.whenData((sites) {
       state = AsyncValue.data(sites.where((s) => s.id != siteId).toList());
     });
@@ -52,17 +86,13 @@ class SitesNotifier extends StateNotifier<AsyncValue<List<Site>>> {
 }
 
 final sitesProvider =
-    StateNotifierProvider<SitesNotifier, AsyncValue<List<Site>>>((ref) {
-  return SitesNotifier(ref.watch(apiClientProvider));
+    StateNotifierProvider<SitesNotifier, AsyncValue<List<SiteView>>>((ref) {
+  return SitesNotifier(ref.watch(sitesDaoProvider));
 });
 
-final siteProvider = Provider.family<Site?, String>((ref, siteId) {
+final siteProvider = Provider.family<SiteView?, String>((ref, siteId) {
   return ref.watch(sitesProvider).valueOrNull?.firstWhere(
         (s) => s.id == siteId,
-        orElse: () => Site(
-          id: siteId,
-          name: '...',
-          orgId: '',
-        ),
+        orElse: () => SiteView(id: siteId, name: '...'),
       );
 });

@@ -1,6 +1,0 @@
-apiVersion: v2
-name: config-service
-description: "GreyEye Config Service — sites, cameras, ROI CRUD"
-type: application
-version: 0.1.0
-appVersion: "0.1.0"

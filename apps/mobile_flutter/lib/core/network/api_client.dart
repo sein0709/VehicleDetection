@@ -1,38 +1,20 @@
+/// Legacy API client — retained for reference but no longer used.
+///
+/// All features now use local Drift/SQLite for data and Supabase for auth.
+/// This file can be safely deleted once the alerts feature is removed.
+library;
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:greyeye_mobile/core/constants/api_constants.dart';
-import 'package:greyeye_mobile/features/auth/providers/auth_provider.dart';
 
 final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(
+  return Dio(
     BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
     ),
   );
-
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) {
-        final authState = ref.read(authProvider);
-        final token = authState.tokens?.accessToken;
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) {
-        if (error.response?.statusCode == 401) {
-          ref.read(authProvider.notifier).logout();
-        }
-        handler.next(error);
-      },
-    ),
-  );
-
-  return dio;
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {

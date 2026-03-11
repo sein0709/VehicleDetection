@@ -27,7 +27,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from ml.data.dataset import DetectionAnnotation, GreyEyeAnnotation
-from shared_contracts.geometry import BoundingBox
+from ml.shared_contracts.geometry import BoundingBox
 
 logger = logging.getLogger(__name__)
 

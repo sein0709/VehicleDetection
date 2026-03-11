@@ -13,7 +13,6 @@ paths = [
     '''docs/''',
     '''\.md$''',
     '''test_.*\.py$''',
-    '''tests/''',
     '''fixtures/''',
     '''__snapshots__/''',
 ]

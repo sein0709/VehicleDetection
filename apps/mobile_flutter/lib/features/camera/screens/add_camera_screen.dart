@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:greyeye_mobile/features/camera/models/camera_model.dart';
 import 'package:greyeye_mobile/features/camera/providers/camera_provider.dart';
 
 class AddCameraScreen extends ConsumerStatefulWidget {
@@ -33,19 +34,18 @@ class _AddCameraScreenState extends ConsumerState<AddCameraScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
     try {
-      final body = {
-        'name': _nameController.text.trim(),
-        'source_type': _sourceType,
-        'settings': {
-          'target_fps': _targetFps,
-          'resolution': _resolution,
-          'night_mode': _nightMode,
-          'classification_mode': _classificationMode,
-        },
-      };
       await ref
           .read(cameraListProvider(widget.siteId).notifier)
-          .addCamera(body);
+          .addCamera(
+            name: _nameController.text.trim(),
+            sourceType: _sourceType,
+            settings: CameraSettings(
+              targetFps: _targetFps,
+              resolution: _resolution,
+              nightMode: _nightMode,
+              classificationMode: _classificationMode,
+            ),
+          );
       if (mounted) context.pop();
     } on Exception catch (e) {
       if (mounted) {

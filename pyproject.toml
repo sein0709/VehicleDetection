@@ -10,17 +10,6 @@ package = false
 
 [tool.uv.workspace]
 members = [
-    "libs/shared_contracts",
-    "libs/db_models",
-    "libs/test_utils",
-    "libs/observability",
-    "services/auth_service",
-    "services/config_service",
-    "services/ingest_service",
-    "services/inference_worker",
-    "services/aggregator",
-    "services/reporting_api",
-    "services/notification_service",
     "ml",
 ]
 
@@ -54,10 +43,7 @@ select = [
 
 [tool.ruff.lint.isort]
 known-first-party = [
-    "shared_contracts",
-    "db_models",
-    "test_utils",
-    "observability",
+    "ml",
 ]
 
 [tool.mypy]
@@ -67,20 +53,15 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 
-[[tool.mypy.overrides]]
-module = ["nats.*", "minio.*"]
-ignore_missing_imports = true
-
 [tool.pytest.ini_options]
-testpaths = ["libs", "services", "ml"]
+testpaths = ["ml"]
 asyncio_mode = "auto"
 addopts = ["--import-mode=importlib"]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "loadtest: marks tests as load/performance tests (deselect with '-m \"not loadtest\"')",
 ]
 
 [tool.bandit]
-exclude_dirs = ["tests", "ml/data", "infra"]
-skips = ["B101"]  # assert used in tests
+exclude_dirs = ["ml/data"]
+skips = ["B101"]

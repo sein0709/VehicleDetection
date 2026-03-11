@@ -43,11 +43,12 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
     if (_siteNameController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
     try {
-      final site = await ref.read(sitesProvider.notifier).create({
-        'name': _siteNameController.text.trim(),
-        'address': _siteAddressController.text.trim(),
-        'timezone': 'Asia/Seoul',
-      });
+      final site = await ref.read(sitesProvider.notifier).create(
+            name: _siteNameController.text.trim(),
+            address: _siteAddressController.text.trim().isEmpty
+                ? null
+                : _siteAddressController.text.trim(),
+          );
       setState(() {
         _siteId = site.id;
         _step = 1;
@@ -69,16 +70,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
     try {
       final camera = await ref
           .read(cameraListProvider(_siteId!).notifier)
-          .addCamera({
-        'name': _cameraNameController.text.trim(),
-        'source_type': 'smartphone',
-        'settings': {
-          'target_fps': 10,
-          'resolution': '1920x1080',
-          'night_mode': false,
-          'classification_mode': 'full_12class',
-        },
-      });
+          .addCamera(name: _cameraNameController.text.trim());
       setState(() {
         _cameraId = camera.id;
         _step = 2;

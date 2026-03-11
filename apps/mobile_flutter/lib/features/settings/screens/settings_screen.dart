@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:greyeye_mobile/core/database/database_provider.dart';
+import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/features/auth/providers/auth_provider.dart';
 import 'package:greyeye_mobile/features/settings/providers/settings_provider.dart';
 
@@ -28,8 +30,8 @@ class SettingsScreen extends ConsumerWidget {
                     radius: 28,
                     backgroundColor: theme.colorScheme.primaryContainer,
                     child: Text(
-                      auth.user!.name.isNotEmpty
-                          ? auth.user!.name[0].toUpperCase()
+                      auth.user!.displayName.isNotEmpty
+                          ? auth.user!.displayName[0].toUpperCase()
                           : '?',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         color: theme.colorScheme.primary,
@@ -42,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          auth.user!.name,
+                          auth.user!.displayName,
                           style: theme.textTheme.titleMedium,
                         ),
                         Text(
@@ -86,6 +88,14 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Quick Setup'),
             subtitle: const Text('Run the setup wizard again'),
             onTap: () => context.go('/setup'),
+          ),
+          const Divider(),
+          _SectionHeader(title: 'Data'),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep_outlined),
+            title: const Text('Clear All Local Data'),
+            subtitle: const Text('Remove all sites, cameras, and crossings'),
+            onTap: () => _confirmClearData(context, ref, l10n),
           ),
           const Divider(),
           ListTile(
@@ -169,6 +179,44 @@ class SettingsScreen extends ConsumerWidget {
                   .setLocale(const Locale('ko'));
               Navigator.pop(ctx);
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmClearData(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear All Data?'),
+        content: const Text(
+          'This will permanently delete all local sites, cameras, '
+          'ROI presets, and crossing data. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(databaseProvider).clearAllData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('All data cleared')),
+                );
+              }
+            },
+            child: const Text('Clear'),
           ),
         ],
       ),

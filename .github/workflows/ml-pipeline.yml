@@ -12,13 +12,11 @@ on:
     branches: [main]
     paths:
       - "ml/**"
-      - "libs/shared_contracts/**"
       - ".github/workflows/ml-pipeline.yml"
   pull_request:
     branches: [main]
     paths:
       - "ml/**"
-      - "libs/shared_contracts/**"
       - ".github/workflows/ml-pipeline.yml"
 
 concurrency:

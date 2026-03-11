@@ -17,8 +17,8 @@ from PIL import Image
 from pydantic import BaseModel
 from torch.utils.data import Dataset
 
-from shared_contracts.enums import VehicleClass12
-from shared_contracts.geometry import BoundingBox
+from ml.shared_contracts.enums import VehicleClass12
+from ml.shared_contracts.geometry import BoundingBox
 
 
 # ---------------------------------------------------------------------------

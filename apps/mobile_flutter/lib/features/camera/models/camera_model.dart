@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:greyeye_mobile/core/database/database.dart' as db;
 
 @immutable
 class CameraSettings {
@@ -44,17 +47,16 @@ class CameraSettings {
 }
 
 @immutable
-class Camera {
-  const Camera({
+class CameraView {
+  const CameraView({
     required this.id,
     required this.siteId,
     required this.name,
     this.sourceType = 'smartphone',
     this.settings = const CameraSettings(),
     this.status = 'offline',
-    this.configVersion = 1,
     this.createdAt,
-    this.lastHeartbeat,
+    this.lastSeenAt,
   });
 
   final String id;
@@ -63,54 +65,47 @@ class Camera {
   final String sourceType;
   final CameraSettings settings;
   final String status;
-  final int configVersion;
   final DateTime? createdAt;
-  final DateTime? lastHeartbeat;
+  final DateTime? lastSeenAt;
 
   bool get isOnline => status == 'online';
   bool get isDegraded => status == 'degraded';
 
-  factory Camera.fromJson(Map<String, dynamic> json) => Camera(
-        id: json['id'] as String,
-        siteId: json['site_id'] as String,
-        name: json['name'] as String,
-        sourceType: json['source_type'] as String? ?? 'smartphone',
-        settings: json['settings'] != null
-            ? CameraSettings.fromJson(json['settings'] as Map<String, dynamic>)
-            : const CameraSettings(),
-        status: json['status'] as String? ?? 'offline',
-        configVersion: json['active_config_version'] as int? ??
-            json['config_version'] as int? ??
-            1,
-        createdAt: json['created_at'] != null
-            ? DateTime.parse(json['created_at'] as String)
-            : null,
-        lastHeartbeat: json['last_seen_at'] != null
-            ? DateTime.parse(json['last_seen_at'] as String)
-            : null,
+  factory CameraView.fromDbRow(db.Camera row) {
+    CameraSettings settings;
+    try {
+      settings = CameraSettings.fromJson(
+        jsonDecode(row.settingsJson) as Map<String, dynamic>,
       );
+    } catch (_) {
+      settings = const CameraSettings();
+    }
+    return CameraView(
+      id: row.id,
+      siteId: row.siteId,
+      name: row.name,
+      sourceType: row.sourceType,
+      settings: settings,
+      status: row.status,
+      createdAt: row.createdAt,
+      lastSeenAt: row.lastSeenAt,
+    );
+  }
 
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'source_type': sourceType,
-        'settings': settings.toJson(),
-      };
-
-  Camera copyWith({
+  CameraView copyWith({
     String? name,
     String? sourceType,
     CameraSettings? settings,
     String? status,
   }) =>
-      Camera(
+      CameraView(
         id: id,
         siteId: siteId,
         name: name ?? this.name,
         sourceType: sourceType ?? this.sourceType,
         settings: settings ?? this.settings,
         status: status ?? this.status,
-        configVersion: configVersion,
         createdAt: createdAt,
-        lastHeartbeat: lastHeartbeat,
+        lastSeenAt: lastSeenAt,
       );
 }

@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:greyeye_mobile/core/constants/api_constants.dart';
-import 'package:greyeye_mobile/core/network/api_client.dart';
+import 'package:greyeye_mobile/core/database/database.dart';
+import 'package:greyeye_mobile/core/database/database_provider.dart';
+import 'package:greyeye_mobile/core/database/daos/crossings_dao.dart';
 import 'package:greyeye_mobile/features/analytics/models/analytics_model.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 class AnalyticsParams {
   const AnalyticsParams({
@@ -33,68 +32,115 @@ class AnalyticsParams {
   int get hashCode => Object.hash(cameraId, start, end, groupBy);
 }
 
+AnalyticsResponse _buildResponse(List<AggVehicleCount15m> rows) {
+  final bucketMap = <DateTime, BucketData>{};
+
+  for (final row in rows) {
+    final bs = row.bucketStart;
+    final existing = bucketMap[bs];
+    if (existing != null) {
+      final byClass = Map<int, int>.from(existing.byClass);
+      byClass[row.class12] = (byClass[row.class12] ?? 0) + row.count;
+      final byDir = Map<String, int>.from(existing.byDirection);
+      byDir[row.direction] = (byDir[row.direction] ?? 0) + row.count;
+      bucketMap[bs] = BucketData(
+        bucketStart: bs,
+        bucketEnd: bs.add(const Duration(minutes: 15)),
+        totalCount: existing.totalCount + row.count,
+        byClass: byClass,
+        byDirection: byDir,
+      );
+    } else {
+      bucketMap[bs] = BucketData(
+        bucketStart: bs,
+        bucketEnd: bs.add(const Duration(minutes: 15)),
+        totalCount: row.count,
+        byClass: {row.class12: row.count},
+        byDirection: {row.direction: row.count},
+      );
+    }
+  }
+
+  final buckets = bucketMap.values.toList()
+    ..sort((a, b) => a.bucketStart.compareTo(b.bucketStart));
+
+  return AnalyticsResponse(buckets: buckets);
+}
+
 final analyticsProvider =
     FutureProvider.family<AnalyticsResponse, AnalyticsParams>(
   (ref, params) async {
-    final api = ref.watch(apiClientProvider);
-    final response = await api.get<Map<String, dynamic>>(
-      ApiConstants.analytics15m,
-      queryParameters: {
-        'camera_id': params.cameraId,
-        'start': params.start.toUtc().toIso8601String(),
-        'end': params.end.toUtc().toIso8601String(),
-        'group_by': params.groupBy,
-      },
+    final dao = ref.watch(crossingsDaoProvider);
+    final rows = await dao.aggregatesForCamera(
+      params.cameraId,
+      from: params.start.toUtc(),
+      to: params.end.toUtc(),
     );
-    return AnalyticsResponse.fromJson(response.data!);
+    return _buildResponse(rows);
   },
 );
 
+/// Local live KPI computed from recent crossings, refreshed periodically.
 class LiveKpiNotifier extends StateNotifier<LiveKpiUpdate?> {
-  LiveKpiNotifier(this._cameraId) : super(null) {
-    _connect();
+  LiveKpiNotifier(this._crossingsDao, this._cameraId) : super(null) {
+    _startPolling();
   }
 
+  final CrossingsDao _crossingsDao;
   final String _cameraId;
-  WebSocketChannel? _channel;
-  StreamSubscription<dynamic>? _subscription;
+  Timer? _timer;
 
-  void _connect() {
-    final uri = Uri.parse(
-      '${ApiConstants.wsBaseUrl}${ApiConstants.analyticsLiveWs}?camera_id=$_cameraId',
-    );
-    _channel = WebSocketChannel.connect(uri);
-    _subscription = _channel!.stream.listen(
-      (data) {
-        try {
-          final json = jsonDecode(data as String) as Map<String, dynamic>;
-          if (json['type'] == 'live_kpi_update') {
-            state = LiveKpiUpdate.fromJson(json);
-          }
-        } on Exception {
-          // ignore malformed messages
-        }
-      },
-      onError: (_) => _reconnect(),
-      onDone: _reconnect,
-    );
+  void _startPolling() {
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _refresh());
   }
 
-  void _reconnect() {
-    _subscription?.cancel();
-    _channel?.sink.close();
-    Future<void>.delayed(const Duration(seconds: 3), _connect);
+  Future<void> _refresh() async {
+    try {
+      final now = DateTime.now().toUtc();
+      final bucketMinute = (now.minute ~/ 15) * 15;
+      final bucketStart =
+          DateTime.utc(now.year, now.month, now.day, now.hour, bucketMinute);
+      final elapsed = now.difference(bucketStart).inSeconds.toDouble();
+
+      final crossings = await _crossingsDao.crossingsForCamera(
+        _cameraId,
+        after: bucketStart,
+        before: now,
+      );
+
+      final byClass = <int, int>{};
+      final byDirection = <String, int>{};
+      for (final c in crossings) {
+        byClass[c.class12] = (byClass[c.class12] ?? 0) + 1;
+        byDirection[c.direction] = (byDirection[c.direction] ?? 0) + 1;
+      }
+
+      final total = crossings.length;
+      final flowRate =
+          elapsed > 0 ? (total / elapsed * 3600).roundToDouble() : 0.0;
+
+      state = LiveKpiUpdate(
+        cameraId: _cameraId,
+        currentBucket: bucketStart,
+        elapsedSeconds: elapsed,
+        totalCount: total,
+        byClass: byClass,
+        byDirection: byDirection,
+        activeTracks: 0,
+        flowRatePerHour: flowRate,
+      );
+    } catch (_) {}
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
-    _channel?.sink.close();
+    _timer?.cancel();
     super.dispose();
   }
 }
 
 final liveKpiProvider = StateNotifierProvider.autoDispose
     .family<LiveKpiNotifier, LiveKpiUpdate?, String>((ref, cameraId) {
-  return LiveKpiNotifier(cameraId);
+  return LiveKpiNotifier(ref.watch(crossingsDaoProvider), cameraId);
 });
