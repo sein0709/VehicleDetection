@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:greyeye_mobile/core/constants/api_constants.dart';
 import 'package:greyeye_mobile/core/router/shell_scaffold.dart';
 import 'package:greyeye_mobile/features/analytics/screens/analytics_dashboard_screen.dart';
 import 'package:greyeye_mobile/features/analytics/screens/report_export_screen.dart';
@@ -29,6 +30,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/home',
     redirect: (context, state) {
+      if (!ApiConstants.authEnabled) return null;
+
       final isAuth = authState.isAuthenticated;
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register';

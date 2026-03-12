@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:greyeye_mobile/core/bootstrap/demo_workspace_service.dart';
+import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/features/sites/providers/sites_provider.dart';
 import 'package:greyeye_mobile/features/sites/models/site_model.dart';
 import 'package:greyeye_mobile/shared/widgets/empty_state.dart';
@@ -38,8 +39,35 @@ class HomeScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.location_city_outlined,
               title: l10n.homeNoSites,
-              actionLabel: l10n.homeAddSite,
-              onAction: () => context.go('/home/sites/new'),
+              subtitle:
+                  'Run the setup wizard for a blank workspace, or load demo traffic data to explore the full app immediately.',
+              actionLabel: 'Quick Setup',
+              onAction: () => context.go('/setup'),
+              secondaryActionLabel: 'Load Demo Data',
+              onSecondaryAction: () async {
+                final service = ref.read(demoWorkspaceServiceProvider);
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final summary = await service.seedDemoWorkspace();
+                  await ref.read(sitesProvider.notifier).load();
+                  if (!context.mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        summary.created
+                            ? 'Demo workspace created.'
+                            : 'Existing workspace opened.',
+                      ),
+                    ),
+                  );
+                  context.go('/home/sites/${summary.siteId}');
+                } on Exception catch (error) {
+                  if (!context.mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(error.toString())),
+                  );
+                }
+              },
             );
           }
           return RefreshIndicator(
@@ -75,10 +103,8 @@ class _KpiRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalCameras =
-        sites.fold(0, (sum, s) => sum + s.activeCameraCount);
-    final totalVehicles =
-        sites.fold(0, (sum, s) => sum + s.todayVehicleCount);
+    final totalCameras = sites.fold(0, (sum, s) => sum + s.activeCameraCount);
+    final totalVehicles = sites.fold(0, (sum, s) => sum + s.todayVehicleCount);
 
     return Row(
       children: [

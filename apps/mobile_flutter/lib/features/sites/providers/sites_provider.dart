@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:greyeye_mobile/core/database/database.dart' hide Site;
 import 'package:greyeye_mobile/core/database/database_provider.dart';
+import 'package:greyeye_mobile/core/database/daos/cameras_dao.dart';
+import 'package:greyeye_mobile/core/database/daos/crossings_dao.dart';
 import 'package:greyeye_mobile/core/database/daos/sites_dao.dart';
 import 'package:greyeye_mobile/features/sites/models/site_model.dart';
 import 'package:uuid/uuid.dart';
@@ -9,26 +11,42 @@ import 'package:uuid/uuid.dart';
 const _uuid = Uuid();
 
 class SitesNotifier extends StateNotifier<AsyncValue<List<SiteView>>> {
-  SitesNotifier(this._sitesDao)
-      : super(const AsyncValue.loading()) {
+  SitesNotifier(
+    this._sitesDao,
+    this._camerasDao,
+    this._crossingsDao,
+  ) : super(const AsyncValue.loading()) {
     load();
   }
 
   final SitesDao _sitesDao;
+  final CamerasDao _camerasDao;
+  final CrossingsDao _crossingsDao;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
     try {
       final rows = await _sitesDao.allSites();
       final views = <SiteView>[];
+      final now = DateTime.now().toUtc();
+      final todayStart = DateTime.utc(now.year, now.month, now.day);
       for (final row in rows) {
-        final camCount = await _sitesDao.cameraCountForSite(row.id);
+        final cameras = await _camerasDao.camerasForSite(row.id);
+        final camCount = cameras.length;
         final activeCamCount =
-            await _sitesDao.activeCameraCountForSite(row.id);
+            cameras.where((camera) => camera.status == 'online').length;
+        var todayVehicleCount = 0;
+        for (final camera in cameras) {
+          todayVehicleCount += await _crossingsDao.crossingCountForCamera(
+            camera.id,
+            after: todayStart,
+          );
+        }
         views.add(SiteView.fromDbRow(
           row,
           cameraCount: camCount,
           activeCameraCount: activeCamCount,
+          todayVehicleCount: todayVehicleCount,
         ));
       }
       state = AsyncValue.data(views);
@@ -87,7 +105,11 @@ class SitesNotifier extends StateNotifier<AsyncValue<List<SiteView>>> {
 
 final sitesProvider =
     StateNotifierProvider<SitesNotifier, AsyncValue<List<SiteView>>>((ref) {
-  return SitesNotifier(ref.watch(sitesDaoProvider));
+  return SitesNotifier(
+    ref.watch(sitesDaoProvider),
+    ref.watch(camerasDaoProvider),
+    ref.watch(crossingsDaoProvider),
+  );
 });
 
 final siteProvider = Provider.family<SiteView?, String>((ref, siteId) {

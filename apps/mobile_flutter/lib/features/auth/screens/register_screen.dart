@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:greyeye_mobile/core/constants/api_constants.dart';
 import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/features/auth/providers/auth_provider.dart';
 
@@ -41,6 +42,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final auth = ref.watch(authProvider);
+    final authEnabled = ApiConstants.authEnabled;
     final theme = Theme.of(context);
 
     ref.listen(authProvider, (prev, next) {
@@ -67,6 +69,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (!authEnabled) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Authentication is disabled',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Configure Supabase environment variables to enable account creation. The local dashboard is still available without it.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => context.go('/home'),
+                          icon: const Icon(Icons.dashboard_outlined),
+                          label: const Text('Open dashboard'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 Text(
                   l10n.registerTitle,
                   style: theme.textTheme.headlineSmall?.copyWith(
@@ -80,9 +114,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: l10n.registerName,
                     prefixIcon: const Icon(Icons.person_outlined),
                   ),
+                  enabled: authEnabled,
                   textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? l10n.loginFieldRequired : null,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? l10n.loginFieldRequired
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -91,10 +127,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: l10n.registerEmail,
                     prefixIcon: const Icon(Icons.email_outlined),
                   ),
+                  enabled: authEnabled,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return l10n.loginFieldRequired;
+                    if (v == null || v.trim().isEmpty)
+                      return l10n.loginFieldRequired;
                     if (!v.contains('@')) return l10n.loginInvalidEmail;
                     return null;
                   },
@@ -106,6 +144,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: l10n.registerPassword,
                     prefixIcon: const Icon(Icons.lock_outlined),
                   ),
+                  enabled: authEnabled,
                   obscureText: true,
                   textInputAction: TextInputAction.next,
                   validator: (v) =>
@@ -118,6 +157,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: l10n.registerConfirmPassword,
                     prefixIcon: const Icon(Icons.lock_outlined),
                   ),
+                  enabled: authEnabled,
                   obscureText: true,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _submit(),
@@ -131,7 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: auth.isLoading ? null : _submit,
+                  onPressed: auth.isLoading || !authEnabled ? null : _submit,
                   child: auth.isLoading
                       ? const SizedBox(
                           height: 20,

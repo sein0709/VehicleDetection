@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:greyeye_mobile/core/constants/api_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:greyeye_mobile/features/auth/models/auth_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
@@ -21,11 +22,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _init();
   }
 
-  final sb.SupabaseClient _client = sb.Supabase.instance.client;
   StreamSubscription<sb.AuthState>? _authSub;
+  sb.SupabaseClient? get _client =>
+      ApiConstants.authEnabled ? sb.Supabase.instance.client : null;
 
   void _init() {
-    final session = _client.auth.currentSession;
+    if (!ApiConstants.authEnabled) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+
+    final client = _client!;
+    final session = client.auth.currentSession;
     if (session != null) {
       state = AuthState(
         status: AuthStatus.authenticated,
@@ -35,7 +43,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
 
-    _authSub = _client.auth.onAuthStateChange.listen((data) {
+    _authSub = client.auth.onAuthStateChange.listen((data) {
       final session = data.session;
       if (session != null) {
         state = AuthState(
@@ -58,9 +66,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
   }) async {
+    if (!ApiConstants.authEnabled) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: 'Supabase auth is disabled. Open the dashboard directly.',
+      );
+      return;
+    }
+
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      await _client.auth.signInWithPassword(email: email, password: password);
+      await _client!.auth.signInWithPassword(email: email, password: password);
     } on sb.AuthException catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,
@@ -79,9 +95,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
   }) async {
+    if (!ApiConstants.authEnabled) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: 'Supabase auth is disabled. Open the dashboard directly.',
+      );
+      return;
+    }
+
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      await _client.auth.signUp(
+      await _client!.auth.signUp(
         email: email,
         password: password,
         data: {'name': name},
@@ -100,9 +124,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> resetPassword(String email) async {
+    if (!ApiConstants.authEnabled) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: 'Password reset is unavailable in offline mode.',
+      );
+      return;
+    }
+
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      await _client.auth.resetPasswordForEmail(email);
+      await _client!.auth.resetPasswordForEmail(email);
       state = state.copyWith(status: AuthStatus.unauthenticated);
     } on sb.AuthException catch (e) {
       state = state.copyWith(
@@ -118,8 +150,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    if (!ApiConstants.authEnabled) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+
     try {
-      await _client.auth.signOut();
+      await _client!.auth.signOut();
     } catch (_) {}
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

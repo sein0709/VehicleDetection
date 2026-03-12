@@ -26,11 +26,16 @@ class Detection {
     required this.bbox,
     required this.confidence,
     required this.frameIndex,
+    this.classCode,
   });
 
   final BoundingBox bbox;
   final double confidence;
   final int frameIndex;
+
+  /// KICT class code assigned by the detector via COCO-to-KICT mapping.
+  /// Null when using a custom model without the mapping enabled.
+  final int? classCode;
 }
 
 /// Stage 3 output: classification result for a single vehicle crop.

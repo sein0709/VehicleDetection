@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:greyeye_mobile/core/constants/api_constants.dart';
 import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/features/auth/providers/auth_provider.dart';
 
@@ -57,6 +58,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final auth = ref.watch(authProvider);
+    final authEnabled = ApiConstants.authEnabled;
     final theme = Theme.of(context);
 
     ref.listen(authProvider, (prev, next) {
@@ -101,6 +103,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
+                  if (!authEnabled) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Offline mode is active',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Supabase is not configured, so authentication is skipped and the local dashboard is available immediately.',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () => context.go('/home'),
+                            icon: const Icon(Icons.dashboard_outlined),
+                            label: const Text('Open dashboard'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   Text(
                     l10n.loginTitle,
                     style: theme.textTheme.titleLarge,
@@ -114,6 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    enabled: authEnabled,
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return l10n.loginFieldRequired;
@@ -134,28 +169,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                         ),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     obscureText: _obscurePassword,
+                    enabled: authEnabled,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _submit(),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return l10n.loginFieldRequired;
+                      if (v == null || v.isEmpty)
+                        return l10n.loginFieldRequired;
                       return null;
                     },
                   ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: auth.isLoading ? null : _forgotPassword,
+                      onPressed: auth.isLoading || !authEnabled
+                          ? null
+                          : _forgotPassword,
                       child: Text(l10n.loginForgotPassword),
                     ),
                   ),
                   const SizedBox(height: 8),
                   FilledButton(
-                    onPressed: auth.isLoading ? null : _submit,
+                    onPressed: auth.isLoading || !authEnabled ? null : _submit,
                     child: auth.isLoading
                         ? const SizedBox(
                             height: 20,
@@ -166,7 +205,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   TextButton(
-                    onPressed: () => context.go('/register'),
+                    onPressed:
+                        authEnabled ? () => context.go('/register') : null,
                     child: Text(l10n.registerAlreadyHaveAccount),
                   ),
                 ],

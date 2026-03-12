@@ -81,19 +81,34 @@ class InferencePipeline {
       if (e.value.isConfirmed) confirmedTracks[e.key] = e.value;
     }
 
-    final bboxesToClassify =
-        confirmedTracks.values.map((ts) => ts.bbox).toList();
-    final trackIdsOrdered = confirmedTracks.keys.toList();
-    final predictions = _classifier.classifyCrops(frame, bboxesToClassify);
+    final classifierDisabled =
+        _settings.classifier.mode == ClassificationMode.disabled;
 
-    for (var i = 0; i < trackIdsOrdered.length; i++) {
-      final ts = confirmedTracks[trackIdsOrdered[i]]!;
-      if (i < predictions.length) {
-        ts.classHistory.add(predictions[i]);
-        final maxHistory = _settings.smoother.window * 3;
-        if (ts.classHistory.length > maxHistory) {
-          ts.classHistory =
-              ts.classHistory.sublist(ts.classHistory.length - maxHistory);
+    if (classifierDisabled) {
+      // Use the detector's COCO-mapped class code directly on each track.
+      // Pick the class from the detection that last matched this track.
+      for (final ts in confirmedTracks.values) {
+        final detectorClass = _resolveDetectorClass(detections, ts);
+        if (detectorClass != null) {
+          ts.smoothedClass = detectorClass;
+          ts.smoothedConfidence = ts.smoothedConfidence ?? 1.0;
+        }
+      }
+    } else {
+      final bboxesToClassify =
+          confirmedTracks.values.map((ts) => ts.bbox).toList();
+      final trackIdsOrdered = confirmedTracks.keys.toList();
+      final predictions = _classifier.classifyCrops(frame, bboxesToClassify);
+
+      for (var i = 0; i < trackIdsOrdered.length; i++) {
+        final ts = confirmedTracks[trackIdsOrdered[i]]!;
+        if (i < predictions.length) {
+          ts.classHistory.add(predictions[i]);
+          final maxHistory = _settings.smoother.window * 3;
+          if (ts.classHistory.length > maxHistory) {
+            ts.classHistory =
+                ts.classHistory.sublist(ts.classHistory.length - maxHistory);
+          }
         }
       }
     }
@@ -104,13 +119,24 @@ class InferencePipeline {
 
     for (final entry in confirmedTracks.entries) {
       final ts = entry.value;
-      if (ts.classHistory.isEmpty) continue;
 
-      final smoothed = _smoother.smooth(ts.classHistory, ts.age);
-      if (smoothed == null) continue;
+      int? classCode;
+      double? confidence;
 
-      ts.smoothedClass = smoothed.classCode;
-      ts.smoothedConfidence = smoothed.confidence;
+      if (classifierDisabled) {
+        classCode = ts.smoothedClass;
+        confidence = ts.smoothedConfidence;
+      } else {
+        if (ts.classHistory.isEmpty) continue;
+        final smoothed = _smoother.smooth(ts.classHistory, ts.age);
+        if (smoothed == null) continue;
+        ts.smoothedClass = smoothed.classCode;
+        ts.smoothedConfidence = smoothed.confidence;
+        classCode = smoothed.classCode;
+        confidence = smoothed.confidence;
+      }
+
+      if (classCode == null) continue;
 
       final crossings =
           _crossingDetector.checkCrossings(ts, countingLines, frameIndex);
@@ -124,8 +150,8 @@ class InferencePipeline {
             lineId: crossing.lineId,
             trackId: ts.trackId,
             crossingSeq: seq,
-            classCode: smoothed.classCode,
-            confidence: smoothed.confidence,
+            classCode: classCode,
+            confidence: confidence ?? 0.0,
             direction: crossing.direction,
             frameIndex: frameIndex,
             speedEstimateKmh: ts.speedEstimateKmh,
@@ -152,6 +178,36 @@ class InferencePipeline {
       tracks: trackSnapshots,
       crossings: crossingEvents,
     );
+  }
+
+  /// Find the best detector-assigned class code for a track by picking the
+  /// detection whose bbox overlaps most with the track's current bbox.
+  int? _resolveDetectorClass(List<Detection> detections, TrackState ts) {
+    if (detections.isEmpty) return ts.smoothedClass;
+
+    final tb = bboxToXyxy(ts.bbox);
+    var bestIou = 0.0;
+    int? bestClass;
+
+    for (final det in detections) {
+      if (det.classCode == null) continue;
+      final db = bboxToXyxy(det.bbox);
+      final ix1 = db[0] > tb[0] ? db[0] : tb[0];
+      final iy1 = db[1] > tb[1] ? db[1] : tb[1];
+      final ix2 = db[2] < tb[2] ? db[2] : tb[2];
+      final iy2 = db[3] < tb[3] ? db[3] : tb[3];
+      final inter = (ix2 - ix1).clamp(0.0, double.infinity) *
+          (iy2 - iy1).clamp(0.0, double.infinity);
+      final areaD = (db[2] - db[0]) * (db[3] - db[1]);
+      final areaT = (tb[2] - tb[0]) * (tb[3] - tb[1]);
+      final iou = inter / (areaD + areaT - inter + 1e-6);
+      if (iou > bestIou) {
+        bestIou = iou;
+        bestClass = det.classCode;
+      }
+    }
+
+    return bestClass ?? ts.smoothedClass;
   }
 
   /// Reset all state for a camera (e.g. when stopping a session).

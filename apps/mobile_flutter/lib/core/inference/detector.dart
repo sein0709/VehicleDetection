@@ -15,16 +15,49 @@ import 'package:greyeye_mobile/core/inference/pipeline_settings.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
-const int _numClasses = 12;
-
 class VehicleDetector {
   VehicleDetector(this._settings);
 
   final DetectorSettings _settings;
   Interpreter? _interpreter;
 
+  /// Number of classes the loaded model outputs.
+  /// Inferred from the output tensor shape during [load].
+  int _numClasses = 0;
+
+  int get numClasses => _numClasses;
+
   Future<void> load() async {
-    _interpreter = await Interpreter.fromAsset(_settings.modelPath);
+    final interpreter = await Interpreter.fromAsset(_settings.modelPath);
+    _interpreter = interpreter;
+
+    final outputShape = interpreter.getOutputTensor(0).shape;
+    _numClasses = _inferNumClasses(outputShape);
+  }
+
+  /// Derive the class count from the model's output tensor shape.
+  ///
+  /// YOLOv8 transposed `[1, 4+C, N]` (rows < cols) -> `C = predDim - 4`.
+  /// YOLOv5 standard  `[1, N, 5+C]` (rows > cols)  -> `C = predDim - 5`.
+  /// Single-class     `[1, N, 5]`                   -> `C = 1`.
+  static int _inferNumClasses(List<int> shape) {
+    if (shape.length == 3) {
+      final rows = shape[1];
+      final cols = shape[2];
+      if (rows < cols) {
+        // Transposed (YOLOv8): predDim = rows = 4 + numClasses
+        return rows > 4 ? rows - 4 : 0;
+      } else {
+        // Standard (YOLOv5): predDim = cols = 5 + numClasses
+        if (cols == 5) return 1;
+        return cols > 5 ? cols - 5 : 0;
+      }
+    } else if (shape.length == 2) {
+      final predDim = shape[1];
+      if (predDim == 5) return 1;
+      return predDim > 5 ? predDim - 5 : 0;
+    }
+    return 0;
   }
 
   void dispose() {
@@ -135,33 +168,47 @@ class VehicleDetector {
       return [];
     }
 
-    if (predDim < 5 && predDim != 4 + _numClasses) return [];
+    if (_numClasses == 0 ||
+        (predDim != 5 &&
+            predDim != 5 + _numClasses &&
+            predDim != 4 + _numClasses)) {
+      return [];
+    }
 
     // Extract predictions into a 2D view.
     final confThreshold = _settings.confidenceThreshold;
     final filteredBoxes = <List<double>>[];
     final filteredScores = <double>[];
+    final filteredClassIndices = <int>[];
 
     for (var n = 0; n < numPreds; n++) {
-      // Read one prediction row.
       final p = Float64List(predDim);
       for (var f = 0; f < predDim; f++) {
         p[f] = transposed ? raw[f * numPreds + n] : raw[n * predDim + f];
       }
 
       double score;
+      int bestClassIdx = 0;
       if (predDim == 5) {
         score = p[4];
       } else if (predDim == 5 + _numClasses) {
         var maxCls = p[5];
+        bestClassIdx = 0;
         for (var c = 6; c < predDim; c++) {
-          if (p[c] > maxCls) maxCls = p[c];
+          if (p[c] > maxCls) {
+            maxCls = p[c];
+            bestClassIdx = c - 5;
+          }
         }
         score = p[4] * maxCls;
       } else if (predDim == 4 + _numClasses) {
         var maxCls = p[4];
+        bestClassIdx = 0;
         for (var c = 5; c < predDim; c++) {
-          if (p[c] > maxCls) maxCls = p[c];
+          if (p[c] > maxCls) {
+            maxCls = p[c];
+            bestClassIdx = c - 4;
+          }
         }
         score = maxCls;
       } else {
@@ -170,9 +217,15 @@ class VehicleDetector {
 
       if (score < confThreshold) continue;
 
+      if (_settings.filterVehiclesOnly &&
+          !_settings.cocoClassMap.containsKey(bestClassIdx)) {
+        continue;
+      }
+
       final cx = p[0], cy = p[1], bw = p[2], bh = p[3];
       filteredBoxes.add([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2]);
       filteredScores.add(score);
+      filteredClassIndices.add(bestClassIdx);
     }
 
     if (filteredBoxes.isEmpty) return [];
@@ -202,11 +255,17 @@ class VehicleDetector {
 
       if (nw < 0.005 || nh < 0.005) continue;
 
+      final rawClassIdx = filteredClassIndices[idx];
+      final mappedClassCode = _settings.filterVehiclesOnly
+          ? _settings.cocoClassMap[rawClassIdx]
+          : null;
+
       detections.add(
         Detection(
           bbox: BoundingBox(x: nx, y: ny, w: nw, h: nh),
           confidence: filteredScores[idx],
           frameIndex: frameIndex,
+          classCode: mappedClassCode,
         ),
       );
     }

@@ -10,6 +10,12 @@ class DetectorSettings {
     this.nmsIouThreshold = 0.45,
     this.maxDetections = 100,
     this.modelPath = 'assets/models/detector.tflite',
+    this.filterVehiclesOnly = true,
+    this.cocoClassMap = const {
+      2: 1, // COCO car       -> KICT 1 (Passenger car)
+      5: 2, // COCO bus       -> KICT 2 (Bus)
+      7: 3, // COCO truck     -> KICT 3 (Truck)
+    },
   });
 
   final int inputSize;
@@ -17,6 +23,15 @@ class DetectorSettings {
   final double nmsIouThreshold;
   final int maxDetections;
   final String modelPath;
+
+  /// When true, only detections whose COCO class index appears in
+  /// [cocoClassMap] are kept. Set to false when using a custom model that
+  /// already outputs only vehicle classes.
+  final bool filterVehiclesOnly;
+
+  /// Maps COCO 80-class indices to the project's 12-class KICT codes.
+  /// Only used when [filterVehiclesOnly] is true.
+  final Map<int, int> cocoClassMap;
 }
 
 class TrackerSettings {
@@ -38,7 +53,7 @@ class ClassifierSettings {
     this.inputSize = 224,
     this.fallbackThreshold = 0.4,
     this.modelPath = 'assets/models/classifier.tflite',
-    this.mode = ClassificationMode.full12class,
+    this.mode = ClassificationMode.disabled,
   });
 
   final int inputSize;

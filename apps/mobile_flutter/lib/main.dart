@@ -10,10 +10,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: ApiConstants.supabaseUrl,
-    anonKey: ApiConstants.supabaseAnonKey,
-  );
+  if (ApiConstants.authEnabled) {
+    await Supabase.initialize(
+      url: ApiConstants.supabaseUrl,
+      anonKey: ApiConstants.supabaseAnonKey,
+    );
+  }
 
   runApp(const ProviderScope(child: GreyEyeApp()));
 }

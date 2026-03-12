@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:camera/camera.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
-import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:greyeye_mobile/core/constants/vehicle_classes.dart';
 import 'package:greyeye_mobile/core/database/database.dart';
 import 'package:greyeye_mobile/core/database/database_provider.dart';
 import 'package:greyeye_mobile/core/inference/inference_isolate.dart';
+import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/core/inference/models.dart';
 import 'package:greyeye_mobile/core/inference/pipeline_settings.dart';
 import 'package:greyeye_mobile/core/theme/app_colors.dart';
@@ -35,8 +34,13 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
   List<TrackSnapshot> _tracks = [];
   bool _isRunning = false;
   bool _initializing = true;
+  bool _demoMode = false;
+  bool _processingFrame = false;
   int _frameIndex = 0;
   int _crossingCount = 0;
+  int _demoStep = 0;
+  String? _statusMessage;
+  String? _activeLineId;
   Timer? _frameTimer;
 
   @override
@@ -67,14 +71,12 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
 
       await _cameraController!.initialize();
 
-      await _inferenceRunner.start(PipelineSettings());
-
       final roiDao = ref.read(roiDaoProvider);
-      final activePreset =
-          await roiDao.activePresetForCamera(widget.cameraId);
+      List<roi.CountingLine> countingLines = const [];
+      final activePreset = await roiDao.activePresetForCamera(widget.cameraId);
       if (activePreset != null) {
         final dbLines = await roiDao.linesForPreset(activePreset.id);
-        final countingLines = dbLines
+        countingLines = dbLines
             .map((l) => roi.CountingLine(
                   name: l.id,
                   start: roi.Point2D(x: l.startX, y: l.startY),
@@ -82,15 +84,49 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
                   direction: l.direction,
                 ))
             .toList();
-        _inferenceRunner.updateCountingLines(widget.cameraId, countingLines);
+        _activeLineId = dbLines.isNotEmpty ? dbLines.first.id : null;
       }
+
+      try {
+        await _inferenceRunner.start(PipelineSettings());
+        if (countingLines.isNotEmpty) {
+          _inferenceRunner.updateCountingLines(widget.cameraId, countingLines);
+        }
+        _statusMessage = null;
+      } catch (_) {
+        _demoMode = true;
+        _statusMessage =
+            'Model files are missing. Running simulated traffic mode.';
+      }
+
+      await ref
+          .read(camerasDaoProvider)
+          .updateStatus(widget.cameraId, 'online');
+      await ref.read(camerasDaoProvider).markSeen(widget.cameraId);
 
       if (mounted) {
         setState(() => _initializing = false);
         _startProcessing();
       }
+    } on CameraException catch (e) {
+      _demoMode = true;
+      _statusMessage = e.code == 'CameraAccessDenied'
+          ? 'Camera permission denied. Running simulated traffic mode.'
+          : 'Camera error: ${e.description}. Running simulated traffic mode.';
+      debugPrint('CameraException [${e.code}]: ${e.description}');
+      if (mounted) {
+        setState(() => _initializing = false);
+        _startProcessing();
+      }
     } catch (e) {
-      if (mounted) setState(() => _initializing = false);
+      _demoMode = true;
+      _statusMessage =
+          'Camera access is unavailable. Running simulated traffic mode.';
+      debugPrint('Camera init error: $e');
+      if (mounted) {
+        setState(() => _initializing = false);
+        _startProcessing();
+      }
     }
   }
 
@@ -99,6 +135,10 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
     setState(() => _isRunning = true);
 
     _frameTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (_demoMode) {
+        _simulateFrame();
+        return;
+      }
       _captureAndProcess();
     });
   }
@@ -110,10 +150,12 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
   }
 
   Future<void> _captureAndProcess() async {
+    if (_processingFrame) return;
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
 
+    _processingFrame = true;
     try {
       final xFile = await _cameraController!.takePicture();
       final bytes = await xFile.readAsBytes();
@@ -133,7 +175,71 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
       if (result.crossings.isNotEmpty) {
         _persistCrossings(result.crossings);
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _processingFrame = false;
+    }
+  }
+
+  Future<void> _simulateFrame() async {
+    final frameIndex = _frameIndex++;
+    final progress = (_demoStep % 120) / 120.0;
+    _demoStep += 1;
+
+    final tracks = <TrackSnapshot>[
+      TrackSnapshot(
+        trackId: 'demo-a',
+        bbox: BoundingBox(
+          x: 0.08 + progress * 0.65,
+          y: 0.28,
+          w: 0.16,
+          h: 0.12,
+        ),
+        classCode: 1,
+        confidence: 0.92,
+        speedEstimateKmh: 34,
+      ),
+      TrackSnapshot(
+        trackId: 'demo-b',
+        bbox: BoundingBox(
+          x: 0.62 - progress * 0.45,
+          y: 0.52,
+          w: 0.18,
+          h: 0.13,
+        ),
+        classCode: 3,
+        confidence: 0.88,
+        speedEstimateKmh: 41,
+      ),
+    ];
+
+    if (mounted) {
+      setState(() {
+        _tracks = tracks;
+      });
+    }
+
+    if (_activeLineId == null || frameIndex % 12 != 0) {
+      return;
+    }
+
+    final direction = (frameIndex ~/ 12).isEven ? 'inbound' : 'outbound';
+    final demoClass = <int>[1, 3, 2, 4, 8, 1][(frameIndex ~/ 12) % 6];
+    final crossing = VehicleCrossingEvent(
+      timestampUtc: DateTime.now().toUtc(),
+      cameraId: widget.cameraId,
+      lineId: _activeLineId!,
+      trackId: 'demo-crossing-$frameIndex',
+      crossingSeq: 1,
+      classCode: demoClass,
+      confidence: 0.85,
+      direction: direction,
+      frameIndex: frameIndex,
+      speedEstimateKmh: 32 + ((frameIndex ~/ 12) % 18).toDouble(),
+      bbox: tracks.first.bbox,
+    );
+
+    await _persistCrossings([crossing]);
   }
 
   Future<void> _persistCrossings(List<VehicleCrossingEvent> crossings) async {
@@ -173,6 +279,7 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
   void dispose() {
     _frameTimer?.cancel();
     _cameraController?.dispose();
+    ref.read(camerasDaoProvider).updateStatus(widget.cameraId, 'offline');
     _inferenceRunner.resetCamera(widget.cameraId);
     _inferenceRunner.dispose();
     super.dispose();
@@ -191,7 +298,8 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
           Icon(
             Icons.circle,
             size: 12,
-            color: _isRunning ? AppColors.cameraOnline : AppColors.cameraOffline,
+            color:
+                _isRunning ? AppColors.cameraOnline : AppColors.cameraOffline,
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -249,7 +357,27 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
                         ),
                       ),
                     CustomPaint(
-                      painter: _TrackOverlayPainter(tracks: _tracks),
+                      painter: _TrackOverlayPainter(
+                        tracks: _tracks,
+                        previewAspectRatio: _cameraController
+                                    ?.value.isInitialized ==
+                                true
+                            ? _cameraController!.value.aspectRatio
+                            : 16 / 9,
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: _StatusBadge(
+                        message: _statusMessage ??
+                            (_demoMode
+                                ? 'Simulated traffic'
+                                : 'Live inference'),
+                        color: _demoMode
+                            ? theme.colorScheme.tertiary
+                            : theme.colorScheme.primary,
+                      ),
                     ),
                     Positioned(
                       top: 8,
@@ -282,6 +410,37 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
             child: _LiveKpiPanel(liveKpi: liveKpi, theme: theme, l10n: l10n),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.message,
+    required this.color,
+  });
+
+  final String message;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.8)),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -514,21 +673,38 @@ class _DirectionBar extends StatelessWidget {
 }
 
 class _TrackOverlayPainter extends CustomPainter {
-  _TrackOverlayPainter({required this.tracks});
+  _TrackOverlayPainter({
+    required this.tracks,
+    required this.previewAspectRatio,
+  });
 
   final List<TrackSnapshot> tracks;
+  final double previewAspectRatio;
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Compute the fitted preview rect (mirrors AspectRatio / BoxFit.contain).
+    final containerAR = size.width / size.height;
+    double previewW, previewH;
+    if (previewAspectRatio < containerAR) {
+      previewH = size.height;
+      previewW = previewH * previewAspectRatio;
+    } else {
+      previewW = size.width;
+      previewH = previewW / previewAspectRatio;
+    }
+    final offsetX = (size.width - previewW) / 2;
+    final offsetY = (size.height - previewH) / 2;
+
     for (final track in tracks) {
       final vc = VehicleClass.fromCode(track.classCode ?? 0);
       final color = vc?.color ?? Colors.white;
 
       final rect = Rect.fromLTWH(
-        track.bbox.x * size.width,
-        track.bbox.y * size.height,
-        track.bbox.w * size.width,
-        track.bbox.h * size.height,
+        offsetX + track.bbox.x * previewW,
+        offsetY + track.bbox.y * previewH,
+        track.bbox.w * previewW,
+        track.bbox.h * previewH,
       );
 
       final paint = Paint()
@@ -556,5 +732,6 @@ class _TrackOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrackOverlayPainter oldDelegate) =>
-      tracks != oldDelegate.tracks;
+      tracks != oldDelegate.tracks ||
+      previewAspectRatio != oldDelegate.previewAspectRatio;
 }
