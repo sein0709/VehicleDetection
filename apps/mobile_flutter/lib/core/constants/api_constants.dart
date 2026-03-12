@@ -7,4 +7,10 @@ abstract final class ApiConstants {
     'GREYEYE_SUPABASE_ANON_KEY',
     defaultValue: '',
   );
+
+  static const String alerts = '/alerts';
+  static const String alertRules = '/alert-rules';
+  static String alertAcknowledge(String id) => '/alerts/$id/acknowledge';
+  static String alertResolve(String id) => '/alerts/$id/resolve';
+  static String alertRule(String id) => '/alert-rules/$id';
 }
