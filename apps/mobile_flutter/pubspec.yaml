@@ -74,3 +74,4 @@ flutter:
   assets:
     - lib/core/l10n/
     - assets/models/
+    - assets/images/

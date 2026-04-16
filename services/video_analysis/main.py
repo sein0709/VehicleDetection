@@ -114,8 +114,8 @@ def _nms(boxes: np.ndarray, scores: np.ndarray, iou_threshold: float) -> list[in
     return keep
 
 
-def _detect_frame(session, frame: np.ndarray) -> int:
-    """Run detection on a single frame and return the count of vehicles."""
+def _detect_frame(session, frame: np.ndarray) -> dict[int, int]:
+    """Run detection on a single frame and return per-class counts (class_id -> count)."""
     padded, scale, (pad_w, pad_h) = _letterbox(frame, INPUT_SIZE)
     blob = padded.astype(np.float32) / 255.0
     blob = blob.transpose(2, 0, 1)[np.newaxis]
@@ -124,13 +124,13 @@ def _detect_frame(session, frame: np.ndarray) -> int:
     raw = session.run(None, {input_name: blob})[0]
 
     if raw.size == 0:
-        return 0
+        return {}
 
     preds = raw[0] if raw.ndim == 3 else raw
     if preds.ndim == 2 and preds.shape[0] < preds.shape[1]:
         preds = preds.T
     if preds.shape[1] < 5:
-        return 0
+        return {}
 
     if preds.shape[1] == 4 + NUM_CLASSES:
         scores = preds[:, 4:].max(axis=1)
@@ -148,12 +148,17 @@ def _detect_frame(session, frame: np.ndarray) -> int:
     class_ids = class_ids[mask]
 
     if len(preds) == 0:
-        return 0
+        return {}
 
     cx, cy, bw, bh = preds[:, 0], preds[:, 1], preds[:, 2], preds[:, 3]
     boxes_xyxy = np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], axis=1)
     keep = _nms(boxes_xyxy, scores, NMS_IOU_THRESHOLD)
-    return len(keep)
+
+    counts: dict[int, int] = {}
+    for idx in keep:
+        cls_id = int(class_ids[idx])
+        counts[cls_id] = counts.get(cls_id, 0) + 1
+    return counts
 
 
 def _process_video(job_id: str, video_path: str) -> None:
@@ -183,8 +188,11 @@ def _process_video(job_id: str, video_path: str) -> None:
                 break
 
             if frame_idx % FRAME_SAMPLE_INTERVAL == 0 and session is not None:
-                count = _detect_frame(session, frame)
-                total_vehicles += count
+                frame_counts = _detect_frame(session, frame)
+                for cls_id, cnt in frame_counts.items():
+                    name = CLASS_NAMES[cls_id] if cls_id < NUM_CLASSES else f"UNKNOWN_{cls_id}"
+                    class_counts[name] = class_counts.get(name, 0) + cnt
+                    total_vehicles += cnt
 
             frame_idx += 1
 

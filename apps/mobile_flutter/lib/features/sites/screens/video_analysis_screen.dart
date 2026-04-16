@@ -130,9 +130,18 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
     if (result == null) return;
 
     try {
-      final detectedCounts = <String, int>{
-        for (final e in result.breakdown) e.label: e.count,
-      };
+      final codePattern = RegExp(r'^C(\d+)_');
+      final countsByCode = <int, int>{};
+      final countsByLabel = <String, int>{};
+      for (final e in result.breakdown) {
+        countsByLabel[e.label] = e.count;
+        final m = codePattern.firstMatch(e.label);
+        if (m != null) {
+          final code = int.parse(m.group(1)!);
+          countsByCode[code] = (countsByCode[code] ?? 0) + e.count;
+        }
+      }
+
       final timeFmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
       final excel = xl.Excel.createExcel();
@@ -140,7 +149,7 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
       excel.delete('Sheet1');
 
       sheet.appendRow([
-        xl.TextCellValue('Analysis Start'),
+        xl.TextCellValue('분석 시작'),
         xl.TextCellValue(
           _analysisStartedAt != null
               ? timeFmt.format(_analysisStartedAt!)
@@ -148,7 +157,7 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
         ),
       ]);
       sheet.appendRow([
-        xl.TextCellValue('Analysis End'),
+        xl.TextCellValue('분석 종료'),
         xl.TextCellValue(
           _analysisCompletedAt != null
               ? timeFmt.format(_analysisCompletedAt!)
@@ -158,20 +167,21 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
       sheet.appendRow([xl.TextCellValue(''), xl.TextCellValue('')]);
 
       sheet.appendRow([
-        xl.TextCellValue('class_name'),
-        xl.TextCellValue('count'),
+        xl.TextCellValue('분류'),
+        xl.TextCellValue('대수'),
       ]);
 
       for (final vc in VehicleClass.values) {
-        final count = detectedCounts[vc.labelEn] ?? 0;
+        final count =
+            countsByCode[vc.code] ?? countsByLabel[vc.labelEn] ?? 0;
         sheet.appendRow([
-          xl.TextCellValue(vc.labelEn),
+          xl.TextCellValue(vc.labelKo),
           xl.IntCellValue(count),
         ]);
       }
 
       sheet.appendRow([
-        xl.TextCellValue('TOTAL'),
+        xl.TextCellValue('합계'),
         xl.IntCellValue(result.totalVehiclesCounted),
       ]);
 

@@ -21,6 +21,7 @@ import 'package:greyeye_mobile/features/sites/screens/create_edit_site_screen.da
 import 'package:greyeye_mobile/features/sites/screens/home_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/site_detail_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/video_analysis_screen.dart';
+import 'package:greyeye_mobile/features/splash/screens/splash_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -30,8 +31,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/home',
+    initialLocation: '/',
     redirect: (context, state) {
+      if (state.matchedLocation == '/') return null;
+
       if (!ApiConstants.authEnabled) return null;
 
       final isAuth = authState.isAuthenticated;
@@ -43,6 +46,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
