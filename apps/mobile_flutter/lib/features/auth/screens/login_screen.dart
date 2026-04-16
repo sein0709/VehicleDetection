@@ -38,8 +38,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter your email address first'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).loginEnterEmailFirst),
         ),
       );
       return;
@@ -47,8 +47,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await ref.read(authProvider.notifier).resetPassword(email);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset email sent. Check your inbox.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).loginResetEmailSent),
         ),
       );
     }
@@ -114,21 +114,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Offline mode is active',
+                            l10n.loginOfflineModeActive,
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Supabase is not configured, so authentication is skipped and the local dashboard is available immediately.',
+                            l10n.loginOfflineModeDescription,
                             style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: () => context.go('/home'),
                             icon: const Icon(Icons.dashboard_outlined),
-                            label: const Text('Open dashboard'),
+                            label: Text(l10n.loginOpenDashboard),
                           ),
                         ],
                       ),

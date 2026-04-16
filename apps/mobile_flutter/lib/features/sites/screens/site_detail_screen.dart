@@ -22,6 +22,8 @@ class SiteDetailScreen extends ConsumerWidget {
       );
     }
 
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(site.name),
@@ -32,8 +34,11 @@ class SiteDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: wide ? 800 : double.infinity),
+          child: ListView(
+        padding: EdgeInsets.all(wide ? 24 : 16),
         children: [
           Card(
             child: Padding(
@@ -97,7 +102,16 @@ class SiteDetailScreen extends ConsumerWidget {
             subtitle: l10n.siteCameraCount(site.cameraCount),
             onTap: () => context.go('/home/sites/$siteId/cameras'),
           ),
+          const SizedBox(height: 16),
+          _ActionTile(
+            icon: Icons.video_file_outlined,
+            title: l10n.siteAnalyzeVideo,
+            subtitle: l10n.siteAnalyzeVideoDesc,
+            onTap: () => context.go('/home/sites/$siteId/video_analysis'),
+          ),
         ],
+      ),
+        ),
       ),
     );
   }

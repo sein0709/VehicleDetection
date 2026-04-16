@@ -90,7 +90,7 @@ class _RoiEditorScreenState extends ConsumerState<RoiEditorScreen> {
       await notifier.save();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ROI preset saved')),
+          SnackBar(content: Text(AppLocalizations.of(context).roiPresetSaved)),
         );
         context.pop();
       }
@@ -136,8 +136,8 @@ class _RoiEditorScreenState extends ConsumerState<RoiEditorScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Preset Name',
+              decoration: InputDecoration(
+                labelText: l10n.roiPresetName,
                 isDense: true,
               ),
             ),
@@ -145,21 +145,21 @@ class _RoiEditorScreenState extends ConsumerState<RoiEditorScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SegmentedButton<_DrawMode>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: _DrawMode.polygon,
-                  label: Text('ROI'),
-                  icon: Icon(Icons.pentagon_outlined),
+                  label: Text(l10n.roiSegmentRoi),
+                  icon: const Icon(Icons.pentagon_outlined),
                 ),
                 ButtonSegment(
                   value: _DrawMode.line,
-                  label: Text('Line'),
-                  icon: Icon(Icons.horizontal_rule),
+                  label: Text(l10n.roiSegmentLine),
+                  icon: const Icon(Icons.horizontal_rule),
                 ),
                 ButtonSegment(
                   value: _DrawMode.lane,
-                  label: Text('Lane'),
-                  icon: Icon(Icons.straighten),
+                  label: Text(l10n.roiSegmentLane),
+                  icon: const Icon(Icons.straighten),
                 ),
               ],
               selected: {_mode},
@@ -226,16 +226,16 @@ class _RoiEditorScreenState extends ConsumerState<RoiEditorScreen> {
               child: FilledButton.icon(
                 onPressed: _finishCurrentDrawing,
                 icon: const Icon(Icons.check),
-                label: const Text('Finish Drawing'),
+                label: Text(l10n.roiFinishDrawing),
               ),
             ),
-          _buildSummary(editorState, theme),
+          _buildSummary(editorState, theme, l10n),
         ],
       ),
     );
   }
 
-  Widget _buildSummary(RoiEditorState state, ThemeData theme) {
+  Widget _buildSummary(RoiEditorState state, ThemeData theme, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -245,17 +245,17 @@ class _RoiEditorScreenState extends ConsumerState<RoiEditorScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _SummaryItem(
-            label: 'ROI',
-            value: state.roiPolygon.isEmpty ? 'None' : 'Set',
+            label: l10n.roiSegmentRoi,
+            value: state.roiPolygon.isEmpty ? l10n.roiSummaryNone : l10n.roiSummarySet,
             color: state.roiPolygon.isEmpty ? Colors.grey : Colors.green,
           ),
           _SummaryItem(
-            label: 'Lines',
+            label: l10n.roiSummaryLines,
             value: '${state.countingLines.length}',
             color: theme.colorScheme.primary,
           ),
           _SummaryItem(
-            label: 'Lanes',
+            label: l10n.roiSummaryLanes,
             value: '${state.lanePolylines.length}',
             color: theme.colorScheme.tertiary,
           ),

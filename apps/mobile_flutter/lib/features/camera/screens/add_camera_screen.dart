@@ -62,9 +62,14 @@ class _AddCameraScreenState extends ConsumerState<AddCameraScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cameraAddTitle)),
-      body: SingleChildScrollView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: wide ? 600 : double.infinity),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -83,23 +88,23 @@ class _AddCameraScreenState extends ConsumerState<AddCameraScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _sourceType,
-                decoration: const InputDecoration(
-                  labelText: 'Source Type',
-                  prefixIcon: Icon(Icons.input),
+                decoration: InputDecoration(
+                  labelText: l10n.cameraSourceType,
+                  prefixIcon: const Icon(Icons.input),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'smartphone', child: Text('Smartphone')),
-                  DropdownMenuItem(value: 'rtsp', child: Text('RTSP')),
-                  DropdownMenuItem(value: 'onvif', child: Text('ONVIF')),
+                items: [
+                  DropdownMenuItem(value: 'smartphone', child: Text(l10n.cameraSourceSmartphone)),
+                  DropdownMenuItem(value: 'rtsp', child: Text(l10n.cameraSourceRtsp)),
+                  DropdownMenuItem(value: 'onvif', child: Text(l10n.cameraSourceOnvif)),
                 ],
                 onChanged: (v) => setState(() => _sourceType = v!),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 value: _targetFps,
-                decoration: const InputDecoration(
-                  labelText: 'Target FPS',
-                  prefixIcon: Icon(Icons.speed),
+                decoration: InputDecoration(
+                  labelText: l10n.cameraTargetFps,
+                  prefixIcon: const Icon(Icons.speed),
                 ),
                 items: [1, 5, 10, 15, 30]
                     .map((fps) => DropdownMenuItem(
@@ -112,9 +117,9 @@ class _AddCameraScreenState extends ConsumerState<AddCameraScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _resolution,
-                decoration: const InputDecoration(
-                  labelText: 'Resolution',
-                  prefixIcon: Icon(Icons.aspect_ratio),
+                decoration: InputDecoration(
+                  labelText: l10n.cameraResolution,
+                  prefixIcon: const Icon(Icons.aspect_ratio),
                 ),
                 items: const [
                   DropdownMenuItem(value: '1280x720', child: Text('720p')),
@@ -124,29 +129,29 @@ class _AddCameraScreenState extends ConsumerState<AddCameraScreen> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Night Mode'),
+                title: Text(l10n.cameraNightMode),
                 value: _nightMode,
                 onChanged: (v) => setState(() => _nightMode = v),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _classificationMode,
-                decoration: const InputDecoration(
-                  labelText: 'Classification Mode',
-                  prefixIcon: Icon(Icons.category),
+                decoration: InputDecoration(
+                  labelText: l10n.cameraClassificationMode,
+                  prefixIcon: const Icon(Icons.category),
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'full_12class',
-                    child: Text('Full 12-Class'),
+                    child: Text(l10n.classificationFull12),
                   ),
                   DropdownMenuItem(
                     value: 'coarse_only',
-                    child: Text('Coarse (Car/Bus/Truck/Trailer)'),
+                    child: Text(l10n.classificationCoarse),
                   ),
                   DropdownMenuItem(
                     value: 'disabled',
-                    child: Text('Disabled'),
+                    child: Text(l10n.classificationDisabled),
                   ),
                 ],
                 onChanged: (v) =>
@@ -165,6 +170,8 @@ class _AddCameraScreenState extends ConsumerState<AddCameraScreen> {
               ),
             ],
           ),
+        ),
+      ),
         ),
       ),
     );

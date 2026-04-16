@@ -112,6 +112,11 @@ class VehicleCrossings extends Table {
   DateTimeColumn get ingestedAt =>
       dateTime().withDefault(currentDateAndTime)();
 
+  IntColumn get vlmClassCode => integer().nullable()();
+  RealColumn get vlmConfidence => real().nullable()();
+  TextColumn get classificationSource =>
+      text().withDefault(const Constant('local'))();
+
   @override
   Set<Column> get primaryKey => {id};
 
@@ -124,6 +129,35 @@ class VehicleCrossings extends Table {
   List<String> get customConstraints => [
         'CHECK (class12 BETWEEN 1 AND 12)',
         "CHECK (direction IN ('inbound', 'outbound'))",
+        'CHECK (vlm_class_code IS NULL OR vlm_class_code BETWEEN 1 AND 12)',
+        "CHECK (classification_source IN ('local', 'vlm', 'fallback'))",
+      ];
+}
+
+/// Manual (standalone) vehicle classification results from the Classify screen.
+class ManualClassifications extends Table {
+  TextColumn get id => text()();
+  TextColumn get imagePath => text()();
+  IntColumn get stage1Class => integer()();
+  RealColumn get stage1Confidence => real()();
+  IntColumn get wheelCount => integer().withDefault(const Constant(0))();
+  IntColumn get jointCount => integer().withDefault(const Constant(0))();
+  IntColumn get axleCount => integer().withDefault(const Constant(2))();
+  BoolColumn get hasTrailer =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get finalClass12 => integer()();
+  RealColumn get finalConfidence => real()();
+  TextColumn get bboxJson => text().nullable()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+        'CHECK (stage1_class BETWEEN 1 AND 12)',
+        'CHECK (final_class12 BETWEEN 1 AND 12)',
       ];
 }
 

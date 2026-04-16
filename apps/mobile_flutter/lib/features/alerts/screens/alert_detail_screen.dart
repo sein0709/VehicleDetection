@@ -52,26 +52,26 @@ class AlertDetailScreen extends ConsumerWidget {
                       ),
                       const Divider(height: 24),
                       _DetailRow(
-                        label: 'Severity',
+                        label: l10n.alertSeverity,
                         value: alert.severity.name.toUpperCase(),
                       ),
                       _DetailRow(
-                        label: 'Status',
+                        label: l10n.alertStatus,
                         value: alert.status.name,
                       ),
                       _DetailRow(
-                        label: 'Condition',
+                        label: l10n.alertCondition,
                         value: alert.conditionType,
                       ),
                       if (alert.siteName != null)
-                        _DetailRow(label: 'Site', value: alert.siteName!),
+                        _DetailRow(label: l10n.alertSite, value: alert.siteName!),
                       if (alert.cameraName != null)
                         _DetailRow(
-                          label: 'Camera',
+                          label: l10n.alertCamera,
                           value: alert.cameraName!,
                         ),
                       if (alert.message.isNotEmpty)
-                        _DetailRow(label: 'Message', value: alert.message),
+                        _DetailRow(label: l10n.alertMessage, value: alert.message),
                       if (alert.triggeredAt != null)
                         _DetailRow(
                           label: l10n.alertTimestamp,
@@ -79,7 +79,7 @@ class AlertDetailScreen extends ConsumerWidget {
                         ),
                       if (alert.assignedTo != null)
                         _DetailRow(
-                          label: 'Assigned To',
+                          label: l10n.alertAssignedTo,
                           value: alert.assignedTo!,
                         ),
                     ],
@@ -101,7 +101,7 @@ class AlertDetailScreen extends ConsumerWidget {
                   onPressed: () =>
                       ref.read(alertsProvider.notifier).resolve(alertId),
                   icon: const Icon(Icons.done_all),
-                  label: const Text('Resolve'),
+                  label: Text(l10n.alertResolve),
                 ),
               ],
             ],

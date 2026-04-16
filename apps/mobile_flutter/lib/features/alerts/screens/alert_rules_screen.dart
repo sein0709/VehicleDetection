@@ -35,7 +35,7 @@ class AlertRulesScreen extends ConsumerWidget {
           if (rules.isEmpty) {
             return EmptyState(
               icon: Icons.rule,
-              title: 'No alert rules configured',
+              title: l10n.alertNoRules,
               actionLabel: l10n.alertRuleAdd,
               onAction: () => _showAddRuleDialog(context, ref),
             );
@@ -60,44 +60,46 @@ class AlertRulesScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Alert Rule'),
+        builder: (ctx, setDialogState) {
+          final l10n = AppLocalizations.of(ctx);
+          return AlertDialog(
+          title: Text(l10n.alertRuleAddTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Rule Name'),
+                  decoration: InputDecoration(labelText: l10n.alertRuleNameLabel),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: conditionType,
-                  decoration: const InputDecoration(labelText: 'Condition'),
-                  items: const [
+                  decoration: InputDecoration(labelText: l10n.alertConditionLabel),
+                  items: [
                     DropdownMenuItem(
                       value: 'congestion',
-                      child: Text('Congestion'),
+                      child: Text(l10n.alertCondCongestion),
                     ),
                     DropdownMenuItem(
                       value: 'speed_drop',
-                      child: Text('Speed Drop'),
+                      child: Text(l10n.alertCondSpeedDrop),
                     ),
                     DropdownMenuItem(
                       value: 'stopped_vehicle',
-                      child: Text('Stopped Vehicle'),
+                      child: Text(l10n.alertCondStopped),
                     ),
                     DropdownMenuItem(
                       value: 'heavy_vehicle_share',
-                      child: Text('Heavy Vehicle Share'),
+                      child: Text(l10n.alertCondHeavy),
                     ),
                     DropdownMenuItem(
                       value: 'camera_offline',
-                      child: Text('Camera Offline'),
+                      child: Text(l10n.alertCondCameraOffline),
                     ),
                     DropdownMenuItem(
                       value: 'count_anomaly',
-                      child: Text('Count Anomaly'),
+                      child: Text(l10n.alertCondCountAnomaly),
                     ),
                   ],
                   onChanged: (v) =>
@@ -106,13 +108,13 @@ class AlertRulesScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(
                   controller: thresholdController,
-                  decoration: const InputDecoration(labelText: 'Threshold'),
+                  decoration: InputDecoration(labelText: l10n.alertThresholdLabel),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: severity,
-                  decoration: const InputDecoration(labelText: 'Severity'),
+                  decoration: InputDecoration(labelText: l10n.alertSeverityLabel),
                   items: AlertSeverity.values
                       .map(
                         (s) => DropdownMenuItem(
@@ -130,7 +132,7 @@ class AlertRulesScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () {
@@ -146,10 +148,11 @@ class AlertRulesScreen extends ConsumerWidget {
                 });
                 Navigator.pop(ctx);
               },
-              child: const Text('Create'),
+              child: Text(l10n.alertRuleCreate),
             ),
           ],
-        ),
+        );
+        },
       ),
     );
   }
@@ -175,7 +178,7 @@ class _RuleCard extends ConsumerWidget {
         ),
         title: Text(rule.name),
         subtitle: Text(
-          '${rule.conditionType} · threshold: ${rule.threshold}',
+          AppLocalizations.of(context).alertRuleSubtitle(rule.conditionType, '${rule.threshold}'),
         ),
         trailing: Switch(
           value: rule.enabled,

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:greyeye_mobile/core/bootstrap/demo_workspace_service.dart';
 import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +51,29 @@ class _AnalyticsDashboardScreenState
     });
   }
 
+  Future<void> _loadDemoData(WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    try {
+      final service = ref.read(demoWorkspaceServiceProvider);
+      final summary = await service.seedDemoWorkspace();
+      ref.invalidate(analyticsProvider);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            summary.created
+                ? l10n.analyticsDemoDataLoaded
+                : l10n.analyticsDataAlreadyPresent,
+          ),
+        ),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   Future<void> _pickCustomRange() async {
     final picked = await showDateRangePicker(
       context: context,
@@ -70,6 +94,7 @@ class _AnalyticsDashboardScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final wide = MediaQuery.sizeOf(context).width >= 840;
     final params = AnalyticsParams(
       cameraId: widget.cameraId,
       start: _start,
@@ -82,6 +107,11 @@ class _AnalyticsDashboardScreenState
         title: Text(l10n.analyticsTitle),
         actions: [
           IconButton(
+            icon: const Icon(Icons.science_outlined),
+            tooltip: l10n.analyticsLoadDemoData,
+            onPressed: () => _loadDemoData(ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.file_download_outlined),
             onPressed: () =>
                 context.push('/cameras/${widget.cameraId}/export'),
@@ -90,9 +120,11 @@ class _AnalyticsDashboardScreenState
       ),
       body: Column(
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: wide ? 24 : 16,
+              vertical: 8,
+            ),
             child: Row(
               children: [
                 _RangeChip(
@@ -129,11 +161,11 @@ class _AnalyticsDashboardScreenState
                 message: l10n.commonError,
                 onRetry: () => ref.invalidate(analyticsProvider(params)),
               ),
-              data: (data) => _AnalyticsContent(
-                data: data,
-                theme: theme,
-                l10n: l10n,
-              ),
+              data: (data) => wide
+                  ? _DesktopAnalyticsContent(
+                      data: data, theme: theme, l10n: l10n)
+                  : _AnalyticsContent(
+                      data: data, theme: theme, l10n: l10n),
             ),
           ),
         ],
@@ -194,7 +226,7 @@ class _AnalyticsContent extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _KpiTile(
-                label: 'Buckets',
+                label: l10n.analyticsBuckets,
                 value: '${data.buckets.length}',
                 icon: Icons.access_time,
                 color: theme.colorScheme.secondary,
@@ -261,7 +293,7 @@ class _AnalyticsContent extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${vc?.labelEn ?? "C${e.key}"}: ${e.value}',
+                          '${vc?.labelKo ?? "C${e.key}"}: ${e.value}',
                           style: theme.textTheme.labelSmall,
                         ),
                       ],
@@ -335,7 +367,7 @@ class _VolumeBarChart extends StatelessWidget {
               final time =
                   '${bucket.bucketStart.hour}:${bucket.bucketStart.minute.toString().padLeft(2, '0')}';
               return BarTooltipItem(
-                '$time\n${bucket.totalCount} vehicles',
+                '$time\n${bucket.totalCount}',
                 TextStyle(
                   color: theme.colorScheme.onInverseSurface,
                   fontSize: 12,
@@ -428,6 +460,143 @@ class _ClassPieChart extends StatelessWidget {
           );
         }).toList(),
       ),
+    );
+  }
+}
+
+/// Desktop layout: KPIs across the top, charts side-by-side.
+class _DesktopAnalyticsContent extends StatelessWidget {
+  const _DesktopAnalyticsContent({
+    required this.data,
+    required this.theme,
+    required this.l10n,
+  });
+
+  final AnalyticsResponse data;
+  final ThemeData theme;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final classDist = data.aggregatedByClass;
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _KpiTile(
+                label: l10n.homeTotalVehicles,
+                value: '${data.totalVehicles}',
+                icon: Icons.directions_car,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _KpiTile(
+                label: l10n.analyticsBuckets,
+                value: '${data.buckets.length}',
+                icon: Icons.access_time,
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _KpiTile(
+                label: l10n.analyticsClasses,
+                value: '${classDist.length}',
+                icon: Icons.category,
+                color: theme.colorScheme.tertiary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.analyticsVolumeChart,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 280,
+                          child: data.buckets.isEmpty
+                              ? Center(child: Text(l10n.commonNoData))
+                              : _VolumeBarChart(buckets: data.buckets),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.analyticsClassChart,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 200,
+                          child: classDist.isEmpty
+                              ? Center(child: Text(l10n.commonNoData))
+                              : _ClassPieChart(distribution: classDist),
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 6,
+                          children: classDist.entries.map((e) {
+                            final vc = VehicleClass.fromCode(e.key);
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: vc?.color ?? Colors.grey,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${vc?.labelKo ?? "C${e.key}"}: ${e.value}',
+                                  style: theme.textTheme.labelSmall,
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

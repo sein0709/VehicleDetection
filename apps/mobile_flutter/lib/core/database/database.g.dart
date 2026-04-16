@@ -2035,6 +2035,26 @@ class $VehicleCrossingsTable extends VehicleCrossings
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _vlmClassCodeMeta =
+      const VerificationMeta('vlmClassCode');
+  @override
+  late final GeneratedColumn<int> vlmClassCode = GeneratedColumn<int>(
+      'vlm_class_code', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _vlmConfidenceMeta =
+      const VerificationMeta('vlmConfidence');
+  @override
+  late final GeneratedColumn<double> vlmConfidence = GeneratedColumn<double>(
+      'vlm_confidence', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _classificationSourceMeta =
+      const VerificationMeta('classificationSource');
+  @override
+  late final GeneratedColumn<String> classificationSource =
+      GeneratedColumn<String>('classification_source', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('local'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2049,7 +2069,10 @@ class $VehicleCrossingsTable extends VehicleCrossings
         speedEstimateKmh,
         bboxJson,
         timestampUtc,
-        ingestedAt
+        ingestedAt,
+        vlmClassCode,
+        vlmConfidence,
+        classificationSource
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2142,6 +2165,24 @@ class $VehicleCrossingsTable extends VehicleCrossings
           ingestedAt.isAcceptableOrUnknown(
               data['ingested_at']!, _ingestedAtMeta));
     }
+    if (data.containsKey('vlm_class_code')) {
+      context.handle(
+          _vlmClassCodeMeta,
+          vlmClassCode.isAcceptableOrUnknown(
+              data['vlm_class_code']!, _vlmClassCodeMeta));
+    }
+    if (data.containsKey('vlm_confidence')) {
+      context.handle(
+          _vlmConfidenceMeta,
+          vlmConfidence.isAcceptableOrUnknown(
+              data['vlm_confidence']!, _vlmConfidenceMeta));
+    }
+    if (data.containsKey('classification_source')) {
+      context.handle(
+          _classificationSourceMeta,
+          classificationSource.isAcceptableOrUnknown(
+              data['classification_source']!, _classificationSourceMeta));
+    }
     return context;
   }
 
@@ -2181,6 +2222,13 @@ class $VehicleCrossingsTable extends VehicleCrossings
           DriftSqlType.dateTime, data['${effectivePrefix}timestamp_utc'])!,
       ingestedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}ingested_at'])!,
+      vlmClassCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}vlm_class_code']),
+      vlmConfidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}vlm_confidence']),
+      classificationSource: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}classification_source'])!,
     );
   }
 
@@ -2204,6 +2252,9 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
   final String? bboxJson;
   final DateTime timestampUtc;
   final DateTime ingestedAt;
+  final int? vlmClassCode;
+  final double? vlmConfidence;
+  final String classificationSource;
   const VehicleCrossing(
       {required this.id,
       required this.cameraId,
@@ -2217,7 +2268,10 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
       this.speedEstimateKmh,
       this.bboxJson,
       required this.timestampUtc,
-      required this.ingestedAt});
+      required this.ingestedAt,
+      this.vlmClassCode,
+      this.vlmConfidence,
+      required this.classificationSource});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2238,6 +2292,13 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
     }
     map['timestamp_utc'] = Variable<DateTime>(timestampUtc);
     map['ingested_at'] = Variable<DateTime>(ingestedAt);
+    if (!nullToAbsent || vlmClassCode != null) {
+      map['vlm_class_code'] = Variable<int>(vlmClassCode);
+    }
+    if (!nullToAbsent || vlmConfidence != null) {
+      map['vlm_confidence'] = Variable<double>(vlmConfidence);
+    }
+    map['classification_source'] = Variable<String>(classificationSource);
     return map;
   }
 
@@ -2260,6 +2321,13 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
           : Value(bboxJson),
       timestampUtc: Value(timestampUtc),
       ingestedAt: Value(ingestedAt),
+      vlmClassCode: vlmClassCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vlmClassCode),
+      vlmConfidence: vlmConfidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vlmConfidence),
+      classificationSource: Value(classificationSource),
     );
   }
 
@@ -2280,6 +2348,10 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
       bboxJson: serializer.fromJson<String?>(json['bboxJson']),
       timestampUtc: serializer.fromJson<DateTime>(json['timestampUtc']),
       ingestedAt: serializer.fromJson<DateTime>(json['ingestedAt']),
+      vlmClassCode: serializer.fromJson<int?>(json['vlmClassCode']),
+      vlmConfidence: serializer.fromJson<double?>(json['vlmConfidence']),
+      classificationSource:
+          serializer.fromJson<String>(json['classificationSource']),
     );
   }
   @override
@@ -2299,6 +2371,9 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
       'bboxJson': serializer.toJson<String?>(bboxJson),
       'timestampUtc': serializer.toJson<DateTime>(timestampUtc),
       'ingestedAt': serializer.toJson<DateTime>(ingestedAt),
+      'vlmClassCode': serializer.toJson<int?>(vlmClassCode),
+      'vlmConfidence': serializer.toJson<double?>(vlmConfidence),
+      'classificationSource': serializer.toJson<String>(classificationSource),
     };
   }
 
@@ -2315,7 +2390,10 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
           Value<double?> speedEstimateKmh = const Value.absent(),
           Value<String?> bboxJson = const Value.absent(),
           DateTime? timestampUtc,
-          DateTime? ingestedAt}) =>
+          DateTime? ingestedAt,
+          Value<int?> vlmClassCode = const Value.absent(),
+          Value<double?> vlmConfidence = const Value.absent(),
+          String? classificationSource}) =>
       VehicleCrossing(
         id: id ?? this.id,
         cameraId: cameraId ?? this.cameraId,
@@ -2332,6 +2410,11 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
         bboxJson: bboxJson.present ? bboxJson.value : this.bboxJson,
         timestampUtc: timestampUtc ?? this.timestampUtc,
         ingestedAt: ingestedAt ?? this.ingestedAt,
+        vlmClassCode:
+            vlmClassCode.present ? vlmClassCode.value : this.vlmClassCode,
+        vlmConfidence:
+            vlmConfidence.present ? vlmConfidence.value : this.vlmConfidence,
+        classificationSource: classificationSource ?? this.classificationSource,
       );
   VehicleCrossing copyWithCompanion(VehicleCrossingsCompanion data) {
     return VehicleCrossing(
@@ -2356,6 +2439,15 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
           : this.timestampUtc,
       ingestedAt:
           data.ingestedAt.present ? data.ingestedAt.value : this.ingestedAt,
+      vlmClassCode: data.vlmClassCode.present
+          ? data.vlmClassCode.value
+          : this.vlmClassCode,
+      vlmConfidence: data.vlmConfidence.present
+          ? data.vlmConfidence.value
+          : this.vlmConfidence,
+      classificationSource: data.classificationSource.present
+          ? data.classificationSource.value
+          : this.classificationSource,
     );
   }
 
@@ -2374,7 +2466,10 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
           ..write('speedEstimateKmh: $speedEstimateKmh, ')
           ..write('bboxJson: $bboxJson, ')
           ..write('timestampUtc: $timestampUtc, ')
-          ..write('ingestedAt: $ingestedAt')
+          ..write('ingestedAt: $ingestedAt, ')
+          ..write('vlmClassCode: $vlmClassCode, ')
+          ..write('vlmConfidence: $vlmConfidence, ')
+          ..write('classificationSource: $classificationSource')
           ..write(')'))
         .toString();
   }
@@ -2393,7 +2488,10 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
       speedEstimateKmh,
       bboxJson,
       timestampUtc,
-      ingestedAt);
+      ingestedAt,
+      vlmClassCode,
+      vlmConfidence,
+      classificationSource);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2410,7 +2508,10 @@ class VehicleCrossing extends DataClass implements Insertable<VehicleCrossing> {
           other.speedEstimateKmh == this.speedEstimateKmh &&
           other.bboxJson == this.bboxJson &&
           other.timestampUtc == this.timestampUtc &&
-          other.ingestedAt == this.ingestedAt);
+          other.ingestedAt == this.ingestedAt &&
+          other.vlmClassCode == this.vlmClassCode &&
+          other.vlmConfidence == this.vlmConfidence &&
+          other.classificationSource == this.classificationSource);
 }
 
 class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
@@ -2427,6 +2528,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
   final Value<String?> bboxJson;
   final Value<DateTime> timestampUtc;
   final Value<DateTime> ingestedAt;
+  final Value<int?> vlmClassCode;
+  final Value<double?> vlmConfidence;
+  final Value<String> classificationSource;
   final Value<int> rowid;
   const VehicleCrossingsCompanion({
     this.id = const Value.absent(),
@@ -2442,6 +2546,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
     this.bboxJson = const Value.absent(),
     this.timestampUtc = const Value.absent(),
     this.ingestedAt = const Value.absent(),
+    this.vlmClassCode = const Value.absent(),
+    this.vlmConfidence = const Value.absent(),
+    this.classificationSource = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   VehicleCrossingsCompanion.insert({
@@ -2458,6 +2565,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
     this.bboxJson = const Value.absent(),
     required DateTime timestampUtc,
     this.ingestedAt = const Value.absent(),
+    this.vlmClassCode = const Value.absent(),
+    this.vlmConfidence = const Value.absent(),
+    this.classificationSource = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         cameraId = Value(cameraId),
@@ -2482,6 +2592,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
     Expression<String>? bboxJson,
     Expression<DateTime>? timestampUtc,
     Expression<DateTime>? ingestedAt,
+    Expression<int>? vlmClassCode,
+    Expression<double>? vlmConfidence,
+    Expression<String>? classificationSource,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2498,6 +2611,10 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
       if (bboxJson != null) 'bbox_json': bboxJson,
       if (timestampUtc != null) 'timestamp_utc': timestampUtc,
       if (ingestedAt != null) 'ingested_at': ingestedAt,
+      if (vlmClassCode != null) 'vlm_class_code': vlmClassCode,
+      if (vlmConfidence != null) 'vlm_confidence': vlmConfidence,
+      if (classificationSource != null)
+        'classification_source': classificationSource,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2516,6 +2633,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
       Value<String?>? bboxJson,
       Value<DateTime>? timestampUtc,
       Value<DateTime>? ingestedAt,
+      Value<int?>? vlmClassCode,
+      Value<double?>? vlmConfidence,
+      Value<String>? classificationSource,
       Value<int>? rowid}) {
     return VehicleCrossingsCompanion(
       id: id ?? this.id,
@@ -2531,6 +2651,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
       bboxJson: bboxJson ?? this.bboxJson,
       timestampUtc: timestampUtc ?? this.timestampUtc,
       ingestedAt: ingestedAt ?? this.ingestedAt,
+      vlmClassCode: vlmClassCode ?? this.vlmClassCode,
+      vlmConfidence: vlmConfidence ?? this.vlmConfidence,
+      classificationSource: classificationSource ?? this.classificationSource,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2577,6 +2700,16 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
     if (ingestedAt.present) {
       map['ingested_at'] = Variable<DateTime>(ingestedAt.value);
     }
+    if (vlmClassCode.present) {
+      map['vlm_class_code'] = Variable<int>(vlmClassCode.value);
+    }
+    if (vlmConfidence.present) {
+      map['vlm_confidence'] = Variable<double>(vlmConfidence.value);
+    }
+    if (classificationSource.present) {
+      map['classification_source'] =
+          Variable<String>(classificationSource.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2599,6 +2732,9 @@ class VehicleCrossingsCompanion extends UpdateCompanion<VehicleCrossing> {
           ..write('bboxJson: $bboxJson, ')
           ..write('timestampUtc: $timestampUtc, ')
           ..write('ingestedAt: $ingestedAt, ')
+          ..write('vlmClassCode: $vlmClassCode, ')
+          ..write('vlmConfidence: $vlmConfidence, ')
+          ..write('classificationSource: $classificationSource, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3224,6 +3360,623 @@ class AggVehicleCounts15mCompanion extends UpdateCompanion<AggVehicleCount15m> {
   }
 }
 
+class $ManualClassificationsTable extends ManualClassifications
+    with TableInfo<$ManualClassificationsTable, ManualClassification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ManualClassificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _imagePathMeta =
+      const VerificationMeta('imagePath');
+  @override
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+      'image_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stage1ClassMeta =
+      const VerificationMeta('stage1Class');
+  @override
+  late final GeneratedColumn<int> stage1Class = GeneratedColumn<int>(
+      'stage1_class', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _stage1ConfidenceMeta =
+      const VerificationMeta('stage1Confidence');
+  @override
+  late final GeneratedColumn<double> stage1Confidence = GeneratedColumn<double>(
+      'stage1_confidence', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _wheelCountMeta =
+      const VerificationMeta('wheelCount');
+  @override
+  late final GeneratedColumn<int> wheelCount = GeneratedColumn<int>(
+      'wheel_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _jointCountMeta =
+      const VerificationMeta('jointCount');
+  @override
+  late final GeneratedColumn<int> jointCount = GeneratedColumn<int>(
+      'joint_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _axleCountMeta =
+      const VerificationMeta('axleCount');
+  @override
+  late final GeneratedColumn<int> axleCount = GeneratedColumn<int>(
+      'axle_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(2));
+  static const VerificationMeta _hasTrailerMeta =
+      const VerificationMeta('hasTrailer');
+  @override
+  late final GeneratedColumn<bool> hasTrailer = GeneratedColumn<bool>(
+      'has_trailer', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("has_trailer" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _finalClass12Meta =
+      const VerificationMeta('finalClass12');
+  @override
+  late final GeneratedColumn<int> finalClass12 = GeneratedColumn<int>(
+      'final_class12', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _finalConfidenceMeta =
+      const VerificationMeta('finalConfidence');
+  @override
+  late final GeneratedColumn<double> finalConfidence = GeneratedColumn<double>(
+      'final_confidence', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _bboxJsonMeta =
+      const VerificationMeta('bboxJson');
+  @override
+  late final GeneratedColumn<String> bboxJson = GeneratedColumn<String>(
+      'bbox_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        imagePath,
+        stage1Class,
+        stage1Confidence,
+        wheelCount,
+        jointCount,
+        axleCount,
+        hasTrailer,
+        finalClass12,
+        finalConfidence,
+        bboxJson,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manual_classifications';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<ManualClassification> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(_imagePathMeta,
+          imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta));
+    } else if (isInserting) {
+      context.missing(_imagePathMeta);
+    }
+    if (data.containsKey('stage1_class')) {
+      context.handle(
+          _stage1ClassMeta,
+          stage1Class.isAcceptableOrUnknown(
+              data['stage1_class']!, _stage1ClassMeta));
+    } else if (isInserting) {
+      context.missing(_stage1ClassMeta);
+    }
+    if (data.containsKey('stage1_confidence')) {
+      context.handle(
+          _stage1ConfidenceMeta,
+          stage1Confidence.isAcceptableOrUnknown(
+              data['stage1_confidence']!, _stage1ConfidenceMeta));
+    } else if (isInserting) {
+      context.missing(_stage1ConfidenceMeta);
+    }
+    if (data.containsKey('wheel_count')) {
+      context.handle(
+          _wheelCountMeta,
+          wheelCount.isAcceptableOrUnknown(
+              data['wheel_count']!, _wheelCountMeta));
+    }
+    if (data.containsKey('joint_count')) {
+      context.handle(
+          _jointCountMeta,
+          jointCount.isAcceptableOrUnknown(
+              data['joint_count']!, _jointCountMeta));
+    }
+    if (data.containsKey('axle_count')) {
+      context.handle(_axleCountMeta,
+          axleCount.isAcceptableOrUnknown(data['axle_count']!, _axleCountMeta));
+    }
+    if (data.containsKey('has_trailer')) {
+      context.handle(
+          _hasTrailerMeta,
+          hasTrailer.isAcceptableOrUnknown(
+              data['has_trailer']!, _hasTrailerMeta));
+    }
+    if (data.containsKey('final_class12')) {
+      context.handle(
+          _finalClass12Meta,
+          finalClass12.isAcceptableOrUnknown(
+              data['final_class12']!, _finalClass12Meta));
+    } else if (isInserting) {
+      context.missing(_finalClass12Meta);
+    }
+    if (data.containsKey('final_confidence')) {
+      context.handle(
+          _finalConfidenceMeta,
+          finalConfidence.isAcceptableOrUnknown(
+              data['final_confidence']!, _finalConfidenceMeta));
+    } else if (isInserting) {
+      context.missing(_finalConfidenceMeta);
+    }
+    if (data.containsKey('bbox_json')) {
+      context.handle(_bboxJsonMeta,
+          bboxJson.isAcceptableOrUnknown(data['bbox_json']!, _bboxJsonMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ManualClassification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ManualClassification(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      imagePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_path'])!,
+      stage1Class: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}stage1_class'])!,
+      stage1Confidence: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}stage1_confidence'])!,
+      wheelCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}wheel_count'])!,
+      jointCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}joint_count'])!,
+      axleCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}axle_count'])!,
+      hasTrailer: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}has_trailer'])!,
+      finalClass12: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}final_class12'])!,
+      finalConfidence: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}final_confidence'])!,
+      bboxJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}bbox_json']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ManualClassificationsTable createAlias(String alias) {
+    return $ManualClassificationsTable(attachedDatabase, alias);
+  }
+}
+
+class ManualClassification extends DataClass
+    implements Insertable<ManualClassification> {
+  final String id;
+  final String imagePath;
+  final int stage1Class;
+  final double stage1Confidence;
+  final int wheelCount;
+  final int jointCount;
+  final int axleCount;
+  final bool hasTrailer;
+  final int finalClass12;
+  final double finalConfidence;
+  final String? bboxJson;
+  final DateTime createdAt;
+  const ManualClassification(
+      {required this.id,
+      required this.imagePath,
+      required this.stage1Class,
+      required this.stage1Confidence,
+      required this.wheelCount,
+      required this.jointCount,
+      required this.axleCount,
+      required this.hasTrailer,
+      required this.finalClass12,
+      required this.finalConfidence,
+      this.bboxJson,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['image_path'] = Variable<String>(imagePath);
+    map['stage1_class'] = Variable<int>(stage1Class);
+    map['stage1_confidence'] = Variable<double>(stage1Confidence);
+    map['wheel_count'] = Variable<int>(wheelCount);
+    map['joint_count'] = Variable<int>(jointCount);
+    map['axle_count'] = Variable<int>(axleCount);
+    map['has_trailer'] = Variable<bool>(hasTrailer);
+    map['final_class12'] = Variable<int>(finalClass12);
+    map['final_confidence'] = Variable<double>(finalConfidence);
+    if (!nullToAbsent || bboxJson != null) {
+      map['bbox_json'] = Variable<String>(bboxJson);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ManualClassificationsCompanion toCompanion(bool nullToAbsent) {
+    return ManualClassificationsCompanion(
+      id: Value(id),
+      imagePath: Value(imagePath),
+      stage1Class: Value(stage1Class),
+      stage1Confidence: Value(stage1Confidence),
+      wheelCount: Value(wheelCount),
+      jointCount: Value(jointCount),
+      axleCount: Value(axleCount),
+      hasTrailer: Value(hasTrailer),
+      finalClass12: Value(finalClass12),
+      finalConfidence: Value(finalConfidence),
+      bboxJson: bboxJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bboxJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ManualClassification.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ManualClassification(
+      id: serializer.fromJson<String>(json['id']),
+      imagePath: serializer.fromJson<String>(json['imagePath']),
+      stage1Class: serializer.fromJson<int>(json['stage1Class']),
+      stage1Confidence: serializer.fromJson<double>(json['stage1Confidence']),
+      wheelCount: serializer.fromJson<int>(json['wheelCount']),
+      jointCount: serializer.fromJson<int>(json['jointCount']),
+      axleCount: serializer.fromJson<int>(json['axleCount']),
+      hasTrailer: serializer.fromJson<bool>(json['hasTrailer']),
+      finalClass12: serializer.fromJson<int>(json['finalClass12']),
+      finalConfidence: serializer.fromJson<double>(json['finalConfidence']),
+      bboxJson: serializer.fromJson<String?>(json['bboxJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'imagePath': serializer.toJson<String>(imagePath),
+      'stage1Class': serializer.toJson<int>(stage1Class),
+      'stage1Confidence': serializer.toJson<double>(stage1Confidence),
+      'wheelCount': serializer.toJson<int>(wheelCount),
+      'jointCount': serializer.toJson<int>(jointCount),
+      'axleCount': serializer.toJson<int>(axleCount),
+      'hasTrailer': serializer.toJson<bool>(hasTrailer),
+      'finalClass12': serializer.toJson<int>(finalClass12),
+      'finalConfidence': serializer.toJson<double>(finalConfidence),
+      'bboxJson': serializer.toJson<String?>(bboxJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ManualClassification copyWith(
+          {String? id,
+          String? imagePath,
+          int? stage1Class,
+          double? stage1Confidence,
+          int? wheelCount,
+          int? jointCount,
+          int? axleCount,
+          bool? hasTrailer,
+          int? finalClass12,
+          double? finalConfidence,
+          Value<String?> bboxJson = const Value.absent(),
+          DateTime? createdAt}) =>
+      ManualClassification(
+        id: id ?? this.id,
+        imagePath: imagePath ?? this.imagePath,
+        stage1Class: stage1Class ?? this.stage1Class,
+        stage1Confidence: stage1Confidence ?? this.stage1Confidence,
+        wheelCount: wheelCount ?? this.wheelCount,
+        jointCount: jointCount ?? this.jointCount,
+        axleCount: axleCount ?? this.axleCount,
+        hasTrailer: hasTrailer ?? this.hasTrailer,
+        finalClass12: finalClass12 ?? this.finalClass12,
+        finalConfidence: finalConfidence ?? this.finalConfidence,
+        bboxJson: bboxJson.present ? bboxJson.value : this.bboxJson,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ManualClassification copyWithCompanion(ManualClassificationsCompanion data) {
+    return ManualClassification(
+      id: data.id.present ? data.id.value : this.id,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
+      stage1Class:
+          data.stage1Class.present ? data.stage1Class.value : this.stage1Class,
+      stage1Confidence: data.stage1Confidence.present
+          ? data.stage1Confidence.value
+          : this.stage1Confidence,
+      wheelCount:
+          data.wheelCount.present ? data.wheelCount.value : this.wheelCount,
+      jointCount:
+          data.jointCount.present ? data.jointCount.value : this.jointCount,
+      axleCount: data.axleCount.present ? data.axleCount.value : this.axleCount,
+      hasTrailer:
+          data.hasTrailer.present ? data.hasTrailer.value : this.hasTrailer,
+      finalClass12: data.finalClass12.present
+          ? data.finalClass12.value
+          : this.finalClass12,
+      finalConfidence: data.finalConfidence.present
+          ? data.finalConfidence.value
+          : this.finalConfidence,
+      bboxJson: data.bboxJson.present ? data.bboxJson.value : this.bboxJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualClassification(')
+          ..write('id: $id, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('stage1Class: $stage1Class, ')
+          ..write('stage1Confidence: $stage1Confidence, ')
+          ..write('wheelCount: $wheelCount, ')
+          ..write('jointCount: $jointCount, ')
+          ..write('axleCount: $axleCount, ')
+          ..write('hasTrailer: $hasTrailer, ')
+          ..write('finalClass12: $finalClass12, ')
+          ..write('finalConfidence: $finalConfidence, ')
+          ..write('bboxJson: $bboxJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      imagePath,
+      stage1Class,
+      stage1Confidence,
+      wheelCount,
+      jointCount,
+      axleCount,
+      hasTrailer,
+      finalClass12,
+      finalConfidence,
+      bboxJson,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ManualClassification &&
+          other.id == this.id &&
+          other.imagePath == this.imagePath &&
+          other.stage1Class == this.stage1Class &&
+          other.stage1Confidence == this.stage1Confidence &&
+          other.wheelCount == this.wheelCount &&
+          other.jointCount == this.jointCount &&
+          other.axleCount == this.axleCount &&
+          other.hasTrailer == this.hasTrailer &&
+          other.finalClass12 == this.finalClass12 &&
+          other.finalConfidence == this.finalConfidence &&
+          other.bboxJson == this.bboxJson &&
+          other.createdAt == this.createdAt);
+}
+
+class ManualClassificationsCompanion
+    extends UpdateCompanion<ManualClassification> {
+  final Value<String> id;
+  final Value<String> imagePath;
+  final Value<int> stage1Class;
+  final Value<double> stage1Confidence;
+  final Value<int> wheelCount;
+  final Value<int> jointCount;
+  final Value<int> axleCount;
+  final Value<bool> hasTrailer;
+  final Value<int> finalClass12;
+  final Value<double> finalConfidence;
+  final Value<String?> bboxJson;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const ManualClassificationsCompanion({
+    this.id = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.stage1Class = const Value.absent(),
+    this.stage1Confidence = const Value.absent(),
+    this.wheelCount = const Value.absent(),
+    this.jointCount = const Value.absent(),
+    this.axleCount = const Value.absent(),
+    this.hasTrailer = const Value.absent(),
+    this.finalClass12 = const Value.absent(),
+    this.finalConfidence = const Value.absent(),
+    this.bboxJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ManualClassificationsCompanion.insert({
+    required String id,
+    required String imagePath,
+    required int stage1Class,
+    required double stage1Confidence,
+    this.wheelCount = const Value.absent(),
+    this.jointCount = const Value.absent(),
+    this.axleCount = const Value.absent(),
+    this.hasTrailer = const Value.absent(),
+    required int finalClass12,
+    required double finalConfidence,
+    this.bboxJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        imagePath = Value(imagePath),
+        stage1Class = Value(stage1Class),
+        stage1Confidence = Value(stage1Confidence),
+        finalClass12 = Value(finalClass12),
+        finalConfidence = Value(finalConfidence);
+  static Insertable<ManualClassification> custom({
+    Expression<String>? id,
+    Expression<String>? imagePath,
+    Expression<int>? stage1Class,
+    Expression<double>? stage1Confidence,
+    Expression<int>? wheelCount,
+    Expression<int>? jointCount,
+    Expression<int>? axleCount,
+    Expression<bool>? hasTrailer,
+    Expression<int>? finalClass12,
+    Expression<double>? finalConfidence,
+    Expression<String>? bboxJson,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (imagePath != null) 'image_path': imagePath,
+      if (stage1Class != null) 'stage1_class': stage1Class,
+      if (stage1Confidence != null) 'stage1_confidence': stage1Confidence,
+      if (wheelCount != null) 'wheel_count': wheelCount,
+      if (jointCount != null) 'joint_count': jointCount,
+      if (axleCount != null) 'axle_count': axleCount,
+      if (hasTrailer != null) 'has_trailer': hasTrailer,
+      if (finalClass12 != null) 'final_class12': finalClass12,
+      if (finalConfidence != null) 'final_confidence': finalConfidence,
+      if (bboxJson != null) 'bbox_json': bboxJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ManualClassificationsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? imagePath,
+      Value<int>? stage1Class,
+      Value<double>? stage1Confidence,
+      Value<int>? wheelCount,
+      Value<int>? jointCount,
+      Value<int>? axleCount,
+      Value<bool>? hasTrailer,
+      Value<int>? finalClass12,
+      Value<double>? finalConfidence,
+      Value<String?>? bboxJson,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return ManualClassificationsCompanion(
+      id: id ?? this.id,
+      imagePath: imagePath ?? this.imagePath,
+      stage1Class: stage1Class ?? this.stage1Class,
+      stage1Confidence: stage1Confidence ?? this.stage1Confidence,
+      wheelCount: wheelCount ?? this.wheelCount,
+      jointCount: jointCount ?? this.jointCount,
+      axleCount: axleCount ?? this.axleCount,
+      hasTrailer: hasTrailer ?? this.hasTrailer,
+      finalClass12: finalClass12 ?? this.finalClass12,
+      finalConfidence: finalConfidence ?? this.finalConfidence,
+      bboxJson: bboxJson ?? this.bboxJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
+    if (stage1Class.present) {
+      map['stage1_class'] = Variable<int>(stage1Class.value);
+    }
+    if (stage1Confidence.present) {
+      map['stage1_confidence'] = Variable<double>(stage1Confidence.value);
+    }
+    if (wheelCount.present) {
+      map['wheel_count'] = Variable<int>(wheelCount.value);
+    }
+    if (jointCount.present) {
+      map['joint_count'] = Variable<int>(jointCount.value);
+    }
+    if (axleCount.present) {
+      map['axle_count'] = Variable<int>(axleCount.value);
+    }
+    if (hasTrailer.present) {
+      map['has_trailer'] = Variable<bool>(hasTrailer.value);
+    }
+    if (finalClass12.present) {
+      map['final_class12'] = Variable<int>(finalClass12.value);
+    }
+    if (finalConfidence.present) {
+      map['final_confidence'] = Variable<double>(finalConfidence.value);
+    }
+    if (bboxJson.present) {
+      map['bbox_json'] = Variable<String>(bboxJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualClassificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('stage1Class: $stage1Class, ')
+          ..write('stage1Confidence: $stage1Confidence, ')
+          ..write('wheelCount: $wheelCount, ')
+          ..write('jointCount: $jointCount, ')
+          ..write('axleCount: $axleCount, ')
+          ..write('hasTrailer: $hasTrailer, ')
+          ..write('finalClass12: $finalClass12, ')
+          ..write('finalConfidence: $finalConfidence, ')
+          ..write('bboxJson: $bboxJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3235,10 +3988,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $VehicleCrossingsTable(this);
   late final $AggVehicleCounts15mTable aggVehicleCounts15m =
       $AggVehicleCounts15mTable(this);
+  late final $ManualClassificationsTable manualClassifications =
+      $ManualClassificationsTable(this);
   late final SitesDao sitesDao = SitesDao(this as AppDatabase);
   late final CamerasDao camerasDao = CamerasDao(this as AppDatabase);
   late final RoiDao roiDao = RoiDao(this as AppDatabase);
   late final CrossingsDao crossingsDao = CrossingsDao(this as AppDatabase);
+  late final ClassificationsDao classificationsDao =
+      ClassificationsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3249,7 +4006,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         roiPresets,
         countingLines,
         vehicleCrossings,
-        aggVehicleCounts15m
+        aggVehicleCounts15m,
+        manualClassifications
       ];
   @override
   DriftDatabaseOptions get options =>
@@ -5217,6 +5975,9 @@ typedef $$VehicleCrossingsTableCreateCompanionBuilder
   Value<String?> bboxJson,
   required DateTime timestampUtc,
   Value<DateTime> ingestedAt,
+  Value<int?> vlmClassCode,
+  Value<double?> vlmConfidence,
+  Value<String> classificationSource,
   Value<int> rowid,
 });
 typedef $$VehicleCrossingsTableUpdateCompanionBuilder
@@ -5234,6 +5995,9 @@ typedef $$VehicleCrossingsTableUpdateCompanionBuilder
   Value<String?> bboxJson,
   Value<DateTime> timestampUtc,
   Value<DateTime> ingestedAt,
+  Value<int?> vlmClassCode,
+  Value<double?> vlmConfidence,
+  Value<String> classificationSource,
   Value<int> rowid,
 });
 
@@ -5315,6 +6079,16 @@ class $$VehicleCrossingsTableFilterComposer
 
   ColumnFilters<DateTime> get ingestedAt => $composableBuilder(
       column: $table.ingestedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get vlmClassCode => $composableBuilder(
+      column: $table.vlmClassCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get vlmConfidence => $composableBuilder(
+      column: $table.vlmConfidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get classificationSource => $composableBuilder(
+      column: $table.classificationSource,
+      builder: (column) => ColumnFilters(column));
 
   $$CamerasTableFilterComposer get cameraId {
     final $$CamerasTableFilterComposer composer = $composerBuilder(
@@ -5401,6 +6175,18 @@ class $$VehicleCrossingsTableOrderingComposer
   ColumnOrderings<DateTime> get ingestedAt => $composableBuilder(
       column: $table.ingestedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get vlmClassCode => $composableBuilder(
+      column: $table.vlmClassCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get vlmConfidence => $composableBuilder(
+      column: $table.vlmConfidence,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get classificationSource => $composableBuilder(
+      column: $table.classificationSource,
+      builder: (column) => ColumnOrderings(column));
+
   $$CamerasTableOrderingComposer get cameraId {
     final $$CamerasTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -5484,6 +6270,15 @@ class $$VehicleCrossingsTableAnnotationComposer
   GeneratedColumn<DateTime> get ingestedAt => $composableBuilder(
       column: $table.ingestedAt, builder: (column) => column);
 
+  GeneratedColumn<int> get vlmClassCode => $composableBuilder(
+      column: $table.vlmClassCode, builder: (column) => column);
+
+  GeneratedColumn<double> get vlmConfidence => $composableBuilder(
+      column: $table.vlmConfidence, builder: (column) => column);
+
+  GeneratedColumn<String> get classificationSource => $composableBuilder(
+      column: $table.classificationSource, builder: (column) => column);
+
   $$CamerasTableAnnotationComposer get cameraId {
     final $$CamerasTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -5562,6 +6357,9 @@ class $$VehicleCrossingsTableTableManager extends RootTableManager<
             Value<String?> bboxJson = const Value.absent(),
             Value<DateTime> timestampUtc = const Value.absent(),
             Value<DateTime> ingestedAt = const Value.absent(),
+            Value<int?> vlmClassCode = const Value.absent(),
+            Value<double?> vlmConfidence = const Value.absent(),
+            Value<String> classificationSource = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               VehicleCrossingsCompanion(
@@ -5578,6 +6376,9 @@ class $$VehicleCrossingsTableTableManager extends RootTableManager<
             bboxJson: bboxJson,
             timestampUtc: timestampUtc,
             ingestedAt: ingestedAt,
+            vlmClassCode: vlmClassCode,
+            vlmConfidence: vlmConfidence,
+            classificationSource: classificationSource,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5594,6 +6395,9 @@ class $$VehicleCrossingsTableTableManager extends RootTableManager<
             Value<String?> bboxJson = const Value.absent(),
             required DateTime timestampUtc,
             Value<DateTime> ingestedAt = const Value.absent(),
+            Value<int?> vlmClassCode = const Value.absent(),
+            Value<double?> vlmConfidence = const Value.absent(),
+            Value<String> classificationSource = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               VehicleCrossingsCompanion.insert(
@@ -5610,6 +6414,9 @@ class $$VehicleCrossingsTableTableManager extends RootTableManager<
             bboxJson: bboxJson,
             timestampUtc: timestampUtc,
             ingestedAt: ingestedAt,
+            vlmClassCode: vlmClassCode,
+            vlmConfidence: vlmConfidence,
+            classificationSource: classificationSource,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -6142,6 +6949,296 @@ typedef $$AggVehicleCounts15mTableProcessedTableManager = ProcessedTableManager<
     (AggVehicleCount15m, $$AggVehicleCounts15mTableReferences),
     AggVehicleCount15m,
     PrefetchHooks Function({bool cameraId, bool lineId})>;
+typedef $$ManualClassificationsTableCreateCompanionBuilder
+    = ManualClassificationsCompanion Function({
+  required String id,
+  required String imagePath,
+  required int stage1Class,
+  required double stage1Confidence,
+  Value<int> wheelCount,
+  Value<int> jointCount,
+  Value<int> axleCount,
+  Value<bool> hasTrailer,
+  required int finalClass12,
+  required double finalConfidence,
+  Value<String?> bboxJson,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+typedef $$ManualClassificationsTableUpdateCompanionBuilder
+    = ManualClassificationsCompanion Function({
+  Value<String> id,
+  Value<String> imagePath,
+  Value<int> stage1Class,
+  Value<double> stage1Confidence,
+  Value<int> wheelCount,
+  Value<int> jointCount,
+  Value<int> axleCount,
+  Value<bool> hasTrailer,
+  Value<int> finalClass12,
+  Value<double> finalConfidence,
+  Value<String?> bboxJson,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$ManualClassificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $ManualClassificationsTable> {
+  $$ManualClassificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+      column: $table.imagePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get stage1Class => $composableBuilder(
+      column: $table.stage1Class, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get stage1Confidence => $composableBuilder(
+      column: $table.stage1Confidence,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get wheelCount => $composableBuilder(
+      column: $table.wheelCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get jointCount => $composableBuilder(
+      column: $table.jointCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get axleCount => $composableBuilder(
+      column: $table.axleCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get hasTrailer => $composableBuilder(
+      column: $table.hasTrailer, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get finalClass12 => $composableBuilder(
+      column: $table.finalClass12, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get finalConfidence => $composableBuilder(
+      column: $table.finalConfidence,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get bboxJson => $composableBuilder(
+      column: $table.bboxJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ManualClassificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ManualClassificationsTable> {
+  $$ManualClassificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+      column: $table.imagePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get stage1Class => $composableBuilder(
+      column: $table.stage1Class, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get stage1Confidence => $composableBuilder(
+      column: $table.stage1Confidence,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get wheelCount => $composableBuilder(
+      column: $table.wheelCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get jointCount => $composableBuilder(
+      column: $table.jointCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get axleCount => $composableBuilder(
+      column: $table.axleCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get hasTrailer => $composableBuilder(
+      column: $table.hasTrailer, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get finalClass12 => $composableBuilder(
+      column: $table.finalClass12,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get finalConfidence => $composableBuilder(
+      column: $table.finalConfidence,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get bboxJson => $composableBuilder(
+      column: $table.bboxJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ManualClassificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ManualClassificationsTable> {
+  $$ManualClassificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
+
+  GeneratedColumn<int> get stage1Class => $composableBuilder(
+      column: $table.stage1Class, builder: (column) => column);
+
+  GeneratedColumn<double> get stage1Confidence => $composableBuilder(
+      column: $table.stage1Confidence, builder: (column) => column);
+
+  GeneratedColumn<int> get wheelCount => $composableBuilder(
+      column: $table.wheelCount, builder: (column) => column);
+
+  GeneratedColumn<int> get jointCount => $composableBuilder(
+      column: $table.jointCount, builder: (column) => column);
+
+  GeneratedColumn<int> get axleCount =>
+      $composableBuilder(column: $table.axleCount, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasTrailer => $composableBuilder(
+      column: $table.hasTrailer, builder: (column) => column);
+
+  GeneratedColumn<int> get finalClass12 => $composableBuilder(
+      column: $table.finalClass12, builder: (column) => column);
+
+  GeneratedColumn<double> get finalConfidence => $composableBuilder(
+      column: $table.finalConfidence, builder: (column) => column);
+
+  GeneratedColumn<String> get bboxJson =>
+      $composableBuilder(column: $table.bboxJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ManualClassificationsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ManualClassificationsTable,
+    ManualClassification,
+    $$ManualClassificationsTableFilterComposer,
+    $$ManualClassificationsTableOrderingComposer,
+    $$ManualClassificationsTableAnnotationComposer,
+    $$ManualClassificationsTableCreateCompanionBuilder,
+    $$ManualClassificationsTableUpdateCompanionBuilder,
+    (
+      ManualClassification,
+      BaseReferences<_$AppDatabase, $ManualClassificationsTable,
+          ManualClassification>
+    ),
+    ManualClassification,
+    PrefetchHooks Function()> {
+  $$ManualClassificationsTableTableManager(
+      _$AppDatabase db, $ManualClassificationsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ManualClassificationsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ManualClassificationsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ManualClassificationsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> imagePath = const Value.absent(),
+            Value<int> stage1Class = const Value.absent(),
+            Value<double> stage1Confidence = const Value.absent(),
+            Value<int> wheelCount = const Value.absent(),
+            Value<int> jointCount = const Value.absent(),
+            Value<int> axleCount = const Value.absent(),
+            Value<bool> hasTrailer = const Value.absent(),
+            Value<int> finalClass12 = const Value.absent(),
+            Value<double> finalConfidence = const Value.absent(),
+            Value<String?> bboxJson = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ManualClassificationsCompanion(
+            id: id,
+            imagePath: imagePath,
+            stage1Class: stage1Class,
+            stage1Confidence: stage1Confidence,
+            wheelCount: wheelCount,
+            jointCount: jointCount,
+            axleCount: axleCount,
+            hasTrailer: hasTrailer,
+            finalClass12: finalClass12,
+            finalConfidence: finalConfidence,
+            bboxJson: bboxJson,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String imagePath,
+            required int stage1Class,
+            required double stage1Confidence,
+            Value<int> wheelCount = const Value.absent(),
+            Value<int> jointCount = const Value.absent(),
+            Value<int> axleCount = const Value.absent(),
+            Value<bool> hasTrailer = const Value.absent(),
+            required int finalClass12,
+            required double finalConfidence,
+            Value<String?> bboxJson = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ManualClassificationsCompanion.insert(
+            id: id,
+            imagePath: imagePath,
+            stage1Class: stage1Class,
+            stage1Confidence: stage1Confidence,
+            wheelCount: wheelCount,
+            jointCount: jointCount,
+            axleCount: axleCount,
+            hasTrailer: hasTrailer,
+            finalClass12: finalClass12,
+            finalConfidence: finalConfidence,
+            bboxJson: bboxJson,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ManualClassificationsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $ManualClassificationsTable,
+        ManualClassification,
+        $$ManualClassificationsTableFilterComposer,
+        $$ManualClassificationsTableOrderingComposer,
+        $$ManualClassificationsTableAnnotationComposer,
+        $$ManualClassificationsTableCreateCompanionBuilder,
+        $$ManualClassificationsTableUpdateCompanionBuilder,
+        (
+          ManualClassification,
+          BaseReferences<_$AppDatabase, $ManualClassificationsTable,
+              ManualClassification>
+        ),
+        ManualClassification,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6158,4 +7255,6 @@ class $AppDatabaseManager {
       $$VehicleCrossingsTableTableManager(_db, _db.vehicleCrossings);
   $$AggVehicleCounts15mTableTableManager get aggVehicleCounts15m =>
       $$AggVehicleCounts15mTableTableManager(_db, _db.aggVehicleCounts15m);
+  $$ManualClassificationsTableTableManager get manualClassifications =>
+      $$ManualClassificationsTableTableManager(_db, _db.manualClassifications);
 }

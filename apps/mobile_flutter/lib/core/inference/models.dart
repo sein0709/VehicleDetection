@@ -5,6 +5,8 @@
 /// relative to the camera frame dimensions.
 library;
 
+import 'dart:typed_data';
+
 import 'package:greyeye_mobile/features/monitor/models/live_track.dart';
 import 'package:greyeye_mobile/features/roi/models/roi_model.dart';
 
@@ -143,6 +145,9 @@ class VehicleCrossingEvent {
     required this.frameIndex,
     this.speedEstimateKmh,
     required this.bbox,
+    this.pendingVlmRefinement = false,
+    this.cropJpegBytes,
+    this.localFallbackConfidence,
   });
 
   final DateTime timestampUtc;
@@ -157,6 +162,20 @@ class VehicleCrossingEvent {
   final double? speedEstimateKmh;
   final BoundingBox bbox;
 
+  /// When `true`, this crossing's [classCode] is a local best-guess that will
+  /// be asynchronously refined by a cloud VLM call. The UI can show a
+  /// "refining..." indicator until the VLM result arrives.
+  final bool pendingVlmRefinement;
+
+  /// JPEG-encoded crop of the vehicle at crossing time, attached only when
+  /// [pendingVlmRefinement] is `true`. Used by the main isolate to enqueue
+  /// the crop into [VlmRequestQueue] for async cloud classification.
+  final Uint8List? cropJpegBytes;
+
+  /// Confidence from the local AxleClassifier, retained so the VLM queue can
+  /// use it as a fallback if the cloud call fails.
+  final double? localFallbackConfidence;
+
   Map<String, dynamic> toJson() => {
         'timestamp_utc': timestampUtc.toIso8601String(),
         'camera_id': cameraId,
@@ -169,6 +188,7 @@ class VehicleCrossingEvent {
         'frame_index': frameIndex,
         'speed_estimate_kmh': speedEstimateKmh,
         'bbox': {'x': bbox.x, 'y': bbox.y, 'w': bbox.w, 'h': bbox.h},
+        'pending_vlm_refinement': pendingVlmRefinement,
       };
 }
 

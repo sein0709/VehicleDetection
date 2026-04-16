@@ -41,7 +41,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
   Future<void> _export() async {
     if (_range == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date range')),
+        SnackBar(content: Text(AppLocalizations.of(context).exportSelectRange)),
       );
       return;
     }
@@ -83,7 +83,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
               c.trackId,
               c.crossingSeq,
               c.class12,
-              vc?.labelEn ?? 'Class ${c.class12}',
+              vc?.labelKo ?? 'C${c.class12}',
               c.confidence.toStringAsFixed(3),
               c.direction,
               c.speedEstimateKmh?.toStringAsFixed(1) ?? '',
@@ -103,7 +103,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
             'track_id': c.trackId,
             'crossing_seq': c.crossingSeq,
             'class12': c.class12,
-            'class_name': vc?.labelEn ?? 'Class ${c.class12}',
+            'class_name': vc?.labelKo ?? 'C${c.class12}',
             'confidence': c.confidence,
             'direction': c.direction,
             'speed_estimate_kmh': c.speedEstimateKmh,
@@ -123,7 +123,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported ${crossings.length} crossings'),
+            content: Text(AppLocalizations.of(context).exportExported(crossings.length)),
           ),
         );
       }
@@ -159,7 +159,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'GreyEye Traffic Report',
+              'GreyEye 교통 보고서',
               style: pw.TextStyle(
                 fontSize: 20,
                 fontWeight: pw.FontWeight.bold,
@@ -168,36 +168,36 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
           ),
           pw.Paragraph(
             text:
-                'Camera: ${widget.cameraId}\n'
-                'Period: ${_range != null ? "${dateFmt.format(_range!.start)} — ${dateFmt.format(_range!.end)}" : "N/A"}\n'
-                'Total crossings: ${crossings.length}',
+                '카메라: ${widget.cameraId}\n'
+                '기간: ${_range != null ? "${dateFmt.format(_range!.start)} - ${dateFmt.format(_range!.end)}" : "해당 없음"}\n'
+                '총 통과 건수: ${crossings.length}',
           ),
           pw.SizedBox(height: 16),
-          pw.Header(level: 1, text: 'By Vehicle Class'),
+          pw.Header(level: 1, text: '차종별'),
           pw.TableHelper.fromTextArray(
-            headers: ['Class', 'Count'],
+            headers: ['차종', '건수'],
             data: classCounts.entries.map((e) {
               final vc = VehicleClass.fromCode(e.key);
-              return [vc?.labelEn ?? 'Class ${e.key}', '${e.value}'];
+              return [vc?.labelKo ?? 'C${e.key}', '${e.value}'];
             }).toList(),
           ),
           pw.SizedBox(height: 16),
-          pw.Header(level: 1, text: 'By Direction'),
+          pw.Header(level: 1, text: '방향별'),
           pw.TableHelper.fromTextArray(
-            headers: ['Direction', 'Count'],
+            headers: ['방향', '건수'],
             data: dirCounts.entries
                 .map((e) => [e.key, '${e.value}'])
                 .toList(),
           ),
           pw.SizedBox(height: 16),
-          pw.Header(level: 1, text: 'Raw Crossings (first 200)'),
+          pw.Header(level: 1, text: '원시 통과 데이터 (처음 200건)'),
           pw.TableHelper.fromTextArray(
-            headers: ['Time', 'Class', 'Dir', 'Conf'],
+            headers: ['시간', '차종', '방향', '신뢰도'],
             data: crossings.take(200).map((c) {
               final vc = VehicleClass.fromCode(c.class12);
               return [
                 dateFmt.format(c.timestampUtc),
-                vc?.labelEn ?? 'C${c.class12}',
+                vc?.labelKo ?? 'C${c.class12}',
                 c.direction,
                 c.confidence.toStringAsFixed(2),
               ];
@@ -215,9 +215,14 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.analyticsExport)),
-      body: ListView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: wide ? 640 : double.infinity),
+          child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
           Card(
@@ -237,7 +242,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
                     label: Text(
                       _range != null
                           ? '${_range!.start.toString().substring(0, 10)} — ${_range!.end.toString().substring(0, 10)}'
-                          : 'Select date range',
+                          : l10n.exportSelectDateRange,
                     ),
                   ),
                 ],
@@ -252,7 +257,7 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Export Format',
+                    l10n.exportFormat,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 8),
@@ -283,6 +288,8 @@ class _ReportExportScreenState extends ConsumerState<ReportExportScreen> {
             label: Text(l10n.analyticsExport),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

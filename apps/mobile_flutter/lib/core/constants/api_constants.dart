@@ -16,4 +16,23 @@ abstract final class ApiConstants {
   static String alertAcknowledge(String id) => '/alerts/$id/acknowledge';
   static String alertResolve(String id) => '/alerts/$id/resolve';
   static String alertRule(String id) => '/alert-rules/$id';
+
+  static const String analyzeVideoUrl = String.fromEnvironment(
+    'GREYEYE_ANALYZE_VIDEO_URL',
+    defaultValue: 'https://kcic1v8d6c7h86-8000.proxy.runpod.net/analyze_video',
+  );
+
+  /// Polling endpoint for async job status.
+  /// Derives the base URL from [analyzeVideoUrl] automatically.
+  static String jobStatusUrl(String jobId) {
+    final idx = analyzeVideoUrl.lastIndexOf('/analyze_video');
+    final base =
+        idx >= 0 ? analyzeVideoUrl.substring(0, idx) : analyzeVideoUrl;
+    return '$base/status/$jobId';
+  }
+
+  static String geminiGenerateContent(String model) =>
+      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
+  static const String openaiChatCompletions =
+      'https://api.openai.com/v1/chat/completions';
 }

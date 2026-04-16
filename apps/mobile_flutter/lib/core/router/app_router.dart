@@ -11,6 +11,7 @@ import 'package:greyeye_mobile/features/auth/screens/register_screen.dart';
 import 'package:greyeye_mobile/features/camera/screens/add_camera_screen.dart';
 import 'package:greyeye_mobile/features/camera/screens/camera_list_screen.dart';
 import 'package:greyeye_mobile/features/camera/screens/camera_settings_screen.dart';
+import 'package:greyeye_mobile/features/classify/screens/classify_screen.dart';
 import 'package:greyeye_mobile/features/monitor/screens/live_monitor_screen.dart';
 import 'package:greyeye_mobile/features/onboarding/screens/quick_setup_screen.dart';
 import 'package:greyeye_mobile/features/roi/screens/roi_editor_screen.dart';
@@ -19,6 +20,7 @@ import 'package:greyeye_mobile/features/settings/screens/settings_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/create_edit_site_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/home_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/site_detail_screen.dart';
+import 'package:greyeye_mobile/features/sites/screens/video_analysis_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -81,6 +83,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                     ),
                   ),
                   GoRoute(
+                    path: 'video_analysis',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => VideoAnalysisScreen(
+                      siteId: state.pathParameters['siteId']!,
+                    ),
+                  ),
+                  GoRoute(
                     path: 'cameras',
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (context, state) => CameraListScreen(
@@ -99,6 +108,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: '/classify',
+            builder: (context, state) => const ClassifyScreen(),
           ),
           GoRoute(
             path: '/settings',

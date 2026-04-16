@@ -12,6 +12,11 @@
   "loginInvalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다",
   "loginFieldRequired": "필수 입력 항목입니다",
   "loginInvalidEmail": "유효한 이메일 주소를 입력하세요",
+  "loginEnterEmailFirst": "먼저 이메일 주소를 입력하세요",
+  "loginResetEmailSent": "비밀번호 재설정 이메일이 발송되었습니다. 받은편지함을 확인하세요.",
+  "loginOfflineModeActive": "오프라인 모드 활성 중",
+  "loginOfflineModeDescription": "Supabase가 구성되지 않아 인증이 생략되며 로컬 대시보드를 바로 사용할 수 있습니다.",
+  "loginOpenDashboard": "대시보드 열기",
 
   "registerTitle": "계정 만들기",
   "registerName": "이름",
@@ -22,15 +27,37 @@
   "registerButton": "계정 만들기",
   "registerPasswordMismatch": "비밀번호가 일치하지 않습니다",
   "registerAlreadyHaveAccount": "이미 계정이 있으신가요? 로그인",
+  "registerAuthDisabled": "인증이 비활성화되었습니다",
+  "registerAuthDisabledDescription": "계정 생성을 활성화하려면 Supabase 환경 변수를 구성하세요. 로컬 대시보드는 구성 없이도 사용할 수 있습니다.",
 
   "setupTitle": "초기 설정",
   "setupWelcome": "GreyEye에 오신 것을 환영합니다",
   "setupAddSite": "첫 번째 모니터링 사이트를 추가하세요",
   "setupComplete": "설정 완료",
+  "setupNext": "다음",
+  "setupAddCameraPrompt": "이 사이트에 첫 번째 카메라를 추가하세요.",
+  "setupDefaultLineNote": "기본 카운팅 라인이 생성됩니다. 나중에 ROI 편집기에서 수정할 수 있습니다.",
+  "setupDefaultLinePreview": "기본 카운팅 라인 미리보기",
+  "setupCreateAndContinue": "생성 후 계속",
+  "setupVerifySite": "사이트",
+  "setupVerifyCamera": "카메라",
+  "setupVerifyCountingLine": "카운팅 라인",
+  "setupDefaultHorizontal": "기본값 (수평)",
+  "setupActivateAndStart": "활성화 및 시작",
+  "setupReadyMessage": "모니터링 사이트가 준비되었습니다. 교통 데이터 수집을 시작하세요.",
+  "setupGoToDashboard": "대시보드로 이동",
+  "setupOpenMonitor": "실시간 모니터 열기",
+  "setupOpenRoiEditor": "ROI 편집기 열기",
+  "setupStepCreateSite": "사이트 생성",
+  "setupStepAddCamera": "카메라 추가",
+  "setupStepDrawLines": "카운팅 라인 그리기",
+  "setupStepVerify": "설정 확인",
+  "setupStepStart": "모니터링 시작",
 
   "navHome": "홈",
   "navAlerts": "알림",
   "navSettings": "설정",
+  "navClassify": "분류",
 
   "homeTitle": "대시보드",
   "homeSites": "사이트",
@@ -56,6 +83,8 @@
       "count": { "type": "int" }
     }
   },
+  "siteAnalyzeVideo": "로컬 영상 분석",
+  "siteAnalyzeVideoDesc": "영상을 업로드하여 차량을 계수합니다",
 
   "cameraListTitle": "카메라",
   "cameraDetailTitle": "카메라 상세",
@@ -65,18 +94,132 @@
   "cameraStatus": "상태",
   "cameraLive": "실시간",
   "cameraOffline": "오프라인",
+  "cameraSourceType": "소스 유형",
+  "cameraTargetFps": "목표 FPS",
+  "cameraResolution": "해상도",
+  "cameraClassificationMode": "분류 모드",
+  "cameraNightMode": "야간 모드",
+  "cameraSource": "소스",
+  "cameraSourceSmartphone": "스마트폰",
+  "cameraSourceRtsp": "RTSP",
+  "cameraSourceOnvif": "ONVIF",
+  "classificationFull12": "전체 12종 분류",
+  "classificationCoarse": "대분류 (승용/버스/트럭/트레일러)",
+  "classificationDisabled": "비활성",
+  "nightModeOn": "켜짐",
+  "nightModeOff": "꺼짐",
+  "menuLiveMonitor": "실시간 모니터",
+  "menuRoiEditor": "ROI 편집기",
+  "menuAnalytics": "분석",
+  "menuSettings": "설정",
 
   "roiTitle": "관심 영역",
   "roiDraw": "ROI 그리기",
   "roiReset": "초기화",
   "roiSave": "ROI 저장",
   "roiInstructions": "카메라 화면에서 다각형 꼭짓점을 탭하여 지정하세요",
+  "roiPresetName": "프리셋 이름",
+  "roiPresetsTitle": "ROI 프리셋",
+  "roiNoPresets": "구성된 ROI 프리셋이 없습니다",
+  "roiCreatePreset": "프리셋 생성",
+  "roiActive": "활성",
+  "roiActivate": "활성화",
+  "roiFinishDrawing": "그리기 완료",
+  "roiPresetSaved": "ROI 프리셋이 저장되었습니다",
+  "roiSegmentRoi": "ROI",
+  "roiSegmentLine": "라인",
+  "roiSegmentLane": "차선",
+  "roiSummaryNone": "없음",
+  "roiSummarySet": "설정됨",
+  "roiSummaryLines": "라인",
+  "roiSummaryLanes": "차선",
+  "roiFailedToLoad": "프리셋을 불러오지 못했습니다",
+  "roiLinesCount": "라인 {count}개 · 차선 {laneCount}개",
+  "@roiLinesCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "laneCount": { "type": "int" }
+    }
+  },
 
   "monitorTitle": "실시간 모니터",
   "monitorVehicleCount": "차량 수",
   "monitorSpeed": "평균 속도",
   "monitorOccupancy": "점유율",
   "monitorNoFeed": "실시간 피드를 사용할 수 없습니다",
+  "monitorFlowRate": "시간당 유량",
+  "monitorActiveTracks": "활성 추적",
+  "monitorCurrentBucket": "현재 버킷",
+  "monitorByDirection": "방향별",
+  "monitorByClass": "차종별",
+  "monitorInbound": "진입",
+  "monitorOutbound": "진출",
+  "monitorInitializing": "카메라 및 ML 모델 초기화 중...",
+  "monitorSimulated": "시뮬레이션 교통",
+  "monitorLive": "실시간 추론",
+  "monitorTracksAndCrossings": "추적 {trackCount}개 · 통과 {crossingCount}건",
+  "@monitorTracksAndCrossings": {
+    "placeholders": {
+      "trackCount": { "type": "int" },
+      "crossingCount": { "type": "int" }
+    }
+  },
+  "monitorWaitingForData": "데이터 대기 중...",
+  "monitorRefiningCrossings": "{count}건 정밀 분류 중...",
+  "@monitorRefiningCrossings": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "monitorCloudVlm": "클라우드 VLM",
+  "monitorRefining": "정밀 분류 중 {count}건",
+  "@monitorRefining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "monitorIdle": "대기 중",
+  "monitorSentToVlm": "VLM 전송",
+  "monitorRefined": "정밀 분류 완료",
+  "monitorFallbacks": "폴백",
+  "monitorAvgLatency": "평균 지연",
+  "monitorNoApiKey": "API 키가 구성되지 않았습니다",
+  "monitorPipelineFull12": "실시간 12종 (2단계) 추론",
+  "monitorPipelineCoarse": "실시간 대분류 차량 분류",
+  "monitorPipelineHybrid": "실시간 하이브리드 클라우드 분류",
+  "monitorPipelineDetectionOnly": "실시간 탐지만",
+  "monitorCameraPermissionDenied": "카메라 권한이 거부되었습니다. 시뮬레이션 모드로 실행합니다.",
+  "monitorCameraError": "카메라 오류: {error}. 시뮬레이션 모드로 실행합니다.",
+  "@monitorCameraError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorCameraUnavailable": "카메라를 사용할 수 없습니다. 시뮬레이션 모드로 실행합니다.",
+  "monitorClassificationUnavailable12": "12종 분류를 사용할 수 없습니다: {error}",
+  "@monitorClassificationUnavailable12": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorClassificationUnavailableCoarse": "대분류를 사용할 수 없습니다: {error}",
+  "@monitorClassificationUnavailableCoarse": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorClassificationUnavailableHybrid": "하이브리드 클라우드 분류를 사용할 수 없습니다: {error}",
+  "@monitorClassificationUnavailableHybrid": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorClassificationUnavailableDisabled": "실시간 추론을 사용할 수 없습니다: {error}",
+  "@monitorClassificationUnavailableDisabled": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
 
   "analyticsTitle": "분석",
   "analyticsTimeRange": "기간",
@@ -88,6 +231,18 @@
   "analyticsSpeedChart": "속도 분포",
   "analyticsClassChart": "차종 분류",
   "analyticsExport": "보고서 내보내기",
+  "analyticsBuckets": "버킷",
+  "analyticsClasses": "차종",
+  "analyticsDemoDataLoaded": "데모 데이터가 로드되었습니다.",
+  "analyticsDataAlreadyPresent": "데이터가 이미 존재합니다.",
+  "analyticsLoadDemoData": "데모 데이터 로드",
+  "analyticsVehiclesTooltip": "{time}\n{count}대",
+  "@analyticsVehiclesTooltip": {
+    "placeholders": {
+      "time": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
 
   "alertsTitle": "알림",
   "alertsEmpty": "알림 없음",
@@ -102,6 +257,19 @@
   "alertTypeIncident": "사고",
   "alertTypeAnomaly": "이상",
   "alertTypeThreshold": "임계값",
+  "alertStatusTriggered": "발생",
+  "alertStatusAcknowledged": "확인됨",
+  "alertStatusAssigned": "할당됨",
+  "alertStatusResolved": "해결됨",
+  "alertStatusSuppressed": "억제됨",
+  "alertSeverity": "심각도",
+  "alertStatus": "상태",
+  "alertCondition": "조건",
+  "alertSite": "사이트",
+  "alertCamera": "카메라",
+  "alertMessage": "메시지",
+  "alertAssignedTo": "담당자",
+  "alertResolve": "해결",
 
   "alertRulesTitle": "알림 규칙",
   "alertRuleAdd": "규칙 추가",
@@ -110,6 +278,26 @@
   "alertRuleCondition": "조건",
   "alertRuleThreshold": "임계값",
   "alertRuleEnabled": "활성화",
+  "alertRuleAddTitle": "알림 규칙 추가",
+  "alertRuleNameLabel": "규칙 이름",
+  "alertConditionLabel": "조건",
+  "alertThresholdLabel": "임계값",
+  "alertSeverityLabel": "심각도",
+  "alertCondCongestion": "혼잡",
+  "alertCondSpeedDrop": "속도 저하",
+  "alertCondStopped": "정지 차량",
+  "alertCondHeavy": "대형차 비율",
+  "alertCondCameraOffline": "카메라 오프라인",
+  "alertCondCountAnomaly": "계수 이상",
+  "alertNoRules": "구성된 알림 규칙이 없습니다",
+  "alertRuleCreate": "생성",
+  "alertRuleSubtitle": "{conditionType} · 임계값: {threshold}",
+  "@alertRuleSubtitle": {
+    "placeholders": {
+      "conditionType": { "type": "String" },
+      "threshold": { "type": "String" }
+    }
+  },
 
   "settingsTitle": "설정",
   "settingsProfile": "프로필",
@@ -124,6 +312,119 @@
   "settingsVersion": "버전",
   "settingsLogout": "로그아웃",
   "settingsLogoutConfirm": "정말 로그아웃하시겠습니까?",
+  "settingsQuickSetup": "빠른 설정",
+  "settingsQuickSetupDesc": "설정 마법사를 다시 실행합니다",
+  "settingsData": "데이터",
+  "settingsClearData": "모든 로컬 데이터 삭제",
+  "settingsClearDataDesc": "모든 사이트, 카메라, 통과 데이터를 삭제합니다",
+  "settingsClearDataConfirmTitle": "모든 데이터를 삭제하시겠습니까?",
+  "settingsClearDataConfirmBody": "모든 로컬 사이트, 카메라, ROI 프리셋 및 통과 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+  "settingsCleared": "모든 데이터가 삭제되었습니다",
+  "settingsClearButton": "삭제",
+  "settingsCloudClassification": "클라우드 분류",
+  "settingsVlmProvider": "VLM 제공자",
+  "settingsNotConfigured": "구성되지 않음",
+  "settingsProviderGemini": "Google Gemini",
+  "settingsProviderOpenai": "OpenAI",
+  "settingsProvider": "제공자",
+  "settingsAuth": "인증",
+  "settingsApiKey": "API 키",
+  "settingsApiKeySecure": "기기에 안전하게 저장됩니다. 당사 서버로 전송되지 않습니다.",
+  "settingsModelName": "모델 이름",
+  "settingsConfidenceThreshold": "신뢰도 임계값",
+  "settingsConfidenceDescription": "로컬 분류기 신뢰도가 이 값을 초과하면 VLM을 건너뜁니다. 낮을수록 VLM 호출이 많아집니다.",
+  "settingsBatching": "배치 처리",
+  "settingsBatchingDescription": "API 호출을 줄이기 위해 크롭을 모아서 전송합니다.",
+  "settingsBatchSize": "배치 크기",
+  "settingsBatchTimeout": "배치 타임아웃",
+  "settingsRequestTimeout": "요청 타임아웃",
+  "settingsMaxRetries": "최대 재시도",
+  "settingsAdvanced": "고급",
+  "settingsResetDefaults": "기본값으로 재설정",
+  "settingsResetConfirmTitle": "VLM 설정을 재설정하시겠습니까?",
+  "settingsResetConfirmBody": "API 키가 삭제되고 모든 클라우드 분류 설정이 기본값으로 재설정됩니다.",
+  "settingsResetButton": "재설정",
+  "settingsGemini": "Gemini",
+  "settingsOpenai": "OpenAI",
+
+  "classifyTitle": "차량 분류",
+  "classifyVehicle": "차량 분류하기",
+  "classifyDescription": "사진을 촬영하거나 갤러리에서 선택하여 2단계 AI 분류로 차종을 식별합니다.",
+  "classifyCamera": "카메라",
+  "classifyGallery": "갤러리",
+  "classifyNewPhoto": "새 사진",
+  "classifyLoadingModels": "ML 모델 로딩 중...",
+  "classifyClassifying": "차량 분류 중...",
+  "classifyNoVehicles": "이 이미지에서 차량이 감지되지 않았습니다.",
+  "classifyFailed": "분류 실패",
+  "classifyUnknownError": "알 수 없는 오류",
+  "classifyTryAgain": "다시 시도",
+  "classifySaved": "분류가 저장되었습니다",
+  "classifySaveTooltip": "분류 저장",
+  "classifyStage1": "1단계 (대분류)",
+  "classifyWheels": "감지된 바퀴",
+  "classifyJoints": "감지된 연결부",
+  "classifyAxles": "추정 축수",
+  "classifyTrailer": "트레일러",
+  "classifyFinalClass": "최종 분류",
+  "classifyConfidence": "신뢰도",
+  "classifyYes": "있음",
+  "classifyNo": "없음",
+  "classifyUnknown": "알 수 없음",
+
+  "videoAnalysisTitle": "영상 분석",
+  "videoAnalysisCloud": "클라우드 영상 분석",
+  "videoAnalysisDescription": "영상을 촬영하거나 선택 (최대 5분) 하여 클라우드 기반 차량 탐지 및 계수를 실행합니다.",
+  "videoAnalysisGallery": "갤러리에서 선택",
+  "videoAnalysisRecord": "영상 촬영",
+  "videoAnalysisUploading": "업로드 및 분석 중…",
+  "videoAnalysisUploadingHint": "영상 길이에 따라 수 분이 소요될 수 있습니다.",
+  "videoAnalysisProcessing": "서버에서 영상 분석 중…",
+  "videoAnalysisProcessingHint": "영상이 업로드되었습니다. 서버에서 처리 중이며, 영상 길이에 따라 수 분이 소요될 수 있습니다.",
+  "videoAnalysisTotalCounted": "총 감지 차량 수",
+  "videoAnalysisBreakdown": "차종별 분류",
+  "videoAnalysisExportCsv": "CSV 내보내기",
+  "videoAnalysisRetry": "재시도",
+
+  "reportTitle": "GreyEye 교통 보고서",
+  "reportCamera": "카메라: {cameraId}",
+  "@reportCamera": {
+    "placeholders": {
+      "cameraId": { "type": "String" }
+    }
+  },
+  "reportPeriod": "기간: {period}",
+  "@reportPeriod": {
+    "placeholders": {
+      "period": { "type": "String" }
+    }
+  },
+  "reportNA": "해당 없음",
+  "reportTotalCrossings": "총 통과 건수: {count}",
+  "@reportTotalCrossings": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "reportByClass": "차종별",
+  "reportByDirection": "방향별",
+  "reportRawCrossings": "원시 통과 데이터 (처음 200건)",
+  "reportHeaderClass": "차종",
+  "reportHeaderCount": "건수",
+  "reportHeaderDirection": "방향",
+  "reportHeaderTime": "시간",
+  "reportHeaderDir": "방향",
+  "reportHeaderConf": "신뢰도",
+  "exportExported": "{count}건의 통과 데이터를 내보냈습니다",
+  "@exportExported": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "exportFormat": "내보내기 형식",
+  "exportSelectRange": "날짜 범위를 선택하세요",
+  "exportStarted": "내보내기 시작됨",
+  "exportSelectDateRange": "날짜 범위 선택",
 
   "commonSave": "저장",
   "commonCancel": "취소",
@@ -142,36 +443,5 @@
   "errorServer": "서버 오류입니다. 나중에 다시 시도해 주세요.",
   "errorUnauthorized": "세션이 만료되었습니다. 다시 로그인해 주세요.",
   "errorForbidden": "이 작업에 대한 권한이 없습니다.",
-  "errorNotFound": "리소스를 찾을 수 없습니다.",
-
-  "setupStepCreateSite": "사이트 생성",
-  "setupStepAddCamera": "카메라 추가",
-  "setupStepDrawLines": "카운팅 라인 그리기",
-  "setupStepVerify": "설정 확인",
-  "setupStepStart": "모니터링 시작",
-  "setupDefaultLineNote": "기본 카운팅 라인이 생성됩니다. 나중에 ROI 편집기에서 수정할 수 있습니다.",
-  "setupGoToDashboard": "대시보드로 이동",
-  "setupOpenMonitor": "실시간 모니터 열기",
-  "setupOpenRoiEditor": "ROI 편집기 열기",
-
-  "monitorFlowRate": "시간당 유량",
-  "monitorActiveTracks": "활성 추적",
-  "monitorCurrentBucket": "현재 버킷",
-  "monitorByDirection": "방향별",
-  "monitorByClass": "차종별",
-  "monitorInbound": "진입",
-  "monitorOutbound": "진출",
-
-  "roiPresetName": "프리셋 이름",
-  "roiPresetsTitle": "ROI 프리셋",
-  "roiNoPresets": "구성된 ROI 프리셋이 없습니다",
-  "roiCreatePreset": "프리셋 생성",
-  "roiActive": "활성",
-  "roiActivate": "활성화",
-  "roiFinishDrawing": "그리기 완료",
-
-  "exportFormat": "내보내기 형식",
-  "exportSelectRange": "날짜 범위를 선택하세요",
-  "exportStarted": "내보내기 시작됨",
-  "exportSelectDateRange": "날짜 범위 선택"
+  "errorNotFound": "리소스를 찾을 수 없습니다."
 }

@@ -13,8 +13,10 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(autoSeedDemoDataProvider);
     final l10n = AppLocalizations.of(context);
     final sitesAsync = ref.watch(sitesProvider);
+    final wide = MediaQuery.sizeOf(context).width >= 840;
 
     return Scaffold(
       appBar: AppBar(
@@ -70,26 +72,75 @@ class HomeScreen extends ConsumerWidget {
               },
             );
           }
+
+          final content = wide
+              ? _DesktopHomeContent(sites: sites, l10n: l10n)
+              : _MobileHomeContent(sites: sites, l10n: l10n);
+
           return RefreshIndicator(
             onRefresh: () => ref.read(sitesProvider.notifier).load(),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _KpiRow(sites: sites, l10n: l10n),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.homeSites,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                ...sites.map(
-                  (site) => _SiteCard(site: site),
-                ),
-              ],
-            ),
+            child: content,
           );
         },
       ),
+    );
+  }
+}
+
+class _MobileHomeContent extends StatelessWidget {
+  const _MobileHomeContent({required this.sites, required this.l10n});
+
+  final List<SiteView> sites;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _KpiRow(sites: sites, l10n: l10n),
+        const SizedBox(height: 16),
+        Text(l10n.homeSites, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        ...sites.map((site) => _SiteCard(site: site)),
+      ],
+    );
+  }
+}
+
+class _DesktopHomeContent extends StatelessWidget {
+  const _DesktopHomeContent({required this.sites, required this.l10n});
+
+  final List<SiteView> sites;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        _KpiRow(sites: sites, l10n: l10n),
+        const SizedBox(height: 24),
+        Text(l10n.homeSites, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final crossAxisCount = constraints.maxWidth > 1000 ? 3 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 2.8,
+              ),
+              itemCount: sites.length,
+              itemBuilder: (context, index) => _SiteCard(site: sites[index]),
+            );
+          },
+        ),
+      ],
     );
   }
 }

@@ -80,21 +80,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Authentication is disabled',
+                          l10n.registerAuthDisabled,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Configure Supabase environment variables to enable account creation. The local dashboard is still available without it.',
+                          l10n.registerAuthDisabledDescription,
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 16),
                         FilledButton.icon(
                           onPressed: () => context.go('/home'),
                           icon: const Icon(Icons.dashboard_outlined),
-                          label: const Text('Open dashboard'),
+                          label: Text(l10n.loginOpenDashboard),
                         ),
                       ],
                     ),

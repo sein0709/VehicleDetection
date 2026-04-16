@@ -37,6 +37,7 @@ class VehicleClassifier {
   Interpreter? _interpreter;
 
   Future<void> load() async {
+    if (_settings.mode == ClassificationMode.disabled) return;
     _interpreter = await Interpreter.fromAsset(_settings.modelPath);
   }
 

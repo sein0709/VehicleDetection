@@ -80,6 +80,60 @@ class CrossingsDao extends DatabaseAccessor<AppDatabase>
     return row.read(count) ?? 0;
   }
 
+  /// Update the classification of an existing crossing (used by VLM refinement).
+  Future<bool> updateCrossingClass(
+    String crossingId, {
+    required int classCode,
+    required double confidence,
+    String source = 'local',
+  }) async {
+    final rows = await (update(vehicleCrossings)
+          ..where((t) => t.id.equals(crossingId)))
+        .write(
+      VehicleCrossingsCompanion(
+        class12: Value(classCode),
+        confidence: Value(confidence),
+        classificationSource: Value(source),
+      ),
+    );
+    return rows > 0;
+  }
+
+  /// Apply a VLM refinement result to an existing crossing.
+  ///
+  /// Stores the VLM class/confidence in the dedicated columns and updates
+  /// the primary [class12] and [confidence] to the VLM values.
+  Future<bool> applyVlmRefinement(
+    String crossingId, {
+    required int vlmClassCode,
+    required double vlmConfidence,
+  }) async {
+    final rows = await (update(vehicleCrossings)
+          ..where((t) => t.id.equals(crossingId)))
+        .write(
+      VehicleCrossingsCompanion(
+        class12: Value(vlmClassCode),
+        confidence: Value(vlmConfidence),
+        vlmClassCode: Value(vlmClassCode),
+        vlmConfidence: Value(vlmConfidence),
+        classificationSource: const Value('vlm'),
+      ),
+    );
+    return rows > 0;
+  }
+
+  /// Mark a crossing as using the local fallback after a VLM failure.
+  Future<bool> markFallback(String crossingId) async {
+    final rows = await (update(vehicleCrossings)
+          ..where((t) => t.id.equals(crossingId)))
+        .write(
+      const VehicleCrossingsCompanion(
+        classificationSource: Value('fallback'),
+      ),
+    );
+    return rows > 0;
+  }
+
   // --- Aggregated Counts ---
 
   Future<void> upsertAggBucket(AggVehicleCounts15mCompanion entry) =>

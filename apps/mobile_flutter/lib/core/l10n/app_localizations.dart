@@ -158,6 +158,36 @@ abstract class AppLocalizations {
   /// **'Enter a valid email address'**
   String get loginInvalidEmail;
 
+  /// No description provided for @loginEnterEmailFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email address first'**
+  String get loginEnterEmailFirst;
+
+  /// No description provided for @loginResetEmailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset email sent. Check your inbox.'**
+  String get loginResetEmailSent;
+
+  /// No description provided for @loginOfflineModeActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode is active'**
+  String get loginOfflineModeActive;
+
+  /// No description provided for @loginOfflineModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Supabase is not configured, so authentication is skipped and the local dashboard is available immediately.'**
+  String get loginOfflineModeDescription;
+
+  /// No description provided for @loginOpenDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Open dashboard'**
+  String get loginOpenDashboard;
+
   /// No description provided for @registerTitle.
   ///
   /// In en, this message translates to:
@@ -212,6 +242,18 @@ abstract class AppLocalizations {
   /// **'Already have an account? Sign in'**
   String get registerAlreadyHaveAccount;
 
+  /// No description provided for @registerAuthDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication is disabled'**
+  String get registerAuthDisabled;
+
+  /// No description provided for @registerAuthDisabledDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Supabase environment variables to enable account creation. The local dashboard is still available without it.'**
+  String get registerAuthDisabledDescription;
+
   /// No description provided for @setupTitle.
   ///
   /// In en, this message translates to:
@@ -236,6 +278,120 @@ abstract class AppLocalizations {
   /// **'Complete Setup'**
   String get setupComplete;
 
+  /// No description provided for @setupNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get setupNext;
+
+  /// No description provided for @setupAddCameraPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first camera to this site.'**
+  String get setupAddCameraPrompt;
+
+  /// No description provided for @setupDefaultLineNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A default counting line will be created. You can edit it later in the ROI editor.'**
+  String get setupDefaultLineNote;
+
+  /// No description provided for @setupDefaultLinePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Default counting line preview'**
+  String get setupDefaultLinePreview;
+
+  /// No description provided for @setupCreateAndContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Create & Continue'**
+  String get setupCreateAndContinue;
+
+  /// No description provided for @setupVerifySite.
+  ///
+  /// In en, this message translates to:
+  /// **'Site'**
+  String get setupVerifySite;
+
+  /// No description provided for @setupVerifyCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get setupVerifyCamera;
+
+  /// No description provided for @setupVerifyCountingLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Counting Line'**
+  String get setupVerifyCountingLine;
+
+  /// No description provided for @setupDefaultHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Default (horizontal)'**
+  String get setupDefaultHorizontal;
+
+  /// No description provided for @setupActivateAndStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate & Start'**
+  String get setupActivateAndStart;
+
+  /// No description provided for @setupReadyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your monitoring site is ready. Start capturing traffic data.'**
+  String get setupReadyMessage;
+
+  /// No description provided for @setupGoToDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Dashboard'**
+  String get setupGoToDashboard;
+
+  /// No description provided for @setupOpenMonitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Live Monitor'**
+  String get setupOpenMonitor;
+
+  /// No description provided for @setupOpenRoiEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Full ROI Editor'**
+  String get setupOpenRoiEditor;
+
+  /// No description provided for @setupStepCreateSite.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Site'**
+  String get setupStepCreateSite;
+
+  /// No description provided for @setupStepAddCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Camera'**
+  String get setupStepAddCamera;
+
+  /// No description provided for @setupStepDrawLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw Counting Lines'**
+  String get setupStepDrawLines;
+
+  /// No description provided for @setupStepVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Setup'**
+  String get setupStepVerify;
+
+  /// No description provided for @setupStepStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Monitoring'**
+  String get setupStepStart;
+
   /// No description provided for @navHome.
   ///
   /// In en, this message translates to:
@@ -253,6 +409,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get navSettings;
+
+  /// No description provided for @navClassify.
+  ///
+  /// In en, this message translates to:
+  /// **'Classify'**
+  String get navClassify;
 
   /// No description provided for @homeTitle.
   ///
@@ -362,6 +524,18 @@ abstract class AppLocalizations {
   /// **'{count} cameras'**
   String siteCameraCount(int count);
 
+  /// No description provided for @siteAnalyzeVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze Local Video'**
+  String get siteAnalyzeVideo;
+
+  /// No description provided for @siteAnalyzeVideoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload a video to count vehicles'**
+  String get siteAnalyzeVideoDesc;
+
   /// No description provided for @cameraListTitle.
   ///
   /// In en, this message translates to:
@@ -410,6 +584,114 @@ abstract class AppLocalizations {
   /// **'Offline'**
   String get cameraOffline;
 
+  /// No description provided for @cameraSourceType.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Type'**
+  String get cameraSourceType;
+
+  /// No description provided for @cameraTargetFps.
+  ///
+  /// In en, this message translates to:
+  /// **'Target FPS'**
+  String get cameraTargetFps;
+
+  /// No description provided for @cameraResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution'**
+  String get cameraResolution;
+
+  /// No description provided for @cameraClassificationMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification Mode'**
+  String get cameraClassificationMode;
+
+  /// No description provided for @cameraNightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Night Mode'**
+  String get cameraNightMode;
+
+  /// No description provided for @cameraSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get cameraSource;
+
+  /// No description provided for @cameraSourceSmartphone.
+  ///
+  /// In en, this message translates to:
+  /// **'Smartphone'**
+  String get cameraSourceSmartphone;
+
+  /// No description provided for @cameraSourceRtsp.
+  ///
+  /// In en, this message translates to:
+  /// **'RTSP'**
+  String get cameraSourceRtsp;
+
+  /// No description provided for @cameraSourceOnvif.
+  ///
+  /// In en, this message translates to:
+  /// **'ONVIF'**
+  String get cameraSourceOnvif;
+
+  /// No description provided for @classificationFull12.
+  ///
+  /// In en, this message translates to:
+  /// **'Full 12-Class'**
+  String get classificationFull12;
+
+  /// No description provided for @classificationCoarse.
+  ///
+  /// In en, this message translates to:
+  /// **'Coarse (Car/Bus/Truck/Trailer)'**
+  String get classificationCoarse;
+
+  /// No description provided for @classificationDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get classificationDisabled;
+
+  /// No description provided for @nightModeOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get nightModeOn;
+
+  /// No description provided for @nightModeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get nightModeOff;
+
+  /// No description provided for @menuLiveMonitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Monitor'**
+  String get menuLiveMonitor;
+
+  /// No description provided for @menuRoiEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI Editor'**
+  String get menuRoiEditor;
+
+  /// No description provided for @menuAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get menuAnalytics;
+
+  /// No description provided for @menuSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get menuSettings;
+
   /// No description provided for @roiTitle.
   ///
   /// In en, this message translates to:
@@ -440,6 +722,108 @@ abstract class AppLocalizations {
   /// **'Tap to place polygon vertices on the camera view'**
   String get roiInstructions;
 
+  /// No description provided for @roiPresetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset Name'**
+  String get roiPresetName;
+
+  /// No description provided for @roiPresetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI Presets'**
+  String get roiPresetsTitle;
+
+  /// No description provided for @roiNoPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'No ROI presets configured'**
+  String get roiNoPresets;
+
+  /// No description provided for @roiCreatePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Preset'**
+  String get roiCreatePreset;
+
+  /// No description provided for @roiActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get roiActive;
+
+  /// No description provided for @roiActivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate'**
+  String get roiActivate;
+
+  /// No description provided for @roiFinishDrawing.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish Drawing'**
+  String get roiFinishDrawing;
+
+  /// No description provided for @roiPresetSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI preset saved'**
+  String get roiPresetSaved;
+
+  /// No description provided for @roiSegmentRoi.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI'**
+  String get roiSegmentRoi;
+
+  /// No description provided for @roiSegmentLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get roiSegmentLine;
+
+  /// No description provided for @roiSegmentLane.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane'**
+  String get roiSegmentLane;
+
+  /// No description provided for @roiSummaryNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get roiSummaryNone;
+
+  /// No description provided for @roiSummarySet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get roiSummarySet;
+
+  /// No description provided for @roiSummaryLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines'**
+  String get roiSummaryLines;
+
+  /// No description provided for @roiSummaryLanes.
+  ///
+  /// In en, this message translates to:
+  /// **'Lanes'**
+  String get roiSummaryLanes;
+
+  /// No description provided for @roiFailedToLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load presets'**
+  String get roiFailedToLoad;
+
+  /// No description provided for @roiLinesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} lines · {laneCount} lanes'**
+  String roiLinesCount(int count, int laneCount);
+
   /// No description provided for @monitorTitle.
   ///
   /// In en, this message translates to:
@@ -469,6 +853,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No live feed available'**
   String get monitorNoFeed;
+
+  /// No description provided for @monitorFlowRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Flow Rate/h'**
+  String get monitorFlowRate;
+
+  /// No description provided for @monitorActiveTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Tracks'**
+  String get monitorActiveTracks;
+
+  /// No description provided for @monitorCurrentBucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Bucket'**
+  String get monitorCurrentBucket;
+
+  /// No description provided for @monitorByDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'By Direction'**
+  String get monitorByDirection;
+
+  /// No description provided for @monitorByClass.
+  ///
+  /// In en, this message translates to:
+  /// **'By Class'**
+  String get monitorByClass;
+
+  /// No description provided for @monitorInbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbound'**
+  String get monitorInbound;
+
+  /// No description provided for @monitorOutbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Outbound'**
+  String get monitorOutbound;
+
+  /// No description provided for @monitorInitializing.
+  ///
+  /// In en, this message translates to:
+  /// **'Initializing camera & ML models...'**
+  String get monitorInitializing;
+
+  /// No description provided for @monitorSimulated.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated traffic'**
+  String get monitorSimulated;
+
+  /// No description provided for @monitorLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Live inference'**
+  String get monitorLive;
+
+  /// No description provided for @monitorTracksAndCrossings.
+  ///
+  /// In en, this message translates to:
+  /// **'{trackCount} tracks · {crossingCount} crossings'**
+  String monitorTracksAndCrossings(int trackCount, int crossingCount);
+
+  /// No description provided for @monitorWaitingForData.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for data...'**
+  String get monitorWaitingForData;
+
+  /// No description provided for @monitorRefiningCrossings.
+  ///
+  /// In en, this message translates to:
+  /// **'Refining {count} {count, plural, =1{crossing} other{crossings}}...'**
+  String monitorRefiningCrossings(int count);
+
+  /// No description provided for @monitorCloudVlm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud VLM'**
+  String get monitorCloudVlm;
+
+  /// No description provided for @monitorRefining.
+  ///
+  /// In en, this message translates to:
+  /// **'refining {count}'**
+  String monitorRefining(int count);
+
+  /// No description provided for @monitorIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'idle'**
+  String get monitorIdle;
+
+  /// No description provided for @monitorSentToVlm.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent to VLM'**
+  String get monitorSentToVlm;
+
+  /// No description provided for @monitorRefined.
+  ///
+  /// In en, this message translates to:
+  /// **'Refined'**
+  String get monitorRefined;
+
+  /// No description provided for @monitorFallbacks.
+  ///
+  /// In en, this message translates to:
+  /// **'Fallbacks'**
+  String get monitorFallbacks;
+
+  /// No description provided for @monitorAvgLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg latency'**
+  String get monitorAvgLatency;
+
+  /// No description provided for @monitorNoApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key configured'**
+  String get monitorNoApiKey;
+
+  /// No description provided for @monitorPipelineFull12.
+  ///
+  /// In en, this message translates to:
+  /// **'Live 12-class (two-stage) inference'**
+  String get monitorPipelineFull12;
+
+  /// No description provided for @monitorPipelineCoarse.
+  ///
+  /// In en, this message translates to:
+  /// **'Live coarse vehicle classification'**
+  String get monitorPipelineCoarse;
+
+  /// No description provided for @monitorPipelineHybrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Live hybrid cloud classification'**
+  String get monitorPipelineHybrid;
+
+  /// No description provided for @monitorPipelineDetectionOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Live detection only'**
+  String get monitorPipelineDetectionOnly;
+
+  /// No description provided for @monitorCameraPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera permission denied. Running simulated traffic mode.'**
+  String get monitorCameraPermissionDenied;
+
+  /// No description provided for @monitorCameraError.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera error: {error}. Running simulated traffic mode.'**
+  String monitorCameraError(String error);
+
+  /// No description provided for @monitorCameraUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera access is unavailable. Running simulated traffic mode.'**
+  String get monitorCameraUnavailable;
+
+  /// No description provided for @monitorClassificationUnavailable12.
+  ///
+  /// In en, this message translates to:
+  /// **'12-class classification unavailable: {error}'**
+  String monitorClassificationUnavailable12(String error);
+
+  /// No description provided for @monitorClassificationUnavailableCoarse.
+  ///
+  /// In en, this message translates to:
+  /// **'Coarse classification unavailable: {error}'**
+  String monitorClassificationUnavailableCoarse(String error);
+
+  /// No description provided for @monitorClassificationUnavailableHybrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Hybrid cloud classification unavailable: {error}'**
+  String monitorClassificationUnavailableHybrid(String error);
+
+  /// No description provided for @monitorClassificationUnavailableDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Live inference unavailable: {error}'**
+  String monitorClassificationUnavailableDisabled(String error);
 
   /// No description provided for @analyticsTitle.
   ///
@@ -529,6 +1105,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export Report'**
   String get analyticsExport;
+
+  /// No description provided for @analyticsBuckets.
+  ///
+  /// In en, this message translates to:
+  /// **'Buckets'**
+  String get analyticsBuckets;
+
+  /// No description provided for @analyticsClasses.
+  ///
+  /// In en, this message translates to:
+  /// **'Classes'**
+  String get analyticsClasses;
+
+  /// No description provided for @analyticsDemoDataLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Demo data loaded.'**
+  String get analyticsDemoDataLoaded;
+
+  /// No description provided for @analyticsDataAlreadyPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'Data already present.'**
+  String get analyticsDataAlreadyPresent;
+
+  /// No description provided for @analyticsLoadDemoData.
+  ///
+  /// In en, this message translates to:
+  /// **'Load Demo Data'**
+  String get analyticsLoadDemoData;
+
+  /// No description provided for @analyticsVehiclesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'{time}\n{count} vehicles'**
+  String analyticsVehiclesTooltip(String time, int count);
 
   /// No description provided for @alertsTitle.
   ///
@@ -608,6 +1220,84 @@ abstract class AppLocalizations {
   /// **'Threshold'**
   String get alertTypeThreshold;
 
+  /// No description provided for @alertStatusTriggered.
+  ///
+  /// In en, this message translates to:
+  /// **'Triggered'**
+  String get alertStatusTriggered;
+
+  /// No description provided for @alertStatusAcknowledged.
+  ///
+  /// In en, this message translates to:
+  /// **'Ack'**
+  String get alertStatusAcknowledged;
+
+  /// No description provided for @alertStatusAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned'**
+  String get alertStatusAssigned;
+
+  /// No description provided for @alertStatusResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get alertStatusResolved;
+
+  /// No description provided for @alertStatusSuppressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Suppressed'**
+  String get alertStatusSuppressed;
+
+  /// No description provided for @alertSeverity.
+  ///
+  /// In en, this message translates to:
+  /// **'Severity'**
+  String get alertSeverity;
+
+  /// No description provided for @alertStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get alertStatus;
+
+  /// No description provided for @alertCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Condition'**
+  String get alertCondition;
+
+  /// No description provided for @alertSite.
+  ///
+  /// In en, this message translates to:
+  /// **'Site'**
+  String get alertSite;
+
+  /// No description provided for @alertCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get alertCamera;
+
+  /// No description provided for @alertMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get alertMessage;
+
+  /// No description provided for @alertAssignedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned To'**
+  String get alertAssignedTo;
+
+  /// No description provided for @alertResolve.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve'**
+  String get alertResolve;
+
   /// No description provided for @alertRulesTitle.
   ///
   /// In en, this message translates to:
@@ -649,6 +1339,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enabled'**
   String get alertRuleEnabled;
+
+  /// No description provided for @alertRuleAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Alert Rule'**
+  String get alertRuleAddTitle;
+
+  /// No description provided for @alertRuleNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule Name'**
+  String get alertRuleNameLabel;
+
+  /// No description provided for @alertConditionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Condition'**
+  String get alertConditionLabel;
+
+  /// No description provided for @alertThresholdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold'**
+  String get alertThresholdLabel;
+
+  /// No description provided for @alertSeverityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Severity'**
+  String get alertSeverityLabel;
+
+  /// No description provided for @alertCondCongestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Congestion'**
+  String get alertCondCongestion;
+
+  /// No description provided for @alertCondSpeedDrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed Drop'**
+  String get alertCondSpeedDrop;
+
+  /// No description provided for @alertCondStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped Vehicle'**
+  String get alertCondStopped;
+
+  /// No description provided for @alertCondHeavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Heavy Vehicle Share'**
+  String get alertCondHeavy;
+
+  /// No description provided for @alertCondCameraOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera Offline'**
+  String get alertCondCameraOffline;
+
+  /// No description provided for @alertCondCountAnomaly.
+  ///
+  /// In en, this message translates to:
+  /// **'Count Anomaly'**
+  String get alertCondCountAnomaly;
+
+  /// No description provided for @alertNoRules.
+  ///
+  /// In en, this message translates to:
+  /// **'No alert rules configured'**
+  String get alertNoRules;
+
+  /// No description provided for @alertRuleCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get alertRuleCreate;
+
+  /// No description provided for @alertRuleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{conditionType} · threshold: {threshold}'**
+  String alertRuleSubtitle(String conditionType, String threshold);
 
   /// No description provided for @settingsTitle.
   ///
@@ -727,6 +1501,546 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to sign out?'**
   String get settingsLogoutConfirm;
+
+  /// No description provided for @settingsQuickSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Setup'**
+  String get settingsQuickSetup;
+
+  /// No description provided for @settingsQuickSetupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Run the setup wizard again'**
+  String get settingsQuickSetupDesc;
+
+  /// No description provided for @settingsData.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get settingsData;
+
+  /// No description provided for @settingsClearData.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Local Data'**
+  String get settingsClearData;
+
+  /// No description provided for @settingsClearDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all sites, cameras, and crossings'**
+  String get settingsClearDataDesc;
+
+  /// No description provided for @settingsClearDataConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Data?'**
+  String get settingsClearDataConfirmTitle;
+
+  /// No description provided for @settingsClearDataConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete all local sites, cameras, ROI presets, and crossing data. This cannot be undone.'**
+  String get settingsClearDataConfirmBody;
+
+  /// No description provided for @settingsCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'All data cleared'**
+  String get settingsCleared;
+
+  /// No description provided for @settingsClearButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get settingsClearButton;
+
+  /// No description provided for @settingsCloudClassification.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Classification'**
+  String get settingsCloudClassification;
+
+  /// No description provided for @settingsVlmProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'VLM Provider'**
+  String get settingsVlmProvider;
+
+  /// No description provided for @settingsNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get settingsNotConfigured;
+
+  /// No description provided for @settingsProviderGemini.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Gemini'**
+  String get settingsProviderGemini;
+
+  /// No description provided for @settingsProviderOpenai.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI'**
+  String get settingsProviderOpenai;
+
+  /// No description provided for @settingsProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get settingsProvider;
+
+  /// No description provided for @settingsAuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get settingsAuth;
+
+  /// No description provided for @settingsApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key'**
+  String get settingsApiKey;
+
+  /// No description provided for @settingsApiKeySecure.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored securely on device. Never sent to our servers.'**
+  String get settingsApiKeySecure;
+
+  /// No description provided for @settingsModelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Model Name'**
+  String get settingsModelName;
+
+  /// No description provided for @settingsConfidenceThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence Threshold'**
+  String get settingsConfidenceThreshold;
+
+  /// No description provided for @settingsConfidenceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip VLM when local classifier confidence exceeds this value. Lower = more VLM calls.'**
+  String get settingsConfidenceDescription;
+
+  /// No description provided for @settingsBatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Batching'**
+  String get settingsBatching;
+
+  /// No description provided for @settingsBatchingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Accumulate crops before sending to reduce API calls.'**
+  String get settingsBatchingDescription;
+
+  /// No description provided for @settingsBatchSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch Size'**
+  String get settingsBatchSize;
+
+  /// No description provided for @settingsBatchTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch Timeout'**
+  String get settingsBatchTimeout;
+
+  /// No description provided for @settingsRequestTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Timeout'**
+  String get settingsRequestTimeout;
+
+  /// No description provided for @settingsMaxRetries.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Retries'**
+  String get settingsMaxRetries;
+
+  /// No description provided for @settingsAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get settingsAdvanced;
+
+  /// No description provided for @settingsResetDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Defaults'**
+  String get settingsResetDefaults;
+
+  /// No description provided for @settingsResetConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset VLM Settings?'**
+  String get settingsResetConfirmTitle;
+
+  /// No description provided for @settingsResetConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This will clear your API key and reset all cloud classification settings to their defaults.'**
+  String get settingsResetConfirmBody;
+
+  /// No description provided for @settingsResetButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get settingsResetButton;
+
+  /// No description provided for @settingsGemini.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini'**
+  String get settingsGemini;
+
+  /// No description provided for @settingsOpenai.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI'**
+  String get settingsOpenai;
+
+  /// No description provided for @classifyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Classify Vehicle'**
+  String get classifyTitle;
+
+  /// No description provided for @classifyVehicle.
+  ///
+  /// In en, this message translates to:
+  /// **'Classify a Vehicle'**
+  String get classifyVehicle;
+
+  /// No description provided for @classifyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo or pick from gallery to identify the vehicle type using two-stage AI classification.'**
+  String get classifyDescription;
+
+  /// No description provided for @classifyCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get classifyCamera;
+
+  /// No description provided for @classifyGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery'**
+  String get classifyGallery;
+
+  /// No description provided for @classifyNewPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'New Photo'**
+  String get classifyNewPhoto;
+
+  /// No description provided for @classifyLoadingModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading ML models...'**
+  String get classifyLoadingModels;
+
+  /// No description provided for @classifyClassifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Classifying vehicle...'**
+  String get classifyClassifying;
+
+  /// No description provided for @classifyNoVehicles.
+  ///
+  /// In en, this message translates to:
+  /// **'No vehicles detected in this image.'**
+  String get classifyNoVehicles;
+
+  /// No description provided for @classifyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification Failed'**
+  String get classifyFailed;
+
+  /// No description provided for @classifyUnknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown error'**
+  String get classifyUnknownError;
+
+  /// No description provided for @classifyTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get classifyTryAgain;
+
+  /// No description provided for @classifySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification saved'**
+  String get classifySaved;
+
+  /// No description provided for @classifySaveTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Save classification'**
+  String get classifySaveTooltip;
+
+  /// No description provided for @classifyStage1.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage 1 (Coarse)'**
+  String get classifyStage1;
+
+  /// No description provided for @classifyWheels.
+  ///
+  /// In en, this message translates to:
+  /// **'Wheels Detected'**
+  String get classifyWheels;
+
+  /// No description provided for @classifyJoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Joints Detected'**
+  String get classifyJoints;
+
+  /// No description provided for @classifyAxles.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated Axles'**
+  String get classifyAxles;
+
+  /// No description provided for @classifyTrailer.
+  ///
+  /// In en, this message translates to:
+  /// **'Trailer'**
+  String get classifyTrailer;
+
+  /// No description provided for @classifyFinalClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Final Class'**
+  String get classifyFinalClass;
+
+  /// No description provided for @classifyConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get classifyConfidence;
+
+  /// No description provided for @classifyYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get classifyYes;
+
+  /// No description provided for @classifyNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get classifyNo;
+
+  /// No description provided for @classifyUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get classifyUnknown;
+
+  /// No description provided for @videoAnalysisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Analysis'**
+  String get videoAnalysisTitle;
+
+  /// No description provided for @videoAnalysisCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Video Analysis'**
+  String get videoAnalysisCloud;
+
+  /// No description provided for @videoAnalysisDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Record or choose a video (max 5 minutes) to run cloud-based vehicle detection and counting.'**
+  String get videoAnalysisDescription;
+
+  /// No description provided for @videoAnalysisGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Gallery'**
+  String get videoAnalysisGallery;
+
+  /// No description provided for @videoAnalysisRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Video'**
+  String get videoAnalysisRecord;
+
+  /// No description provided for @videoAnalysisUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading and analyzing…'**
+  String get videoAnalysisUploading;
+
+  /// No description provided for @videoAnalysisUploadingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This may take several minutes depending on video length.'**
+  String get videoAnalysisUploadingHint;
+
+  /// No description provided for @videoAnalysisProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing video on server…'**
+  String get videoAnalysisProcessing;
+
+  /// No description provided for @videoAnalysisProcessingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The video has been uploaded. The server is processing it now. This may take several minutes depending on video length.'**
+  String get videoAnalysisProcessingHint;
+
+  /// No description provided for @videoAnalysisTotalCounted.
+  ///
+  /// In en, this message translates to:
+  /// **'Total vehicles counted'**
+  String get videoAnalysisTotalCounted;
+
+  /// No description provided for @videoAnalysisBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Breakdown by Class'**
+  String get videoAnalysisBreakdown;
+
+  /// No description provided for @videoAnalysisExportCsv.
+  ///
+  /// In en, this message translates to:
+  /// **'Export CSV'**
+  String get videoAnalysisExportCsv;
+
+  /// No description provided for @videoAnalysisRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get videoAnalysisRetry;
+
+  /// No description provided for @reportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GreyEye Traffic Report'**
+  String get reportTitle;
+
+  /// No description provided for @reportCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera: {cameraId}'**
+  String reportCamera(String cameraId);
+
+  /// No description provided for @reportPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period: {period}'**
+  String reportPeriod(String period);
+
+  /// No description provided for @reportNA.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get reportNA;
+
+  /// No description provided for @reportTotalCrossings.
+  ///
+  /// In en, this message translates to:
+  /// **'Total crossings: {count}'**
+  String reportTotalCrossings(int count);
+
+  /// No description provided for @reportByClass.
+  ///
+  /// In en, this message translates to:
+  /// **'By Vehicle Class'**
+  String get reportByClass;
+
+  /// No description provided for @reportByDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'By Direction'**
+  String get reportByDirection;
+
+  /// No description provided for @reportRawCrossings.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw Crossings (first 200)'**
+  String get reportRawCrossings;
+
+  /// No description provided for @reportHeaderClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Class'**
+  String get reportHeaderClass;
+
+  /// No description provided for @reportHeaderCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Count'**
+  String get reportHeaderCount;
+
+  /// No description provided for @reportHeaderDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'Direction'**
+  String get reportHeaderDirection;
+
+  /// No description provided for @reportHeaderTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get reportHeaderTime;
+
+  /// No description provided for @reportHeaderDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Dir'**
+  String get reportHeaderDir;
+
+  /// No description provided for @reportHeaderConf.
+  ///
+  /// In en, this message translates to:
+  /// **'Conf'**
+  String get reportHeaderConf;
+
+  /// No description provided for @exportExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {count} crossings'**
+  String exportExported(int count);
+
+  /// No description provided for @exportFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Format'**
+  String get exportFormat;
+
+  /// No description provided for @exportSelectRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a date range'**
+  String get exportSelectRange;
+
+  /// No description provided for @exportStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Export started'**
+  String get exportStarted;
+
+  /// No description provided for @exportSelectDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Select date range'**
+  String get exportSelectDateRange;
 
   /// No description provided for @commonSave.
   ///
@@ -829,168 +2143,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resource not found.'**
   String get errorNotFound;
-
-  /// No description provided for @setupStepCreateSite.
-  ///
-  /// In en, this message translates to:
-  /// **'Create Site'**
-  String get setupStepCreateSite;
-
-  /// No description provided for @setupStepAddCamera.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Camera'**
-  String get setupStepAddCamera;
-
-  /// No description provided for @setupStepDrawLines.
-  ///
-  /// In en, this message translates to:
-  /// **'Draw Counting Lines'**
-  String get setupStepDrawLines;
-
-  /// No description provided for @setupStepVerify.
-  ///
-  /// In en, this message translates to:
-  /// **'Verify Setup'**
-  String get setupStepVerify;
-
-  /// No description provided for @setupStepStart.
-  ///
-  /// In en, this message translates to:
-  /// **'Start Monitoring'**
-  String get setupStepStart;
-
-  /// No description provided for @setupDefaultLineNote.
-  ///
-  /// In en, this message translates to:
-  /// **'A default counting line will be created. You can edit it later in the ROI editor.'**
-  String get setupDefaultLineNote;
-
-  /// No description provided for @setupGoToDashboard.
-  ///
-  /// In en, this message translates to:
-  /// **'Go to Dashboard'**
-  String get setupGoToDashboard;
-
-  /// No description provided for @setupOpenMonitor.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Live Monitor'**
-  String get setupOpenMonitor;
-
-  /// No description provided for @setupOpenRoiEditor.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Full ROI Editor'**
-  String get setupOpenRoiEditor;
-
-  /// No description provided for @monitorFlowRate.
-  ///
-  /// In en, this message translates to:
-  /// **'Flow Rate/h'**
-  String get monitorFlowRate;
-
-  /// No description provided for @monitorActiveTracks.
-  ///
-  /// In en, this message translates to:
-  /// **'Active Tracks'**
-  String get monitorActiveTracks;
-
-  /// No description provided for @monitorCurrentBucket.
-  ///
-  /// In en, this message translates to:
-  /// **'Current Bucket'**
-  String get monitorCurrentBucket;
-
-  /// No description provided for @monitorByDirection.
-  ///
-  /// In en, this message translates to:
-  /// **'By Direction'**
-  String get monitorByDirection;
-
-  /// No description provided for @monitorByClass.
-  ///
-  /// In en, this message translates to:
-  /// **'By Class'**
-  String get monitorByClass;
-
-  /// No description provided for @monitorInbound.
-  ///
-  /// In en, this message translates to:
-  /// **'Inbound'**
-  String get monitorInbound;
-
-  /// No description provided for @monitorOutbound.
-  ///
-  /// In en, this message translates to:
-  /// **'Outbound'**
-  String get monitorOutbound;
-
-  /// No description provided for @roiPresetName.
-  ///
-  /// In en, this message translates to:
-  /// **'Preset Name'**
-  String get roiPresetName;
-
-  /// No description provided for @roiPresetsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'ROI Presets'**
-  String get roiPresetsTitle;
-
-  /// No description provided for @roiNoPresets.
-  ///
-  /// In en, this message translates to:
-  /// **'No ROI presets configured'**
-  String get roiNoPresets;
-
-  /// No description provided for @roiCreatePreset.
-  ///
-  /// In en, this message translates to:
-  /// **'Create Preset'**
-  String get roiCreatePreset;
-
-  /// No description provided for @roiActive.
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get roiActive;
-
-  /// No description provided for @roiActivate.
-  ///
-  /// In en, this message translates to:
-  /// **'Activate'**
-  String get roiActivate;
-
-  /// No description provided for @roiFinishDrawing.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish Drawing'**
-  String get roiFinishDrawing;
-
-  /// No description provided for @exportFormat.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Format'**
-  String get exportFormat;
-
-  /// No description provided for @exportSelectRange.
-  ///
-  /// In en, this message translates to:
-  /// **'Please select a date range'**
-  String get exportSelectRange;
-
-  /// No description provided for @exportStarted.
-  ///
-  /// In en, this message translates to:
-  /// **'Export started'**
-  String get exportStarted;
-
-  /// No description provided for @exportSelectDateRange.
-  ///
-  /// In en, this message translates to:
-  /// **'Select date range'**
-  String get exportSelectDateRange;
 }
 
 class _AppLocalizationsDelegate

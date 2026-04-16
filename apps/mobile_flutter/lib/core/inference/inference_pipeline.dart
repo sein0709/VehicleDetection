@@ -1,12 +1,22 @@
 /// Five-stage on-device inference pipeline orchestrator.
 ///
-/// Wires together: detect → track → classify → smooth → line-cross.
-/// Designed to run synchronously within a background isolate on each frame.
+/// Wires together: detect → track → classify (two-stage) → smooth → line-cross.
 ///
-/// Ported from `services/inference_worker/inference_worker/pipeline.py`.
+/// Classification uses a two-stage approach:
+///   Stage 1 detector: car/bus/truck (coarse class from detection model)
+///   Stage 2 detector: wheel/joint on truck crops → axle count → KICT 12-class
+///
+/// In `hybridCloud` mode, trucks still get a local AxleClassifier result as an
+/// immediate best-guess, but crossing events for trucks carry a JPEG crop so
+/// the main isolate can enqueue them into [VlmRequestQueue] for async cloud
+/// refinement.
+///
+/// Designed to run synchronously within a background isolate on each frame.
 library;
 
-import 'package:greyeye_mobile/core/inference/classifier.dart';
+import 'dart:typed_data';
+
+import 'package:greyeye_mobile/core/inference/axle_classifier.dart';
 import 'package:greyeye_mobile/core/inference/detector.dart';
 import 'package:greyeye_mobile/core/inference/line_crossing.dart';
 import 'package:greyeye_mobile/core/inference/models.dart';
@@ -18,13 +28,13 @@ import 'package:image/image.dart' as img;
 class InferencePipeline {
   InferencePipeline(this._settings)
       : _detector = VehicleDetector(_settings.detector),
-        _classifier = VehicleClassifier(_settings.classifier),
+        _axleClassifier = AxleClassifier(_settings.stage2Detector),
         _smoother = TemporalSmoother(_settings.smoother),
         _crossingDetector = LineCrossingDetector(_settings.crossing);
 
   final PipelineSettings _settings;
   final VehicleDetector _detector;
-  final VehicleClassifier _classifier;
+  final AxleClassifier _axleClassifier;
   final TemporalSmoother _smoother;
   final LineCrossingDetector _crossingDetector;
 
@@ -32,17 +42,34 @@ class InferencePipeline {
   final Map<String, Map<String, TrackState>> _trackStates = {};
   final Map<String, List<CountingLine>> _countingLines = {};
 
-  /// Load TFLite models. Must be called before [processFrame].
+  /// Load TFLite models from Flutter assets. Must be called before
+  /// [processFrame]. Only works on the main isolate (requires bindings).
   Future<void> load() async {
-    await Future.wait([
-      _detector.load(),
-      _classifier.load(),
-    ]);
+    final futures = <Future<void>>[_detector.load()];
+    if (_settings.classifier.mode == ClassificationMode.full12class ||
+        _settings.classifier.mode == ClassificationMode.hybridCloud) {
+      futures.add(_axleClassifier.load());
+    }
+    await Future.wait(futures);
+  }
+
+  /// Load TFLite models from pre-loaded byte buffers. Use this in background
+  /// isolates where Flutter asset bindings are unavailable.
+  void loadFromBuffers({
+    required Uint8List detectorBytes,
+    Uint8List? axleClassifierBytes,
+  }) {
+    _detector.loadFromBuffer(detectorBytes);
+    if ((_settings.classifier.mode == ClassificationMode.full12class ||
+            _settings.classifier.mode == ClassificationMode.hybridCloud) &&
+        axleClassifierBytes != null) {
+      _axleClassifier.loadFromBuffer(axleClassifierBytes);
+    }
   }
 
   void dispose() {
     _detector.dispose();
-    _classifier.dispose();
+    _axleClassifier.dispose();
   }
 
   /// Hot-reload counting lines for a camera.
@@ -50,7 +77,7 @@ class InferencePipeline {
     _countingLines[cameraId] = lines;
   }
 
-  /// Run the full 5-stage pipeline on a single frame.
+  /// Run the full pipeline on a single frame.
   PipelineFrameResult processFrame({
     required img.Image frame,
     required String cameraId,
@@ -63,7 +90,7 @@ class InferencePipeline {
     final tracker = _trackers[cameraId]!;
     final existingTracks = _trackStates[cameraId]!;
 
-    // --- Stage 1: Detection ---
+    // --- Stage 1: Detection (car/bus/truck) ---
     final detections = _detector.detectFrame(frame, frameIndex);
 
     // --- Stage 2: Tracking ---
@@ -75,74 +102,94 @@ class InferencePipeline {
     );
     _trackStates[cameraId] = updatedTracks;
 
-    // --- Stage 3: Classification (confirmed tracks only) ---
+    // --- Stage 3: Two-stage classification (confirmed tracks only) ---
     final confirmedTracks = <String, TrackState>{};
     for (final e in updatedTracks.entries) {
       if (e.value.isConfirmed) confirmedTracks[e.key] = e.value;
     }
 
-    final classifierDisabled =
-        _settings.classifier.mode == ClassificationMode.disabled;
+    final mode = _settings.classifier.mode;
+    final isHybridCloud = mode == ClassificationMode.hybridCloud;
 
-    if (classifierDisabled) {
-      // Use the detector's COCO-mapped class code directly on each track.
-      // Pick the class from the detection that last matched this track.
-      for (final ts in confirmedTracks.values) {
-        final detectorClass = _resolveDetectorClass(detections, ts);
-        if (detectorClass != null) {
-          ts.smoothedClass = detectorClass;
-          ts.smoothedConfidence = ts.smoothedConfidence ?? 1.0;
+    for (final ts in confirmedTracks.values) {
+      final coarseClass = _resolveDetectorClass(detections, ts);
+      if (coarseClass == null) continue;
+
+      int finalClass;
+      double finalConfidence;
+
+      if (mode == ClassificationMode.disabled || mode == ClassificationMode.coarseOnly) {
+        finalClass = coarseClass;
+        finalConfidence = 1.0;
+      } else {
+        // full12class and hybridCloud both run Stage 2 on truck crops.
+        // In hybridCloud mode the local result serves as an immediate
+        // best-guess that may be refined asynchronously by a cloud VLM.
+        if (coarseClass == 3) {
+          final analysis = _axleClassifier.analyseCrop(
+            _extractCrop(frame, ts.bbox),
+            coarseClass,
+          );
+          finalClass = analysis.kictClassCode;
+          finalConfidence = analysis.confidence > 0 ? analysis.confidence : 0.8;
+        } else {
+          finalClass = coarseClass;
+          finalConfidence = 1.0;
         }
       }
-    } else {
-      final bboxesToClassify =
-          confirmedTracks.values.map((ts) => ts.bbox).toList();
-      final trackIdsOrdered = confirmedTracks.keys.toList();
-      final predictions = _classifier.classifyCrops(frame, bboxesToClassify);
 
-      for (var i = 0; i < trackIdsOrdered.length; i++) {
-        final ts = confirmedTracks[trackIdsOrdered[i]]!;
-        if (i < predictions.length) {
-          ts.classHistory.add(predictions[i]);
-          final maxHistory = _settings.smoother.window * 3;
-          if (ts.classHistory.length > maxHistory) {
-            ts.classHistory =
-                ts.classHistory.sublist(ts.classHistory.length - maxHistory);
-          }
-        }
+      // Build a ClassPrediction for the smoother's history
+      final probs = List<double>.filled(12, 0.0);
+      if (finalClass >= 1 && finalClass <= 12) {
+        probs[finalClass - 1] = finalConfidence;
+      }
+      ts.classHistory.add(
+        ClassPrediction(
+          classCode: finalClass,
+          probabilities: probs,
+          confidence: finalConfidence,
+          cropBbox: ts.bbox,
+        ),
+      );
+      final maxHistory = _settings.smoother.window * 3;
+      if (ts.classHistory.length > maxHistory) {
+        ts.classHistory = ts.classHistory.sublist(ts.classHistory.length - maxHistory);
       }
     }
 
     // --- Stage 4 + 5: Smoothing and Line Crossing ---
     final crossingEvents = <VehicleCrossingEvent>[];
     final countingLines = _countingLines[cameraId] ?? [];
+    final vlmConfThreshold = _settings.vlm.confidenceThreshold;
 
     for (final entry in confirmedTracks.entries) {
       final ts = entry.value;
 
-      int? classCode;
-      double? confidence;
-
-      if (classifierDisabled) {
-        classCode = ts.smoothedClass;
-        confidence = ts.smoothedConfidence;
-      } else {
-        if (ts.classHistory.isEmpty) continue;
-        final smoothed = _smoother.smooth(ts.classHistory, ts.age);
-        if (smoothed == null) continue;
-        ts.smoothedClass = smoothed.classCode;
-        ts.smoothedConfidence = smoothed.confidence;
-        classCode = smoothed.classCode;
-        confidence = smoothed.confidence;
-      }
-
-      if (classCode == null) continue;
+      if (ts.classHistory.isEmpty) continue;
+      final smoothed = _smoother.smooth(ts.classHistory, ts.age);
+      if (smoothed == null) continue;
+      ts.smoothedClass = smoothed.classCode;
+      ts.smoothedConfidence = smoothed.confidence;
 
       final crossings =
           _crossingDetector.checkCrossings(ts, countingLines, frameIndex);
 
       for (final crossing in crossings) {
         final seq = ts.crossingSequences[crossing.lineId] ?? 1;
+
+        // Determine whether this crossing needs async VLM refinement.
+        // Conditions: hybridCloud mode, truck class (3–12), and local
+        // confidence below the VLM confidence threshold.
+        final isTruck = smoothed.classCode >= 3;
+        final localConfidenceLow = smoothed.confidence < vlmConfThreshold;
+        final needsVlm = isHybridCloud && isTruck && localConfidenceLow;
+
+        Uint8List? cropBytes;
+        if (needsVlm) {
+          final crop = _extractCrop(frame, ts.bbox);
+          cropBytes = Uint8List.fromList(img.encodeJpg(crop, quality: 85));
+        }
+
         crossingEvents.add(
           VehicleCrossingEvent(
             timestampUtc: timestampUtc,
@@ -150,12 +197,15 @@ class InferencePipeline {
             lineId: crossing.lineId,
             trackId: ts.trackId,
             crossingSeq: seq,
-            classCode: classCode,
-            confidence: confidence ?? 0.0,
+            classCode: smoothed.classCode,
+            confidence: smoothed.confidence,
             direction: crossing.direction,
             frameIndex: frameIndex,
             speedEstimateKmh: ts.speedEstimateKmh,
             bbox: ts.bbox,
+            pendingVlmRefinement: needsVlm,
+            cropJpegBytes: cropBytes,
+            localFallbackConfidence: needsVlm ? smoothed.confidence : null,
           ),
         );
       }
@@ -178,6 +228,22 @@ class InferencePipeline {
       tracks: trackSnapshots,
       crossings: crossingEvents,
     );
+  }
+
+  img.Image _extractCrop(img.Image frame, BoundingBox bbox) {
+    final h = frame.height;
+    final w = frame.width;
+    final x1 = (bbox.x * w).round().clamp(0, w);
+    final y1 = (bbox.y * h).round().clamp(0, h);
+    final x2 = ((bbox.x + bbox.w) * w).round().clamp(0, w);
+    final y2 = ((bbox.y + bbox.h) * h).round().clamp(0, h);
+    final cropW = x2 - x1;
+    final cropH = y2 - y1;
+
+    if (cropW <= 0 || cropH <= 0) {
+      return img.Image(width: 64, height: 64);
+    }
+    return img.copyCrop(frame, x: x1, y: y1, width: cropW, height: cropH);
   }
 
   /// Find the best detector-assigned class code for a track by picking the

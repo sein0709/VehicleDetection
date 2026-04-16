@@ -96,6 +96,8 @@ class LiveKpiNotifier extends StateNotifier<LiveKpiUpdate?> {
   }
 
   Future<void> _refresh() async {
+    if (!mounted) return;
+
     try {
       final now = DateTime.now().toUtc();
       final bucketMinute = (now.minute ~/ 15) * 15;
@@ -109,6 +111,8 @@ class LiveKpiNotifier extends StateNotifier<LiveKpiUpdate?> {
         before: now,
       );
 
+      if (!mounted) return;
+
       final byClass = <int, int>{};
       final byDirection = <String, int>{};
       for (final c in crossings) {
@@ -120,6 +124,7 @@ class LiveKpiNotifier extends StateNotifier<LiveKpiUpdate?> {
       final flowRate =
           elapsed > 0 ? (total / elapsed * 3600).roundToDouble() : 0.0;
 
+      if (!mounted) return;
       state = LiveKpiUpdate(
         cameraId: _cameraId,
         currentBucket: bucketStart,

@@ -16,6 +16,8 @@ class CameraSettingsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final cameraAsync = ref.watch(cameraDetailProvider(cameraId));
 
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cameraDetailTitle)),
       body: cameraAsync.when(
@@ -31,8 +33,11 @@ class CameraSettingsScreen extends ConsumerWidget {
                   ? AppColors.cameraWarning
                   : AppColors.cameraOffline;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: wide ? 700 : double.infinity),
+              child: ListView(
+            padding: EdgeInsets.all(wide ? 24 : 16),
             children: [
               Card(
                 child: Padding(
@@ -52,22 +57,22 @@ class CameraSettingsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       _InfoRow(label: l10n.cameraName, value: camera.name),
-                      _InfoRow(label: 'Source', value: camera.sourceType),
+                      _InfoRow(label: l10n.cameraSource, value: camera.sourceType),
                       _InfoRow(
-                        label: 'Resolution',
+                        label: l10n.cameraResolution,
                         value: camera.settings.resolution,
                       ),
                       _InfoRow(
-                        label: 'FPS',
+                        label: l10n.cameraTargetFps,
                         value: '${camera.settings.targetFps}',
                       ),
                       _InfoRow(
-                        label: 'Classification',
+                        label: l10n.cameraClassificationMode,
                         value: camera.settings.classificationMode,
                       ),
                       _InfoRow(
-                        label: 'Night Mode',
-                        value: camera.settings.nightMode ? 'On' : 'Off',
+                        label: l10n.cameraNightMode,
+                        value: camera.settings.nightMode ? l10n.nightModeOn : l10n.nightModeOff,
                       ),
                     ],
                   ),
@@ -86,7 +91,7 @@ class CameraSettingsScreen extends ConsumerWidget {
               ),
               _ActionButton(
                 icon: Icons.list_alt,
-                label: 'ROI Presets',
+                label: l10n.roiPresetsTitle,
                 onTap: () =>
                     context.push('/cameras/$cameraId/roi-presets'),
               ),
@@ -103,6 +108,8 @@ class CameraSettingsScreen extends ConsumerWidget {
                     context.push('/cameras/$cameraId/export'),
               ),
             ],
+          ),
+            ),
           );
         },
       ),

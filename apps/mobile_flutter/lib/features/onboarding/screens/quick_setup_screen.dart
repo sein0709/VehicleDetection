@@ -23,12 +23,12 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
   String? _cameraId;
   bool _isLoading = false;
 
-  static const _stepTitles = [
-    'Create Site',
-    'Add Camera',
-    'Draw Counting Lines',
-    'Verify Setup',
-    'Start Monitoring',
+  List<String> _stepTitles(AppLocalizations l10n) => [
+    l10n.setupStepCreateSite,
+    l10n.setupStepAddCamera,
+    l10n.setupStepDrawLines,
+    l10n.setupStepVerify,
+    l10n.setupStepStart,
   ];
 
   @override
@@ -136,52 +136,52 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
             minHeight: 4,
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             child: Row(
-              children: List.generate(5, (i) {
-                final isCompleted = i < _step;
-                final isCurrent = i == _step;
-                return Expanded(
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: isCompleted
-                            ? theme.colorScheme.primary
-                            : isCurrent
-                                ? theme.colorScheme.primaryContainer
-                                : theme.colorScheme.surfaceContainerHighest,
-                        child: isCompleted
-                            ? const Icon(Icons.check, size: 16, color: Colors.white)
-                            : Text(
-                                '${i + 1}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isCurrent
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.outline,
-                                ),
-                              ),
-                      ),
-                      if (i < 4)
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: isCompleted
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.outlineVariant,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(9, (index) {
+                if (index.isEven) {
+                  final i = index ~/ 2;
+                  final isCompleted = i < _step;
+                  final isCurrent = i == _step;
+                  return CircleAvatar(
+                    radius: 14,
+                    backgroundColor: isCompleted
+                        ? theme.colorScheme.primary
+                        : isCurrent
+                            ? theme.colorScheme.primaryContainer
+                            : theme.colorScheme.surfaceContainerHighest,
+                    child: isCompleted
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isCurrent
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                );
+                  );
+                } else {
+                  final i = index ~/ 2;
+                  final isCompleted = i < _step;
+                  return Expanded(
+                    child: Container(
+                      height: 2,
+                      color: isCompleted
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outlineVariant,
+                    ),
+                  );
+                }
               }),
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              _stepTitles[_step],
+              _stepTitles(l10n)[_step],
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -190,7 +190,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
               child: _buildStepContent(l10n, theme),
             ),
           ),
@@ -246,7 +246,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Next'),
+              : Text(l10n.setupNext),
         ),
       ],
     );
@@ -256,7 +256,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Add your first camera to this site.'),
+        Text(l10n.setupAddCameraPrompt),
         const SizedBox(height: 16),
         TextField(
           controller: _cameraNameController,
@@ -274,7 +274,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Next'),
+              : Text(l10n.setupNext),
         ),
       ],
     );
@@ -284,9 +284,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'A default counting line will be created. You can edit it later in the ROI editor.',
-        ),
+        Text(l10n.setupDefaultLineNote),
         const SizedBox(height: 16),
         Container(
           height: 200,
@@ -304,9 +302,9 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   color: Colors.yellowAccent.withValues(alpha: 0.7),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Default counting line preview',
-                  style: TextStyle(color: Colors.white54),
+                Text(
+                  l10n.setupDefaultLinePreview,
+                  style: const TextStyle(color: Colors.white54),
                 ),
               ],
             ),
@@ -321,14 +319,14 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Create & Continue'),
+              : Text(l10n.setupCreateAndContinue),
         ),
         const SizedBox(height: 8),
         OutlinedButton(
           onPressed: _cameraId != null
               ? () => context.push('/cameras/$_cameraId/roi')
               : null,
-          child: const Text('Open Full ROI Editor'),
+          child: Text(l10n.setupOpenRoiEditor),
         ),
       ],
     );
@@ -346,20 +344,20 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
               children: [
                 _VerifyRow(
                   icon: Icons.check_circle,
-                  label: 'Site',
+                  label: l10n.setupVerifySite,
                   value: _siteNameController.text,
                 ),
                 const SizedBox(height: 8),
                 _VerifyRow(
                   icon: Icons.check_circle,
-                  label: 'Camera',
+                  label: l10n.setupVerifyCamera,
                   value: _cameraNameController.text,
                 ),
                 const SizedBox(height: 8),
-                const _VerifyRow(
+                _VerifyRow(
                   icon: Icons.check_circle,
-                  label: 'Counting Line',
-                  value: 'Default (horizontal)',
+                  label: l10n.setupVerifyCountingLine,
+                  value: l10n.setupDefaultHorizontal,
                 ),
               ],
             ),
@@ -368,7 +366,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
         const SizedBox(height: 24),
         FilledButton(
           onPressed: () => setState(() => _step = 4),
-          child: const Text('Activate & Start'),
+          child: Text(l10n.setupActivateAndStart),
         ),
       ],
     );
@@ -392,7 +390,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Your monitoring site is ready. Start capturing traffic data.',
+          l10n.setupReadyMessage,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -402,7 +400,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
         FilledButton.icon(
           onPressed: () => context.go('/home'),
           icon: const Icon(Icons.home),
-          label: const Text('Go to Dashboard'),
+          label: Text(l10n.setupGoToDashboard),
         ),
         const SizedBox(height: 12),
         if (_cameraId != null)
@@ -410,7 +408,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
             onPressed: () =>
                 context.push('/cameras/$_cameraId/monitor'),
             icon: const Icon(Icons.play_circle_outline),
-            label: const Text('Open Live Monitor'),
+            label: Text(l10n.setupOpenMonitor),
           ),
       ],
     );

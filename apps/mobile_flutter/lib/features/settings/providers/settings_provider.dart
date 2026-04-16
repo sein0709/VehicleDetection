@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 @immutable
 class AppSettings {
   const AppSettings({
-    this.themeMode = ThemeMode.system,
-    this.locale,
+    this.themeMode = ThemeMode.light,
+    this.locale = const Locale('ko'),
   });
 
   final ThemeMode themeMode;

@@ -16,3 +16,4 @@ export 'models.dart';
 export 'pipeline_settings.dart';
 export 'temporal_smoother.dart' show TemporalSmoother;
 export 'tracker.dart' show ByteTracker;
+export 'vlm_client.dart' show VlmClient, VlmClassificationResult, VlmParseException;

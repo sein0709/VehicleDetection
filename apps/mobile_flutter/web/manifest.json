@@ -1,12 +1,12 @@
 {
-    "name": "greyeye_mobile",
-    "short_name": "greyeye_mobile",
+    "name": "GreyEye",
+    "short_name": "GreyEye",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#293154",
+    "theme_color": "#293154",
+    "description": "Vehicle detection and traffic analytics platform.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

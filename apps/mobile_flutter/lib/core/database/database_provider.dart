@@ -11,3 +11,4 @@ final sitesDaoProvider = Provider((ref) => ref.watch(databaseProvider).sitesDao)
 final camerasDaoProvider = Provider((ref) => ref.watch(databaseProvider).camerasDao);
 final roiDaoProvider = Provider((ref) => ref.watch(databaseProvider).roiDao);
 final crossingsDaoProvider = Provider((ref) => ref.watch(databaseProvider).crossingsDao);
+final classificationsDaoProvider = Provider((ref) => ref.watch(databaseProvider).classificationsDao);

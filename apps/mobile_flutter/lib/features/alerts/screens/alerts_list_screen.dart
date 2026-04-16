@@ -151,12 +151,13 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final (color, label) = switch (status) {
-      AlertStatus.triggered => (Colors.red, 'Triggered'),
-      AlertStatus.acknowledged => (Colors.orange, 'Ack'),
-      AlertStatus.assigned => (Colors.blue, 'Assigned'),
-      AlertStatus.resolved => (Colors.green, 'Resolved'),
-      AlertStatus.suppressed => (Colors.grey, 'Suppressed'),
+      AlertStatus.triggered => (Colors.red, l10n.alertStatusTriggered),
+      AlertStatus.acknowledged => (Colors.orange, l10n.alertStatusAcknowledged),
+      AlertStatus.assigned => (Colors.blue, l10n.alertStatusAssigned),
+      AlertStatus.resolved => (Colors.green, l10n.alertStatusResolved),
+      AlertStatus.suppressed => (Colors.grey, l10n.alertStatusSuppressed),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

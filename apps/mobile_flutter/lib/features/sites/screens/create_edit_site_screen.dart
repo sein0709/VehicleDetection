@@ -77,11 +77,16 @@ class _CreateEditSiteScreenState extends ConsumerState<CreateEditSiteScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? l10n.siteEditTitle : l10n.siteAddTitle),
       ),
-      body: SingleChildScrollView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: wide ? 600 : double.infinity),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -121,6 +126,8 @@ class _CreateEditSiteScreenState extends ConsumerState<CreateEditSiteScreen> {
               ),
             ],
           ),
+        ),
+      ),
         ),
       ),
     );

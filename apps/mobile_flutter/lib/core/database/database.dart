@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:greyeye_mobile/core/database/daos/cameras_dao.dart';
+import 'package:greyeye_mobile/core/database/daos/classifications_dao.dart';
 import 'package:greyeye_mobile/core/database/daos/crossings_dao.dart';
 import 'package:greyeye_mobile/core/database/daos/roi_dao.dart';
 import 'package:greyeye_mobile/core/database/daos/sites_dao.dart';
@@ -21,8 +22,9 @@ part 'database.g.dart';
     CountingLines,
     VehicleCrossings,
     AggVehicleCounts15m,
+    ManualClassifications,
   ],
-  daos: [SitesDao, CamerasDao, RoiDao, CrossingsDao],
+  daos: [SitesDao, CamerasDao, RoiDao, CrossingsDao, ClassificationsDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -30,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,7 +41,23 @@ class AppDatabase extends _$AppDatabase {
           await _createIndexes();
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          // Future migrations go here.
+          if (from < 2) {
+            await m.createTable(manualClassifications);
+          }
+          if (from < 3) {
+            await m.addColumn(
+              vehicleCrossings,
+              vehicleCrossings.vlmClassCode,
+            );
+            await m.addColumn(
+              vehicleCrossings,
+              vehicleCrossings.vlmConfidence,
+            );
+            await m.addColumn(
+              vehicleCrossings,
+              vehicleCrossings.classificationSource,
+            );
+          }
         },
       );
 
@@ -75,6 +93,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Delete all data (useful for logout / reset).
   Future<void> clearAllData() => transaction(() async {
+        await delete(manualClassifications).go();
         await delete(aggVehicleCounts15m).go();
         await delete(vehicleCrossings).go();
         await delete(countingLines).go();

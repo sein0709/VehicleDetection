@@ -35,6 +35,16 @@ class VehicleDetector {
     _numClasses = _inferNumClasses(outputShape);
   }
 
+  /// Load from raw model bytes (for use in background isolates where
+  /// Flutter asset bindings are unavailable).
+  void loadFromBuffer(Uint8List bytes) {
+    final interpreter = Interpreter.fromBuffer(bytes);
+    _interpreter = interpreter;
+
+    final outputShape = interpreter.getOutputTensor(0).shape;
+    _numClasses = _inferNumClasses(outputShape);
+  }
+
   /// Derive the class count from the model's output tensor shape.
   ///
   /// YOLOv8 transposed `[1, 4+C, N]` (rows < cols) -> `C = predDim - 4`.
@@ -48,14 +58,14 @@ class VehicleDetector {
         // Transposed (YOLOv8): predDim = rows = 4 + numClasses
         return rows > 4 ? rows - 4 : 0;
       } else {
-        // Standard (YOLOv5): predDim = cols = 5 + numClasses
+        // Transposed by TFLite export (NHWC layout): predDim = cols = 4 + numClasses
         if (cols == 5) return 1;
-        return cols > 5 ? cols - 5 : 0;
+        return cols > 4 ? cols - 4 : 0;
       }
     } else if (shape.length == 2) {
       final predDim = shape[1];
       if (predDim == 5) return 1;
-      return predDim > 5 ? predDim - 5 : 0;
+      return predDim > 4 ? predDim - 4 : 0;
     }
     return 0;
   }
@@ -175,6 +185,13 @@ class VehicleDetector {
       return [];
     }
 
+    // Detect whether model outputs normalized (0-1) or pixel-space coords.
+    // Stage1/Stage2 models converted from CoreML output normalized coords;
+    // legacy detector.tflite outputs pixel-space coords.
+    final target = _settings.inputSize.toDouble();
+    final isNormalized = _isNormalizedOutput(raw, numPreds, predDim, transposed);
+    final coordScale = isNormalized ? target : 1.0;
+
     // Extract predictions into a 2D view.
     final confThreshold = _settings.confidenceThreshold;
     final filteredBoxes = <List<double>>[];
@@ -222,7 +239,10 @@ class VehicleDetector {
         continue;
       }
 
-      final cx = p[0], cy = p[1], bw = p[2], bh = p[3];
+      final cx = p[0] * coordScale;
+      final cy = p[1] * coordScale;
+      final bw = p[2] * coordScale;
+      final bh = p[3] * coordScale;
       filteredBoxes.add([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2]);
       filteredScores.add(score);
       filteredClassIndices.add(bestClassIdx);
@@ -256,9 +276,9 @@ class VehicleDetector {
       if (nw < 0.005 || nh < 0.005) continue;
 
       final rawClassIdx = filteredClassIndices[idx];
-      final mappedClassCode = _settings.filterVehiclesOnly
+      final mappedClassCode = _settings.cocoClassMap.containsKey(rawClassIdx)
           ? _settings.cocoClassMap[rawClassIdx]
-          : null;
+          : (rawClassIdx + 1);
 
       detections.add(
         Detection(
@@ -271,6 +291,26 @@ class VehicleDetector {
     }
 
     return detections;
+  }
+
+  /// Check whether the model outputs normalized (0-1) bbox coordinates by
+  /// sampling the first few predictions. If the max bbox coordinate value
+  /// across sampled predictions is <= 1.0, the output is normalized.
+  static bool _isNormalizedOutput(
+    Float32List raw,
+    int numPreds,
+    int predDim,
+    bool transposed,
+  ) {
+    var maxCoord = 0.0;
+    final samplesToCheck = math.min(numPreds, 100);
+    for (var n = 0; n < samplesToCheck; n++) {
+      for (var f = 0; f < 4; f++) {
+        final val = transposed ? raw[f * numPreds + n] : raw[n * predDim + f];
+        if (val.abs() > maxCoord) maxCoord = val.abs();
+      }
+    }
+    return maxCoord <= 1.0;
   }
 }
 

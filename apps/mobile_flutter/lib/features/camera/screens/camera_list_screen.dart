@@ -47,18 +47,48 @@ class CameraListScreen extends ConsumerWidget {
                   context.go('/home/sites/$siteId/cameras/new'),
             );
           }
+          final wide = MediaQuery.sizeOf(context).width >= 840;
           return RefreshIndicator(
             onRefresh: () =>
                 ref.read(cameraListProvider(siteId).notifier).load(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: cameras.length,
-              itemBuilder: (context, index) =>
-                  _CameraCard(camera: cameras[index]),
-            ),
+            child: wide
+                ? _DesktopCameraGrid(cameras: cameras)
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: cameras.length,
+                    itemBuilder: (context, index) =>
+                        _CameraCard(camera: cameras[index]),
+                  ),
           );
         },
       ),
+    );
+  }
+}
+
+class _DesktopCameraGrid extends StatelessWidget {
+  const _DesktopCameraGrid({required this.cameras});
+
+  final List<CameraView> cameras;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth > 1000 ? 3 : 2;
+        return GridView.builder(
+          padding: const EdgeInsets.all(24),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 2.4,
+          ),
+          itemCount: cameras.length,
+          itemBuilder: (context, index) =>
+              _CameraCard(camera: cameras[index]),
+        );
+      },
     );
   }
 }
@@ -144,12 +174,15 @@ class _CameraCard extends StatelessWidget {
                       context.push('/cameras/${camera.id}/settings');
                   }
                 },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'monitor', child: Text('Live Monitor')),
-                  PopupMenuItem(value: 'roi', child: Text('ROI Editor')),
-                  PopupMenuItem(value: 'analytics', child: Text('Analytics')),
-                  PopupMenuItem(value: 'settings', child: Text('Settings')),
-                ],
+                itemBuilder: (context) {
+                  final l10n = AppLocalizations.of(context);
+                  return [
+                    PopupMenuItem(value: 'monitor', child: Text(l10n.menuLiveMonitor)),
+                    PopupMenuItem(value: 'roi', child: Text(l10n.menuRoiEditor)),
+                    PopupMenuItem(value: 'analytics', child: Text(l10n.menuAnalytics)),
+                    PopupMenuItem(value: 'settings', child: Text(l10n.menuSettings)),
+                  ];
+                },
               ),
             ],
           ),

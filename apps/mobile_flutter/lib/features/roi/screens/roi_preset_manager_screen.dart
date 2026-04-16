@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:greyeye_mobile/core/l10n/app_localizations.dart';
 import 'package:greyeye_mobile/features/roi/models/roi_model.dart';
 import 'package:greyeye_mobile/features/roi/providers/roi_provider.dart';
 import 'package:greyeye_mobile/shared/widgets/error_view.dart';
@@ -14,10 +15,11 @@ class RoiPresetManagerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final presetsAsync = ref.watch(roiPresetsProvider(cameraId));
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ROI Presets'),
+        title: Text(l10n.roiPresetsTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -28,7 +30,7 @@ class RoiPresetManagerScreen extends ConsumerWidget {
       body: presetsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
-          message: 'Failed to load presets',
+          message: l10n.roiFailedToLoad,
           onRetry: () => ref.invalidate(roiPresetsProvider(cameraId)),
         ),
         data: (presets) {
@@ -43,13 +45,13 @@ class RoiPresetManagerScreen extends ConsumerWidget {
                     color: theme.colorScheme.outlineVariant,
                   ),
                   const SizedBox(height: 16),
-                  const Text('No ROI presets configured'),
+                  Text(l10n.roiNoPresets),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () =>
                         context.push('/cameras/$cameraId/roi'),
                     icon: const Icon(Icons.add),
-                    label: const Text('Create Preset'),
+                    label: Text(l10n.roiCreatePreset),
                   ),
                 ],
               ),
@@ -98,7 +100,7 @@ class _PresetCard extends ConsumerWidget {
         ),
         trailing: preset.isActive
             ? Chip(
-                label: const Text('Active'),
+                label: Text(AppLocalizations.of(context).roiActive),
                 backgroundColor: theme.colorScheme.primaryContainer,
               )
             : TextButton(
@@ -108,7 +110,7 @@ class _PresetCard extends ConsumerWidget {
                       .activatePreset(preset.id);
                   ref.invalidate(roiPresetsProvider(cameraId));
                 },
-                child: const Text('Activate'),
+                child: Text(AppLocalizations.of(context).roiActivate),
               ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

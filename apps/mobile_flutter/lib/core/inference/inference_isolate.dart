@@ -7,8 +7,8 @@ library;
 
 import 'dart:async';
 import 'dart:isolate';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:greyeye_mobile/core/inference/inference_pipeline.dart';
 import 'package:greyeye_mobile/core/inference/models.dart';
 import 'package:greyeye_mobile/core/inference/pipeline_settings.dart';
@@ -21,8 +21,10 @@ import 'package:image/image.dart' as img;
 sealed class _IsolateRequest {}
 
 class _InitRequest extends _IsolateRequest {
-  _InitRequest(this.settings);
+  _InitRequest(this.settings, this.detectorBytes, this.axleClassifierBytes);
   final PipelineSettings settings;
+  final Uint8List detectorBytes;
+  final Uint8List? axleClassifierBytes;
 }
 
 class _ProcessFrameRequest extends _IsolateRequest {
@@ -91,8 +93,20 @@ class InferenceIsolateRunner {
   bool get isRunning => _isolate != null;
 
   /// Spawn the worker isolate and load TFLite models.
+  ///
+  /// Model bytes are loaded from Flutter assets on the main isolate (where
+  /// bindings are available) and then sent to the background isolate which
+  /// creates interpreters via [Interpreter.fromBuffer].
   Future<void> start(PipelineSettings settings) async {
     if (_isolate != null) return;
+
+    // Pre-load model bytes on the main isolate (rootBundle requires bindings).
+    final detectorBytes = await _loadAssetBytes(settings.detector.modelPath);
+    Uint8List? axleBytes;
+    if (settings.classifier.mode == ClassificationMode.full12class ||
+        settings.classifier.mode == ClassificationMode.hybridCloud) {
+      axleBytes = await _loadAssetBytes(settings.stage2Detector.modelPath);
+    }
 
     _receivePort = ReceivePort();
     final completer = Completer<SendPort>();
@@ -125,8 +139,13 @@ class InferenceIsolateRunner {
       }
     });
 
-    _sendPort!.send(_InitRequest(settings));
+    _sendPort!.send(_InitRequest(settings, detectorBytes, axleBytes));
     await initCompleter.future;
+  }
+
+  static Future<Uint8List> _loadAssetBytes(String assetPath) async {
+    final data = await rootBundle.load(assetPath);
+    return data.buffer.asUint8List();
   }
 
   /// Submit a frame for processing. Returns the pipeline result.
@@ -197,7 +216,10 @@ void _isolateEntryPoint(SendPort mainSendPort) {
     if (message is _InitRequest) {
       try {
         pipeline = InferencePipeline(message.settings);
-        await pipeline!.load();
+        pipeline!.loadFromBuffers(
+          detectorBytes: message.detectorBytes,
+          axleClassifierBytes: message.axleClassifierBytes,
+        );
         mainSendPort.send(_InitDone());
       } catch (e) {
         mainSendPort.send(_ErrorResponse('Init failed: $e'));

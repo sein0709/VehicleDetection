@@ -12,6 +12,11 @@
   "loginInvalidCredentials": "Invalid email or password",
   "loginFieldRequired": "This field is required",
   "loginInvalidEmail": "Enter a valid email address",
+  "loginEnterEmailFirst": "Enter your email address first",
+  "loginResetEmailSent": "Password reset email sent. Check your inbox.",
+  "loginOfflineModeActive": "Offline mode is active",
+  "loginOfflineModeDescription": "Supabase is not configured, so authentication is skipped and the local dashboard is available immediately.",
+  "loginOpenDashboard": "Open dashboard",
 
   "registerTitle": "Create Account",
   "registerName": "Full name",
@@ -22,15 +27,37 @@
   "registerButton": "Create Account",
   "registerPasswordMismatch": "Passwords do not match",
   "registerAlreadyHaveAccount": "Already have an account? Sign in",
+  "registerAuthDisabled": "Authentication is disabled",
+  "registerAuthDisabledDescription": "Configure Supabase environment variables to enable account creation. The local dashboard is still available without it.",
 
   "setupTitle": "Initial Setup",
   "setupWelcome": "Welcome to GreyEye",
   "setupAddSite": "Add your first monitoring site",
   "setupComplete": "Complete Setup",
+  "setupNext": "Next",
+  "setupAddCameraPrompt": "Add your first camera to this site.",
+  "setupDefaultLineNote": "A default counting line will be created. You can edit it later in the ROI editor.",
+  "setupDefaultLinePreview": "Default counting line preview",
+  "setupCreateAndContinue": "Create & Continue",
+  "setupVerifySite": "Site",
+  "setupVerifyCamera": "Camera",
+  "setupVerifyCountingLine": "Counting Line",
+  "setupDefaultHorizontal": "Default (horizontal)",
+  "setupActivateAndStart": "Activate & Start",
+  "setupReadyMessage": "Your monitoring site is ready. Start capturing traffic data.",
+  "setupGoToDashboard": "Go to Dashboard",
+  "setupOpenMonitor": "Open Live Monitor",
+  "setupOpenRoiEditor": "Open Full ROI Editor",
+  "setupStepCreateSite": "Create Site",
+  "setupStepAddCamera": "Add Camera",
+  "setupStepDrawLines": "Draw Counting Lines",
+  "setupStepVerify": "Verify Setup",
+  "setupStepStart": "Start Monitoring",
 
   "navHome": "Home",
   "navAlerts": "Alerts",
   "navSettings": "Settings",
+  "navClassify": "Classify",
 
   "homeTitle": "Dashboard",
   "homeSites": "Sites",
@@ -56,6 +83,8 @@
       "count": { "type": "int" }
     }
   },
+  "siteAnalyzeVideo": "Analyze Local Video",
+  "siteAnalyzeVideoDesc": "Upload a video to count vehicles",
 
   "cameraListTitle": "Cameras",
   "cameraDetailTitle": "Camera Details",
@@ -65,18 +94,132 @@
   "cameraStatus": "Status",
   "cameraLive": "Live",
   "cameraOffline": "Offline",
+  "cameraSourceType": "Source Type",
+  "cameraTargetFps": "Target FPS",
+  "cameraResolution": "Resolution",
+  "cameraClassificationMode": "Classification Mode",
+  "cameraNightMode": "Night Mode",
+  "cameraSource": "Source",
+  "cameraSourceSmartphone": "Smartphone",
+  "cameraSourceRtsp": "RTSP",
+  "cameraSourceOnvif": "ONVIF",
+  "classificationFull12": "Full 12-Class",
+  "classificationCoarse": "Coarse (Car/Bus/Truck/Trailer)",
+  "classificationDisabled": "Disabled",
+  "nightModeOn": "On",
+  "nightModeOff": "Off",
+  "menuLiveMonitor": "Live Monitor",
+  "menuRoiEditor": "ROI Editor",
+  "menuAnalytics": "Analytics",
+  "menuSettings": "Settings",
 
   "roiTitle": "Region of Interest",
   "roiDraw": "Draw ROI",
   "roiReset": "Reset",
   "roiSave": "Save ROI",
   "roiInstructions": "Tap to place polygon vertices on the camera view",
+  "roiPresetName": "Preset Name",
+  "roiPresetsTitle": "ROI Presets",
+  "roiNoPresets": "No ROI presets configured",
+  "roiCreatePreset": "Create Preset",
+  "roiActive": "Active",
+  "roiActivate": "Activate",
+  "roiFinishDrawing": "Finish Drawing",
+  "roiPresetSaved": "ROI preset saved",
+  "roiSegmentRoi": "ROI",
+  "roiSegmentLine": "Line",
+  "roiSegmentLane": "Lane",
+  "roiSummaryNone": "None",
+  "roiSummarySet": "Set",
+  "roiSummaryLines": "Lines",
+  "roiSummaryLanes": "Lanes",
+  "roiFailedToLoad": "Failed to load presets",
+  "roiLinesCount": "{count} lines · {laneCount} lanes",
+  "@roiLinesCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "laneCount": { "type": "int" }
+    }
+  },
 
   "monitorTitle": "Live Monitor",
   "monitorVehicleCount": "Vehicle Count",
   "monitorSpeed": "Avg Speed",
   "monitorOccupancy": "Occupancy",
   "monitorNoFeed": "No live feed available",
+  "monitorFlowRate": "Flow Rate/h",
+  "monitorActiveTracks": "Active Tracks",
+  "monitorCurrentBucket": "Current Bucket",
+  "monitorByDirection": "By Direction",
+  "monitorByClass": "By Class",
+  "monitorInbound": "Inbound",
+  "monitorOutbound": "Outbound",
+  "monitorInitializing": "Initializing camera & ML models...",
+  "monitorSimulated": "Simulated traffic",
+  "monitorLive": "Live inference",
+  "monitorTracksAndCrossings": "{trackCount} tracks · {crossingCount} crossings",
+  "@monitorTracksAndCrossings": {
+    "placeholders": {
+      "trackCount": { "type": "int" },
+      "crossingCount": { "type": "int" }
+    }
+  },
+  "monitorWaitingForData": "Waiting for data...",
+  "monitorRefiningCrossings": "Refining {count} {count, plural, =1{crossing} other{crossings}}...",
+  "@monitorRefiningCrossings": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "monitorCloudVlm": "Cloud VLM",
+  "monitorRefining": "refining {count}",
+  "@monitorRefining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "monitorIdle": "idle",
+  "monitorSentToVlm": "Sent to VLM",
+  "monitorRefined": "Refined",
+  "monitorFallbacks": "Fallbacks",
+  "monitorAvgLatency": "Avg latency",
+  "monitorNoApiKey": "No API key configured",
+  "monitorPipelineFull12": "Live 12-class (two-stage) inference",
+  "monitorPipelineCoarse": "Live coarse vehicle classification",
+  "monitorPipelineHybrid": "Live hybrid cloud classification",
+  "monitorPipelineDetectionOnly": "Live detection only",
+  "monitorCameraPermissionDenied": "Camera permission denied. Running simulated traffic mode.",
+  "monitorCameraError": "Camera error: {error}. Running simulated traffic mode.",
+  "@monitorCameraError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorCameraUnavailable": "Camera access is unavailable. Running simulated traffic mode.",
+  "monitorClassificationUnavailable12": "12-class classification unavailable: {error}",
+  "@monitorClassificationUnavailable12": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorClassificationUnavailableCoarse": "Coarse classification unavailable: {error}",
+  "@monitorClassificationUnavailableCoarse": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorClassificationUnavailableHybrid": "Hybrid cloud classification unavailable: {error}",
+  "@monitorClassificationUnavailableHybrid": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "monitorClassificationUnavailableDisabled": "Live inference unavailable: {error}",
+  "@monitorClassificationUnavailableDisabled": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
 
   "analyticsTitle": "Analytics",
   "analyticsTimeRange": "Time Range",
@@ -88,6 +231,18 @@
   "analyticsSpeedChart": "Speed Distribution",
   "analyticsClassChart": "Vehicle Classification",
   "analyticsExport": "Export Report",
+  "analyticsBuckets": "Buckets",
+  "analyticsClasses": "Classes",
+  "analyticsDemoDataLoaded": "Demo data loaded.",
+  "analyticsDataAlreadyPresent": "Data already present.",
+  "analyticsLoadDemoData": "Load Demo Data",
+  "analyticsVehiclesTooltip": "{time}\n{count} vehicles",
+  "@analyticsVehiclesTooltip": {
+    "placeholders": {
+      "time": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
 
   "alertsTitle": "Alerts",
   "alertsEmpty": "No alerts",
@@ -102,6 +257,19 @@
   "alertTypeIncident": "Incident",
   "alertTypeAnomaly": "Anomaly",
   "alertTypeThreshold": "Threshold",
+  "alertStatusTriggered": "Triggered",
+  "alertStatusAcknowledged": "Ack",
+  "alertStatusAssigned": "Assigned",
+  "alertStatusResolved": "Resolved",
+  "alertStatusSuppressed": "Suppressed",
+  "alertSeverity": "Severity",
+  "alertStatus": "Status",
+  "alertCondition": "Condition",
+  "alertSite": "Site",
+  "alertCamera": "Camera",
+  "alertMessage": "Message",
+  "alertAssignedTo": "Assigned To",
+  "alertResolve": "Resolve",
 
   "alertRulesTitle": "Alert Rules",
   "alertRuleAdd": "Add Rule",
@@ -110,6 +278,26 @@
   "alertRuleCondition": "Condition",
   "alertRuleThreshold": "Threshold",
   "alertRuleEnabled": "Enabled",
+  "alertRuleAddTitle": "Add Alert Rule",
+  "alertRuleNameLabel": "Rule Name",
+  "alertConditionLabel": "Condition",
+  "alertThresholdLabel": "Threshold",
+  "alertSeverityLabel": "Severity",
+  "alertCondCongestion": "Congestion",
+  "alertCondSpeedDrop": "Speed Drop",
+  "alertCondStopped": "Stopped Vehicle",
+  "alertCondHeavy": "Heavy Vehicle Share",
+  "alertCondCameraOffline": "Camera Offline",
+  "alertCondCountAnomaly": "Count Anomaly",
+  "alertNoRules": "No alert rules configured",
+  "alertRuleCreate": "Create",
+  "alertRuleSubtitle": "{conditionType} · threshold: {threshold}",
+  "@alertRuleSubtitle": {
+    "placeholders": {
+      "conditionType": { "type": "String" },
+      "threshold": { "type": "String" }
+    }
+  },
 
   "settingsTitle": "Settings",
   "settingsProfile": "Profile",
@@ -124,6 +312,119 @@
   "settingsVersion": "Version",
   "settingsLogout": "Sign Out",
   "settingsLogoutConfirm": "Are you sure you want to sign out?",
+  "settingsQuickSetup": "Quick Setup",
+  "settingsQuickSetupDesc": "Run the setup wizard again",
+  "settingsData": "Data",
+  "settingsClearData": "Clear All Local Data",
+  "settingsClearDataDesc": "Remove all sites, cameras, and crossings",
+  "settingsClearDataConfirmTitle": "Clear All Data?",
+  "settingsClearDataConfirmBody": "This will permanently delete all local sites, cameras, ROI presets, and crossing data. This cannot be undone.",
+  "settingsCleared": "All data cleared",
+  "settingsClearButton": "Clear",
+  "settingsCloudClassification": "Cloud Classification",
+  "settingsVlmProvider": "VLM Provider",
+  "settingsNotConfigured": "Not configured",
+  "settingsProviderGemini": "Google Gemini",
+  "settingsProviderOpenai": "OpenAI",
+  "settingsProvider": "Provider",
+  "settingsAuth": "Authentication",
+  "settingsApiKey": "API Key",
+  "settingsApiKeySecure": "Stored securely on device. Never sent to our servers.",
+  "settingsModelName": "Model Name",
+  "settingsConfidenceThreshold": "Confidence Threshold",
+  "settingsConfidenceDescription": "Skip VLM when local classifier confidence exceeds this value. Lower = more VLM calls.",
+  "settingsBatching": "Batching",
+  "settingsBatchingDescription": "Accumulate crops before sending to reduce API calls.",
+  "settingsBatchSize": "Batch Size",
+  "settingsBatchTimeout": "Batch Timeout",
+  "settingsRequestTimeout": "Request Timeout",
+  "settingsMaxRetries": "Max Retries",
+  "settingsAdvanced": "Advanced",
+  "settingsResetDefaults": "Reset to Defaults",
+  "settingsResetConfirmTitle": "Reset VLM Settings?",
+  "settingsResetConfirmBody": "This will clear your API key and reset all cloud classification settings to their defaults.",
+  "settingsResetButton": "Reset",
+  "settingsGemini": "Gemini",
+  "settingsOpenai": "OpenAI",
+
+  "classifyTitle": "Classify Vehicle",
+  "classifyVehicle": "Classify a Vehicle",
+  "classifyDescription": "Take a photo or pick from gallery to identify the vehicle type using two-stage AI classification.",
+  "classifyCamera": "Camera",
+  "classifyGallery": "Gallery",
+  "classifyNewPhoto": "New Photo",
+  "classifyLoadingModels": "Loading ML models...",
+  "classifyClassifying": "Classifying vehicle...",
+  "classifyNoVehicles": "No vehicles detected in this image.",
+  "classifyFailed": "Classification Failed",
+  "classifyUnknownError": "Unknown error",
+  "classifyTryAgain": "Try Again",
+  "classifySaved": "Classification saved",
+  "classifySaveTooltip": "Save classification",
+  "classifyStage1": "Stage 1 (Coarse)",
+  "classifyWheels": "Wheels Detected",
+  "classifyJoints": "Joints Detected",
+  "classifyAxles": "Estimated Axles",
+  "classifyTrailer": "Trailer",
+  "classifyFinalClass": "Final Class",
+  "classifyConfidence": "Confidence",
+  "classifyYes": "Yes",
+  "classifyNo": "No",
+  "classifyUnknown": "Unknown",
+
+  "videoAnalysisTitle": "Video Analysis",
+  "videoAnalysisCloud": "Cloud Video Analysis",
+  "videoAnalysisDescription": "Record or choose a video (max 5 minutes) to run cloud-based vehicle detection and counting.",
+  "videoAnalysisGallery": "Choose from Gallery",
+  "videoAnalysisRecord": "Record Video",
+  "videoAnalysisUploading": "Uploading and analyzing…",
+  "videoAnalysisUploadingHint": "This may take several minutes depending on video length.",
+  "videoAnalysisProcessing": "Analyzing video on server…",
+  "videoAnalysisProcessingHint": "The video has been uploaded. The server is processing it now. This may take several minutes depending on video length.",
+  "videoAnalysisTotalCounted": "Total vehicles counted",
+  "videoAnalysisBreakdown": "Breakdown by Class",
+  "videoAnalysisExportCsv": "Export CSV",
+  "videoAnalysisRetry": "Retry",
+
+  "reportTitle": "GreyEye Traffic Report",
+  "reportCamera": "Camera: {cameraId}",
+  "@reportCamera": {
+    "placeholders": {
+      "cameraId": { "type": "String" }
+    }
+  },
+  "reportPeriod": "Period: {period}",
+  "@reportPeriod": {
+    "placeholders": {
+      "period": { "type": "String" }
+    }
+  },
+  "reportNA": "N/A",
+  "reportTotalCrossings": "Total crossings: {count}",
+  "@reportTotalCrossings": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "reportByClass": "By Vehicle Class",
+  "reportByDirection": "By Direction",
+  "reportRawCrossings": "Raw Crossings (first 200)",
+  "reportHeaderClass": "Class",
+  "reportHeaderCount": "Count",
+  "reportHeaderDirection": "Direction",
+  "reportHeaderTime": "Time",
+  "reportHeaderDir": "Dir",
+  "reportHeaderConf": "Conf",
+  "exportExported": "Exported {count} crossings",
+  "@exportExported": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "exportFormat": "Export Format",
+  "exportSelectRange": "Please select a date range",
+  "exportStarted": "Export started",
+  "exportSelectDateRange": "Select date range",
 
   "commonSave": "Save",
   "commonCancel": "Cancel",
@@ -142,36 +443,5 @@
   "errorServer": "Server error. Please try again later.",
   "errorUnauthorized": "Session expired. Please sign in again.",
   "errorForbidden": "You do not have permission for this action.",
-  "errorNotFound": "Resource not found.",
-
-  "setupStepCreateSite": "Create Site",
-  "setupStepAddCamera": "Add Camera",
-  "setupStepDrawLines": "Draw Counting Lines",
-  "setupStepVerify": "Verify Setup",
-  "setupStepStart": "Start Monitoring",
-  "setupDefaultLineNote": "A default counting line will be created. You can edit it later in the ROI editor.",
-  "setupGoToDashboard": "Go to Dashboard",
-  "setupOpenMonitor": "Open Live Monitor",
-  "setupOpenRoiEditor": "Open Full ROI Editor",
-
-  "monitorFlowRate": "Flow Rate/h",
-  "monitorActiveTracks": "Active Tracks",
-  "monitorCurrentBucket": "Current Bucket",
-  "monitorByDirection": "By Direction",
-  "monitorByClass": "By Class",
-  "monitorInbound": "Inbound",
-  "monitorOutbound": "Outbound",
-
-  "roiPresetName": "Preset Name",
-  "roiPresetsTitle": "ROI Presets",
-  "roiNoPresets": "No ROI presets configured",
-  "roiCreatePreset": "Create Preset",
-  "roiActive": "Active",
-  "roiActivate": "Activate",
-  "roiFinishDrawing": "Finish Drawing",
-
-  "exportFormat": "Export Format",
-  "exportSelectRange": "Please select a date range",
-  "exportStarted": "Export started",
-  "exportSelectDateRange": "Select date range"
+  "errorNotFound": "Resource not found."
 }
