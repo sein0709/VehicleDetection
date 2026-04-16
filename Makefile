@@ -98,6 +98,17 @@ flutter-build: ## Build the Flutter app (release APK)
 flutter-test: ## Run Flutter unit tests
 	cd apps/mobile_flutter && flutter test
 
+.PHONY: flutter-build-macos
+flutter-build-macos: ## Build the Flutter app as a standalone macOS .app (release)
+	cd apps/mobile_flutter && flutter build macos --release
+	@echo "✓ Built: apps/mobile_flutter/build/macos/Build/Products/Release/greyeye_mobile.app"
+
+.PHONY: flutter-install-macos
+flutter-install-macos: flutter-build-macos ## Build and install the macOS app to /Applications
+	rm -rf /Applications/greyeye_mobile.app
+	cp -R apps/mobile_flutter/build/macos/Build/Products/Release/greyeye_mobile.app /Applications/
+	@echo "✓ Installed to /Applications/greyeye_mobile.app"
+
 .PHONY: flutter-codegen
 flutter-codegen: ## Run Drift and other code generation
 	cd apps/mobile_flutter && dart run build_runner build --delete-conflicting-outputs
