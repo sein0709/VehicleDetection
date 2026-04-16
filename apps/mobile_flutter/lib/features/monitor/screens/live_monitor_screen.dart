@@ -450,12 +450,12 @@ class _LiveMonitorScreenState extends ConsumerState<LiveMonitorScreen> {
           fit: StackFit.expand,
           children: [
             if (_initializing)
-              const Center(
+              Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: Colors.white54),
-                    SizedBox(height: 12),
+                    const CircularProgressIndicator(color: Colors.white54),
+                    const SizedBox(height: 12),
                     Text(
                       l10n.monitorInitializing,
                       style: const TextStyle(color: Colors.white54),
