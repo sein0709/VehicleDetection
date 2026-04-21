@@ -1,0 +1,15 @@
+{
+  "_road_type": "3way",
+  "_comment": "3-way intersection (삼거리). Polygon covers the CORE of the junction — not the approach roads. Smaller polygon = less ID-switching inflation (each real vehicle dwells briefly). Tripwire stays for directional count on the main axis. Boundary-crossing filter in pipeline.py will reject waiting cars and phantom fragments. Tune polygon and y_ratio against the scene with calibration_studio.py.",
+  "_frame_dimensions": [2560, 1440],
+  "tasks_enabled": ["vehicles", "pedestrians"],
+  "tripwire": {"y_ratio": 0.55},
+  "intersection_polygon": {
+    "polygon": [
+      [500, 650],
+      [2100, 650],
+      [2250, 1250],
+      [350, 1250]
+    ]
+  }
+}

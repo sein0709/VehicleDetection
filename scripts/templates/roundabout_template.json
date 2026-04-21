@@ -1,0 +1,19 @@
+{
+  "_road_type": "roundabout",
+  "_comment": "Roundabout (회전). Polygon covers the ENTIRE drivable surface of the roundabout (ring-shaped roads around the centre island). Because sv.PolygonZone only supports simple polygons, draw the OUTER perimeter of the roundabout's drivable area (not a ring). The boundary-crossing filter still deduplicates correctly: a vehicle that enters, loops, and exits counts as 1. CAVEAT: ID-switching risk is higher than other road types because vehicles dwell inside longer (2-3s of looping). Expect the overcount multiplier to be ~1.3-1.5× on dense roundabouts even after filtering. Tripwire is less useful here — consider omitting it or placing at the primary entry axis.",
+  "_frame_dimensions": [2560, 1440],
+  "tasks_enabled": ["vehicles", "pedestrians"],
+  "tripwire": {"y_ratio": 0.55},
+  "intersection_polygon": {
+    "polygon": [
+      [700, 400],
+      [1860, 400],
+      [2160, 800],
+      [2160, 1200],
+      [1860, 1400],
+      [700, 1400],
+      [400, 1200],
+      [400, 800]
+    ]
+  }
+}

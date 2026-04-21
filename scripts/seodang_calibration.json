@@ -1,0 +1,13 @@
+{
+  "_comment": "Tight calibration for 4-1서당사거리 (2560x1440). Polygon covers only the intersection CORE (where all approach lanes cross), not the far-field traffic or sidewalks. Shorter polygon dwell → fewer ByteTrack ID switches per vehicle → less double-counting. Tune against /tmp/seodang_frame.jpg.",
+  "tasks_enabled": ["vehicles", "pedestrians"],
+  "tripwire": {"y_ratio": 0.55},
+  "intersection_polygon": {
+    "polygon": [
+      [500, 650],
+      [2100, 650],
+      [2250, 1250],
+      [350, 1250]
+    ]
+  }
+}

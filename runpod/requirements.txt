@@ -1,0 +1,24 @@
+# Python 3.11 on RunPod CUDA base image
+
+# Detection + tracking
+ultralytics>=8.3
+supervision>=0.22
+
+# Video / imaging
+opencv-python-headless>=4.10
+numpy>=1.26,<2.0            # pin <2.0 for easyocr + torch compatibility
+
+# OCR (plate verification pass — Gemma is primary)
+easyocr>=1.7
+
+# Vertex AI (Gemma multimodal)
+google-cloud-aiplatform>=1.70
+
+# Web
+fastapi>=0.115
+uvicorn>=0.34
+python-multipart>=0.0.18
+
+# Misc
+pandas>=2.2
+openpyxl>=3.1

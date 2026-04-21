@@ -1,0 +1,21 @@
+{
+  "_road_type": "bus_stop",
+  "_comment": "Bus-stop (정류장) scene — camera aimed at the platform. Shape stop_polygon around the passenger-waiting area (for density). bus_zone_polygon outlines where buses physically park (gates boarding/alighting counts so passers-by don't inflate numbers). doors[].line: each door's horizontal crossing line at the bus sill. Enable output_video to get an annotated MP4 with head circles + boarding/alighting flashes. Capacity ≈ platform area / 0.3 m² per standing passenger.",
+  "_frame_dimensions": [2560, 1440],
+  "tasks_enabled": ["vehicles", "pedestrians", "transit"],
+  "tripwire": {"y_ratio": 0.55},
+  "transit": {
+    "stop_polygon": [
+      [200, 700], [1400, 700], [1400, 1350], [200, 1350]
+    ],
+    "bus_zone_polygon": [
+      [1450, 600], [2400, 600], [2400, 1100], [1450, 1100]
+    ],
+    "max_capacity": 30,
+    "doors": [
+      {"line": [[1500, 900], [1700, 900]]},
+      {"line": [[1900, 900], [2100, 900]]}
+    ],
+    "output_video": true
+  }
+}

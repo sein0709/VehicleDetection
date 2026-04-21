@@ -1,0 +1,12 @@
+{
+  "_road_type": "straight",
+  "_comment": "Straight road (가로) — traffic flows along one axis. Tripwire-only counting gives deduped bi-directional counts via supervision.LineZone (tracker_id deduped). No intersection_polygon. Operators: position y_ratio where vehicles are large enough for reliable detection (typically 0.50-0.65). Replace speed.source_quad pixel coordinates using calibration_studio.py + real-world metres between the TWO road markings you pick.",
+  "_frame_dimensions": [2560, 1440],
+  "tasks_enabled": ["vehicles", "pedestrians", "speed"],
+  "tripwire": {"y_ratio": 0.55},
+  "speed": {
+    "source_quad": [[800, 700], [1760, 700], [2000, 1200], [560, 1200]],
+    "real_world_m": {"width": 7.0, "length": 15.0},
+    "lines_y_ratio": [0.50, 0.75]
+  }
+}

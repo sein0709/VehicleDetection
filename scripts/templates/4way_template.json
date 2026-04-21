@@ -1,0 +1,15 @@
+{
+  "_road_type": "4way",
+  "_comment": "4-way intersection (사거리). Polygon is a square/trapezoid covering the central crossroads, excluding the stop-line queues on each approach — those inflate the count with waiting cars that never 'cross through'. Keep polygon tight so vehicles spend <2 seconds inside. Tripwire stays on the primary through-road.",
+  "_frame_dimensions": [2560, 1440],
+  "tasks_enabled": ["vehicles", "pedestrians"],
+  "tripwire": {"y_ratio": 0.55},
+  "intersection_polygon": {
+    "polygon": [
+      [750, 600],
+      [1800, 600],
+      [1900, 1200],
+      [650, 1200]
+    ]
+  }
+}

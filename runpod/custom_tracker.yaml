@@ -1,0 +1,19 @@
+# BoT-SORT with appearance ReID — replaces the prior ByteTrack config.
+# Key change: with_reid:True uses appearance features to preserve track IDs
+# through partial occlusions (the dominant remaining cause of overcount on
+# the Seodang clip after the polygon + filter stack landed at +34%).
+
+tracker_type: botsort
+track_high_thresh: 0.5
+track_low_thresh: 0.1
+new_track_thresh: 0.6
+track_buffer: 90              # 3 s at 30 fps — preserved from prior tuning
+match_thresh: 0.70            # preserved from run #5 — looser IoU than ultralytics default 0.8
+fuse_score: True
+
+# ----- BoT-SORT specifics -----
+gmc_method: sparseOptFlow     # camera is static here, but cheap noise filter
+with_reid: True               # enable appearance embedding for re-identification
+model: auto                   # use detector backbone features (no extra model)
+proximity_thresh: 0.5         # min IoU before considering ReID
+appearance_thresh: 0.8        # high → strict ReID match; lowers risk of ID swaps between similar cars

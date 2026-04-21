@@ -1,0 +1,23 @@
+{
+  "_road_type": "residential_driveway",
+  "_comment": "Residential driveway camera for resident/visitor tracking via plate OCR. LPR allowlist holds the resident plates (Korean format: NN가NNNN or NNN가NNNN). Whitespace variations are normalized on load, so entries can be loose. Flip hash_plates:true to store SHA-256 prefixes instead of raw text for PII-light analytics. Plate reads fire once per tracked vehicle at tripwire crossing — position the tripwire where the vehicle's plate is large and well-lit.",
+  "_frame_dimensions": [2560, 1440],
+  "tasks_enabled": ["vehicles", "lpr"],
+  "tripwire": {"y_ratio": 0.60},
+  "intersection_polygon": {
+    "polygon": [
+      [400, 500], [2160, 500], [2300, 1350], [260, 1350]
+    ]
+  },
+  "lpr": {
+    "enabled": true,
+    "residential_only": true,
+    "allowlist_source": "inline",
+    "allowlist": [
+      "12가3456",
+      "34나5678",
+      "56다9012"
+    ],
+    "hash_plates": false
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "total_vehicles_counted": 304,
+  "breakdown": {
+    "Class 1 (Passenger/Van)": 276,
+    "Class 3 (Truck <2.5t)": 22,
+    "Class 5 (3-Axle Truck)": 2,
+    "Class 2 (Bus)": 3,
+    "Class 4 (Truck >=2.5t)": 1
+  },
+  "totals": {
+    "vehicles": 304,
+    "pedestrians": 3,
+    "bicycles": 0,
+    "motorcycles": 2,
+    "personal_mobility": 0
+  },
+  "vehicle_breakdown": {
+    "Class 1 (Passenger/Van)": 276,
+    "Class 3 (Truck <2.5t)": 22,
+    "Class 5 (3-Axle Truck)": 2,
+    "Class 2 (Bus)": 3,
+    "Class 4 (Truck >=2.5t)": 1
+  },
+  "two_wheeler_breakdown": {
+    "Motorcycle": 2
+  },
+  "counting": {
+    "method": "intersection_polygon",
+    "unique_tracks_counted": 309,
+    "candidate_tracks": 523,
+    "polygon_inside_only_excluded": 0,
+    "observation_hist": {
+      "1-4": 0,
+      "5-12": 3,
+      "13-24": 20,
+      "25-49": 208,
+      "50+": 78
+    },
+    "tripwire_crossings_in": 10,
+    "tripwire_crossings_out": 67
+  },
+  "meta": {
+    "frames_total": 7501,
+    "frames_sampled": 3750,
+    "fps": 25.0,
+    "elapsed_s": 2834.53,
+    "tasks_enabled": [
+      "pedestrians",
+      "vehicles"
+    ]
+  }
+}

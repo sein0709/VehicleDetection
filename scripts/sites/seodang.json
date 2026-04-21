@@ -1,0 +1,14 @@
+{
+  "name": "seodang",
+  "display_name": "4-1 서당사거리",
+  "road_type": "3way",
+  "video_dir": "/Users/sein/Desktop/4-1서당사거리",
+  "calibration_default": "scripts/seodang_calibration.json",
+  "ground_truth": {
+    "type": "bundang_xls",
+    "path": "/Users/sein/Desktop/4-1서당사거리/분당 서현8개소-4시간.xls",
+    "sheet": "4",
+    "slot_minutes": 15,
+    "direction_starts": [1, 9, 17]
+  }
+}
