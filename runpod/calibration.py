@@ -7,6 +7,7 @@ the shape below. Missing sections → that analytic skips gracefully so Task 1
 {
   "tasks_enabled": ["vehicles","pedestrians","speed","lpr","transit","traffic_light"],
   "tripwire": {"y_ratio": 0.60},
+  "pedestrian_zone": {"polygon": [[x,y],...]},
   "speed": {
     "source_quad": [[x,y],[x,y],[x,y],[x,y]],
     "real_world_m": {"width": 3.5, "length": 20.0},
@@ -86,6 +87,22 @@ class SpeedCfg:
 
 
 @dataclass
+class PedestrianZoneCfg:
+    """Optional polygon delimiting the area in which pedestrians should be
+    counted. When set, the pipeline only counts pedestrian tracks whose
+    BOTTOM_CENTER anchor lay inside the polygon at any sampled frame —
+    useful for sites where the camera frames a busy background that
+    would otherwise inflate the pedestrian total (e.g. a sidewalk on
+    the far side of an intersection that isn't part of the survey).
+
+    Coordinates may be normalized (0..1) or pixel — `resolve_ratio_coords`
+    rescales the former at video-load time, same convention as
+    `transit.stop_polygon`.
+    """
+    polygon: list[list[float]]
+
+
+@dataclass
 class TransitCfg:
     stop_polygon: list[list[float]]
     max_capacity: int
@@ -147,6 +164,7 @@ class Calibration:
     count_lines: CountLinesCfg | None = None
     intersection_polygon: IntersectionPolygonCfg | None = None
     speed: SpeedCfg | None = None
+    pedestrian_zone: PedestrianZoneCfg | None = None
     transit: TransitCfg | None = None
     traffic_light: TrafficLightCfg | None = None
     lpr: LprCfg = field(default_factory=LprCfg)
@@ -236,6 +254,11 @@ class Calibration:
                     _scale_polygon(line) for line in self.speed.lines_xy
                 ]
 
+        if self.pedestrian_zone is not None:
+            self.pedestrian_zone.polygon = _scale_polygon(
+                self.pedestrian_zone.polygon,
+            )
+
         if self.transit is not None:
             self.transit.stop_polygon = _scale_polygon(self.transit.stop_polygon)
             if self.transit.bus_zone_polygon is not None:
@@ -314,6 +337,21 @@ def parse_calibration(raw: str | bytes | None) -> Calibration:
         except (KeyError, ValueError, TypeError) as exc:
             logger.warning("intersection_polygon invalid (%s) — falling back to tripwire", exc)
             cal.intersection_polygon = None
+
+    if "pedestrian_zone" in data:
+        try:
+            pz = data["pedestrian_zone"]
+            poly = pz.get("polygon") if isinstance(pz, dict) else pz
+            cal.pedestrian_zone = PedestrianZoneCfg(
+                polygon=[[float(x), float(y)] for x, y in poly]
+            )
+            if len(cal.pedestrian_zone.polygon) < 3:
+                raise ValueError("pedestrian_zone needs at least 3 points")
+        except (KeyError, ValueError, TypeError) as exc:
+            logger.warning(
+                "pedestrian_zone invalid (%s) — counting whole frame", exc,
+            )
+            cal.pedestrian_zone = None
 
     if "speed" in data and cal.wants("speed"):
         try:

@@ -62,6 +62,45 @@ void main() {
       expect(json.containsKey('count_lines'), isFalse);
     });
 
+    test('pedestrian_zone override emits the polygon as ratios', () {
+      final json = decode(buildCalibrationJson(
+        enabledTasks: const {AnalysisTask.pedestrians},
+        outputAnnotatedVideo: false,
+        pedestrianZoneOverride: const PedestrianZoneOverride(
+          polygonXY: [
+            [0.10, 0.40], [0.90, 0.40],
+            [0.90, 0.95], [0.10, 0.95],
+          ],
+        ),
+      ),);
+      final pz = json['pedestrian_zone'] as Map<String, dynamic>;
+      expect(pz['polygon'], [
+        [0.10, 0.40], [0.90, 0.40],
+        [0.90, 0.95], [0.10, 0.95],
+      ],);
+    });
+
+    test('pedestrian_zone absent when no override is supplied', () {
+      final json = decode(buildCalibrationJson(
+        enabledTasks: const {AnalysisTask.pedestrians},
+        outputAnnotatedVideo: false,
+      ),);
+      expect(json.containsKey('pedestrian_zone'), isFalse);
+    });
+
+    test('pedestrian_zone with fewer than 3 vertices is dropped silently', () {
+      // Mirrors the server-side parser: a 2-vertex polygon is invalid
+      // and should not be sent.
+      final json = decode(buildCalibrationJson(
+        enabledTasks: const {AnalysisTask.pedestrians},
+        outputAnnotatedVideo: false,
+        pedestrianZoneOverride: const PedestrianZoneOverride(
+          polygonXY: [[0.10, 0.40], [0.90, 0.40]],
+        ),
+      ),);
+      expect(json.containsKey('pedestrian_zone'), isFalse);
+    });
+
     test('speed override forwards arbitrary lines_xy when present', () {
       final json = decode(buildCalibrationJson(
         enabledTasks: const {AnalysisTask.speed},

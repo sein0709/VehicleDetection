@@ -1005,7 +1005,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoAnalysisBreakdown => 'Breakdown by Class';
 
   @override
-  String get videoAnalysisExportCsv => 'Export CSV';
+  String get videoAnalysisExportCsv => 'Export XLSX';
 
   @override
   String get videoAnalysisRetry => 'Retry';
@@ -1147,6 +1147,86 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get videoAnalysisTransitNotGated =>
       'All door-line crossings counted (no bus-zone gate).';
+
+  @override
+  String videoAnalysisTransitVlmArrivals(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bus arrivals',
+      one: '1 bus arrival',
+    );
+    return 'VLM headcount across $_temp0.';
+  }
+
+  @override
+  String get videoAnalysisTransitFallback =>
+      'VLM unavailable — fell back to door-line counts (less accurate).';
+
+  @override
+  String platesClassifyFailed(String message) {
+    return 'Plate classification could not be saved: $message';
+  }
+
+  @override
+  String platesSiteTotals(int resident, int visitor) {
+    return 'This site (all-time): $resident resident / $visitor visitor';
+  }
+
+  @override
+  String get platesClassificationPending =>
+      'Classification pending — connect to Supabase to compute resident vs visitor.';
+
+  @override
+  String get lightHelpTitle => 'How does traffic-light timing work?';
+
+  @override
+  String get lightHelpBody =>
+      '1) The pipeline samples the colour inside a bounding box around the lamp housing every few frames.\n2) Auto mode asks the AI to find that box for you on a representative keyframe — no manual drawing required.\n3) The pipeline then logs every red/yellow/green transition and reports cycle counts plus average duration per state.\n\nFirst time? Keep Auto mode on, tap \"Preview ROI\" to confirm the AI got the lamp location right, then run the analysis. If the preview looks wrong, switch to Manual.';
+
+  @override
+  String get lightPreviewButton => 'Preview ROI';
+
+  @override
+  String get lightPreviewConfirm => 'Looks good';
+
+  @override
+  String get lightPreviewManual => 'Adjust manually';
+
+  @override
+  String get lightPreviewNoVideo =>
+      'Pick a video first to preview the traffic-light ROI.';
+
+  @override
+  String get lightPreviewExtractFailed =>
+      'Could not extract a keyframe from this video.';
+
+  @override
+  String get lightPreviewVlmUnavailable =>
+      'The AI is offline right now — switch to Manual mode to draw the ROI yourself.';
+
+  @override
+  String get lightPreviewEmpty =>
+      'The AI didn\'t find any traffic light in this frame. Try Manual mode.';
+
+  @override
+  String get lightPreviewTitle => 'AI proposed ROI';
+
+  @override
+  String lightPreviewSubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lights detected',
+      one: '1 light detected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lightPreviewLowConfidence(String pct) {
+    return 'Low confidence ($pct%) — review carefully.';
+  }
 
   @override
   String get videoAnalysisTrafficLightTitle => 'Traffic-light timing';
@@ -1560,6 +1640,36 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get countLineWhatIsThisBody =>
       'Two virtual lines: a vehicle is counted as one only when its track crosses BOTH lines (order doesn\'t matter). More accurate than a single tripwire and separates IN vs OUT direction.';
+
+  @override
+  String get pedestrianZoneConfigure => 'Pedestrian ROI';
+
+  @override
+  String get pedestrianZoneEditorTitle => 'Pedestrian ROI';
+
+  @override
+  String get pedestrianZoneEditorClear => 'Clear polygon';
+
+  @override
+  String get pedestrianZoneEditorTooSmall =>
+      'Pedestrian ROI needs at least 3 vertices.';
+
+  @override
+  String pedestrianZoneEditorHint(int remaining) {
+    return 'Tap to add a polygon vertex. $remaining more needed.';
+  }
+
+  @override
+  String pedestrianZoneEditorHintDone(int count) {
+    return 'ROI ready ($count vertices). Tap to add more or save.';
+  }
+
+  @override
+  String get pedestrianZoneWhatIsThisTitle => 'What does this configure?';
+
+  @override
+  String get pedestrianZoneWhatIsThisBody =>
+      'An optional polygon outlining the area where pedestrians should be counted. Only people whose feet land inside the polygon are added to the total — ideal for sites where the camera also frames an unrelated sidewalk in the background. Leave it unset to count the whole frame.';
 
   @override
   String get lprWhatIsThisTitle => 'What does this configure?';

@@ -14,15 +14,17 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any
 
+import cv2
+import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from auto_calibration import autofill_calibration
 from calibration import parse_calibration
-from config import JOB_TTL_SECONDS, TEMP_DIR
+from config import JOB_TTL_SECONDS, TEMP_DIR, VLM_AUTOCALIBRATE_MIN_CONFIDENCE
 from pipeline import get_model, run_pipeline
-from vlm import pool as vlm_pool
+from vlm import VLMRequest, VLMTask, pool as vlm_pool
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,6 +130,85 @@ async def root_ping() -> dict[str, Any]:
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/preview_traffic_light_roi")
+async def preview_traffic_light_roi(
+    image: UploadFile = File(...),
+) -> JSONResponse:
+    """Mobile pre-flight: ask the VLM where the traffic-light heads are.
+
+    The client uploads ONE keyframe (extracted on-device via VideoFrame
+    Extractor) and gets back normalized ``[x, y, w, h]`` bboxes per detected
+    light + the model's confidence. The mobile UI overlays them on the same
+    keyframe so the operator can confirm before submitting the full job.
+
+    Returns 503 if the VLM pool is unavailable / circuit-open so the client
+    can drop the operator straight into the manual ROI editor instead of
+    silently showing nothing.
+    """
+    if not vlm_pool.is_available():
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "vlm_unavailable",
+                "message": "VLM is not available for ROI preview right now.",
+            },
+        )
+
+    contents = await image.read()
+    arr = np.frombuffer(contents, dtype=np.uint8)
+    frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if frame is None or frame.size == 0:
+        raise HTTPException(status_code=400, detail="Could not decode image")
+
+    try:
+        future = vlm_pool.submit(VLMRequest(
+            task=VLMTask.LIGHT_LAYOUT, image=frame, context={},
+        ))
+        result = future.result(timeout=30)
+    except Exception as exc:
+        logger.warning("Traffic-light preview VLM call failed: %s", exc)
+        return JSONResponse(
+            status_code=502,
+            content={"error": "vlm_failed", "message": str(exc)},
+        )
+
+    lights = (result or {}).get("lights") if isinstance(result, dict) else None
+    if not isinstance(lights, list):
+        lights = []
+
+    proposals: list[dict[str, Any]] = []
+    for i, item in enumerate(lights):
+        if not isinstance(item, dict):
+            continue
+        bbox = item.get("bbox_xyxy")
+        if not isinstance(bbox, list) or len(bbox) != 4:
+            continue
+        try:
+            x1, y1, x2, y2 = (float(v) for v in bbox)
+        except (TypeError, ValueError):
+            continue
+        x = max(0.0, min(x1, x2))
+        y = max(0.0, min(y1, y2))
+        w = abs(x2 - x1)
+        h = abs(y2 - y1)
+        if w <= 0.0 or h <= 0.0:
+            continue
+        conf = float(item.get("confidence", 0.0))
+        proposals.append({
+            "label": str(item.get("label") or f"light_{i}"),
+            # Normalized 0..1 — the client knows its own image dimensions
+            # and rescales for display.
+            "roi": [x, y, w, h],
+            "confidence": conf,
+            "above_threshold": conf >= VLM_AUTOCALIBRATE_MIN_CONFIDENCE,
+        })
+
+    return JSONResponse(content={
+        "lights": proposals,
+        "min_confidence": VLM_AUTOCALIBRATE_MIN_CONFIDENCE,
+    })
 
 
 @app.post("/analyze_video")

@@ -174,6 +174,49 @@ void main() {
       expect(cal.transitOverride, isNull);
     });
 
+    test('pedestrian zone override round-trips with the polygon preserved', () {
+      const original = SiteCalibration(
+        pedestrianZoneOverride: PedestrianZoneOverride(
+          polygonXY: [
+            [0.10, 0.40], [0.90, 0.40],
+            [0.90, 0.95], [0.10, 0.95],
+          ],
+        ),
+      );
+      final back = roundTrip(original);
+      expect(back.pedestrianZoneOverride, isNotNull);
+      expect(back.pedestrianZoneOverride!.polygonXY, hasLength(4));
+      expect(back.pedestrianZoneOverride!.polygonXY[0], [0.10, 0.40]);
+    });
+
+    test('malformed pedestrian zone override (polygon < 3) is dropped', () {
+      // Schema-level validation matches the server's parser — a 2-point
+      // polygon is silently rejected so the rest of the calibration
+      // still loads.
+      final json = {
+        'pedestrian_zone_override': {
+          'polygon_xy': [[0.0, 0.0], [1.0, 1.0]],
+        },
+      };
+      final cal = SiteCalibration.fromJson(json);
+      expect(cal.pedestrianZoneOverride, isNull);
+    });
+
+    test('withoutPedestrianZone clears the override but keeps siblings', () {
+      const cal = SiteCalibration(
+        countLineOverride: CountLineOverride(
+          inLineXY: [[0.0, 0.5], [1.0, 0.5]],
+          outLineXY: [[0.0, 0.8], [1.0, 0.8]],
+        ),
+        pedestrianZoneOverride: PedestrianZoneOverride(
+          polygonXY: [[0.1, 0.4], [0.9, 0.4], [0.9, 0.9]],
+        ),
+      );
+      final cleared = cal.withoutPedestrianZone();
+      expect(cleared.pedestrianZoneOverride, isNull);
+      expect(cleared.countLineOverride, isNotNull);
+    });
+
     test('forward-compat: unknown keys are ignored', () {
       final cal = SiteCalibration.fromJson({
         'schema_version': 99,

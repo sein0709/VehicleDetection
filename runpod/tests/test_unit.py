@@ -155,6 +155,55 @@ class TestCalibration:
         cal = parse_calibration(json.dumps({"tasks_enabled": ["vehicles"]}))
         assert cal.count_lines is None
 
+    def test_pedestrian_zone_parsed(self):
+        from calibration import parse_calibration
+
+        raw = json.dumps({
+            "tasks_enabled": ["pedestrians"],
+            "pedestrian_zone": {
+                "polygon": [
+                    [0.10, 0.40], [0.90, 0.40],
+                    [0.90, 0.95], [0.10, 0.95],
+                ],
+            },
+        })
+        cal = parse_calibration(raw)
+        assert cal.pedestrian_zone is not None
+        assert len(cal.pedestrian_zone.polygon) == 4
+
+    def test_pedestrian_zone_too_small_falls_back(self):
+        from calibration import parse_calibration
+
+        raw = json.dumps({
+            "tasks_enabled": ["pedestrians"],
+            # Only 2 vertices — invalid; the parser drops the field
+            # silently so the rest of the calibration still loads.
+            "pedestrian_zone": {"polygon": [[0.0, 0.0], [1.0, 0.0]]},
+        })
+        cal = parse_calibration(raw)
+        assert cal.pedestrian_zone is None
+        # Pedestrian task itself stays enabled — ROI is independent.
+        assert "pedestrians" in cal.tasks_enabled
+
+    def test_pedestrian_zone_ratio_coords_scale_with_frame(self):
+        from calibration import parse_calibration
+
+        raw = json.dumps({
+            "tasks_enabled": ["pedestrians"],
+            "pedestrian_zone": {
+                "polygon": [[0.0, 0.5], [1.0, 0.5], [1.0, 1.0], [0.0, 1.0]],
+            },
+        })
+        cal = parse_calibration(raw)
+        cal.resolve_ratio_coords(width=1280, height=720)
+        assert cal.pedestrian_zone is not None
+        assert cal.pedestrian_zone.polygon[0] == [
+            pytest.approx(0.0), pytest.approx(360.0),
+        ]
+        assert cal.pedestrian_zone.polygon[2] == [
+            pytest.approx(1280.0), pytest.approx(720.0),
+        ]
+
     def test_count_lines_malformed_falls_back(self):
         from calibration import parse_calibration
 
@@ -817,6 +866,129 @@ class TestAutoCalibrationParse:
 
 
 # ===========================================================================
+# pipeline._build_report — pedestrian ROI filter (F2)
+# ===========================================================================
+@requires_integration_stack
+class TestPedestrianZoneFilter:
+    """End-to-end exercise of the pedestrian_zone filter in `_build_report`.
+
+    We bypass the decoder loop and feed a minimal `tracks` dict +
+    Calibration directly so the test runs in milliseconds without
+    pulling YOLO/RT-DETR. The filter we care about is the per-track
+    `ever_inside_pedestrian_zone` flag → exclude from the pedestrian
+    total.
+    """
+
+    def _build_minimal_pipeline_inputs(
+        self,
+        *,
+        tracks_factory,
+        pedestrian_zone_polygon=None,
+    ):
+        import supervision as sv
+
+        from calibration import (
+            Calibration,
+            PedestrianZoneCfg,
+            TripwireCfg,
+        )
+        from pipeline import _build_report
+
+        cal = Calibration(
+            tasks_enabled={"vehicles", "pedestrians"},
+            tripwire=TripwireCfg(y_ratio=0.6),
+        )
+        if pedestrian_zone_polygon is not None:
+            cal.pedestrian_zone = PedestrianZoneCfg(
+                polygon=pedestrian_zone_polygon,
+            )
+
+        count_line = sv.LineZone(
+            start=sv.Point(0, 100), end=sv.Point(200, 100),
+        )
+        tracks = tracks_factory()
+
+        # Mirror the real call in `run_pipeline`. crossings is empty
+        # because we want the pedestrian count to come from the new
+        # zone path, not from tripwire bookkeeping.
+        return _build_report(
+            tracks=tracks,
+            crossings={},
+            count_line=count_line,
+            intersection_zone_used=False,
+            segment_counter=None,
+            count_vehicles=False,
+            speed_engine=None,
+            transit_engine=None,
+            transit_output_path=None,
+            light_engine=None,
+            calibration=cal,
+            classified_output_path=None,
+            elapsed_s=1.0,
+            frames_total=300,
+            frames_sampled=30,
+            fps=30.0,
+        )
+
+    def _make_pedestrian_track(
+        self,
+        *,
+        ever_inside: bool,
+        observation_count: int = 10,
+    ):
+        # Construct a TrackState that survives the phantom filter
+        # (`is_real_vehicle()`) and votes overwhelmingly for pedestrian.
+        from config import PEDESTRIAN_CLASS_ID
+        from pipeline import TrackState
+
+        state = TrackState()
+        state.observation_count = observation_count
+        state.total_confidence = float(observation_count) * 0.9
+        state.class_score = {PEDESTRIAN_CLASS_ID: float(observation_count)}
+        state.ever_inside_pedestrian_zone = ever_inside
+        return state
+
+    def test_pedestrian_zone_filters_outside_polygon(self):
+        polygon = [[10, 10], [190, 10], [190, 190], [10, 190]]
+
+        def factory():
+            return {
+                # Two pedestrians inside the zone, one outside it.
+                1001: self._make_pedestrian_track(ever_inside=True),
+                1002: self._make_pedestrian_track(ever_inside=True),
+                1003: self._make_pedestrian_track(ever_inside=False),
+            }
+
+        report = self._build_minimal_pipeline_inputs(
+            tracks_factory=factory,
+            pedestrian_zone_polygon=polygon,
+        )
+        assert report["totals"]["pedestrians"] == 2
+        assert report["pedestrian"]["roi_used"] is True
+        assert report["pedestrian"]["roi_excluded"] == 1
+
+    def test_pedestrian_zone_absent_counts_every_track(self):
+        # When no polygon is configured we keep the legacy behaviour:
+        # the filter is bypassed and every pedestrian-class track that
+        # made it into final_class is counted.
+        def factory():
+            return {
+                # `ever_inside_pedestrian_zone=False` shouldn't matter
+                # when no polygon is configured.
+                2001: self._make_pedestrian_track(ever_inside=False),
+                2002: self._make_pedestrian_track(ever_inside=False),
+            }
+
+        report = self._build_minimal_pipeline_inputs(
+            tracks_factory=factory,
+            pedestrian_zone_polygon=None,
+        )
+        assert report["totals"]["pedestrians"] == 2
+        assert report["pedestrian"]["roi_used"] is False
+        assert report["pedestrian"]["roi_excluded"] == 0
+
+
+# ===========================================================================
 # TransitEngine.apply_vlm_density_correction — wiring for VLM density
 # overrides on crowded scenes.
 # ===========================================================================
@@ -1000,3 +1172,211 @@ class TestAutoCalibrationFill:
         assert result.transit is not None
         assert len(result.transit.stop_polygon) >= 3
         assert len(result.transit.doors) >= 1
+
+
+# ===========================================================================
+# TransitEngine bus-arrival event detector + VLM boarding aggregation.
+# ===========================================================================
+@requires_integration_stack
+class TestTransitBusArrivalEvents:
+    """Exercises the TransitEngine state machine that turns
+    ``bus_present`` transitions into ``BusArrival`` events. The pipeline
+    later submits each closed arrival as one VLM_BUS_BOARDING request."""
+
+    def _engine(self):
+        from calibration import TransitCfg
+        from tasks_transit import TransitEngine
+
+        cfg = TransitCfg(
+            stop_polygon=[[0, 100], [200, 100], [200, 200], [0, 200]],
+            max_capacity=20,
+            doors=[{"line": [[20, 150], [180, 150]]}],
+            bus_zone_polygon=[[0, 100], [200, 100], [200, 200], [0, 200]],
+        )
+        return TransitEngine(cfg=cfg, frame_w=200, frame_h=200)
+
+    def _frame(self):
+        import numpy as np
+        return np.full((200, 200, 3), 80, dtype=np.uint8)
+
+    def _bus_only(self, present: bool):
+        """Return an sv.Detections that either contains a bus or doesn't."""
+        import numpy as np
+        import supervision as sv
+
+        from tasks_transit import BUS_CLASS_ID
+
+        if not present:
+            return sv.Detections.empty()
+        return sv.Detections(
+            xyxy=np.array([[20.0, 110.0, 180.0, 190.0]], dtype=np.float32),
+            confidence=np.array([0.95], dtype=np.float32),
+            class_id=np.array([BUS_CLASS_ID], dtype=np.int64),
+            tracker_id=np.array([1], dtype=np.int64),
+        )
+
+    def test_arrival_then_departure_creates_one_event(self):
+        eng = self._engine()
+        frame = self._frame()
+
+        # Arrival: bus appears.
+        eng.update(self._bus_only(True), timestamp_s=1.0, frame=frame)
+        assert eng._current_arrival is not None
+        assert len(eng.arrivals) == 0
+        # Still present a few frames later.
+        eng.update(self._bus_only(True), timestamp_s=1.5, frame=frame)
+        eng.update(self._bus_only(True), timestamp_s=2.0, frame=frame)
+        assert len(eng._current_arrival.door_crops) >= 2
+
+        # Departure.
+        eng.update(self._bus_only(False), timestamp_s=2.5, frame=frame)
+        assert eng._current_arrival is None
+        assert len(eng.arrivals) == 1
+        finalized = eng.pop_finalized_arrivals()
+        assert len(finalized) == 1
+        idx, arrival = finalized[0]
+        assert idx == 0
+        assert arrival.arrival_t == 1.0
+        assert arrival.departure_t == 2.5
+        # Pop is consuming — second call returns nothing.
+        assert eng.pop_finalized_arrivals() == []
+
+    def test_finalize_open_arrival_at_end_of_clip(self):
+        eng = self._engine()
+        frame = self._frame()
+        eng.update(self._bus_only(True), timestamp_s=10.0, frame=frame)
+        eng.update(self._bus_only(True), timestamp_s=10.5, frame=frame)
+        # Clip ends with the bus still in frame.
+        eng.finalize_open_arrival(timestamp_s=11.0)
+        assert len(eng.arrivals) == 1
+        assert eng.arrivals[0].departure_t == 11.0
+
+    def test_apply_vlm_boarding_records_per_arrival_counts(self):
+        eng = self._engine()
+        frame = self._frame()
+        eng.update(self._bus_only(True), timestamp_s=1.0, frame=frame)
+        eng.update(self._bus_only(False), timestamp_s=2.0, frame=frame)
+        eng.update(self._bus_only(True), timestamp_s=5.0, frame=frame)
+        eng.update(self._bus_only(False), timestamp_s=6.0, frame=frame)
+        # Both arrivals get VLM verdicts.
+        eng.apply_vlm_boarding(0, boarding=3, alighting=2, confidence=0.9)
+        eng.apply_vlm_boarding(1, boarding=5, alighting=1, confidence=0.8)
+        report = eng.report()
+        assert report["arrivals"] == 2
+        assert report["boarding"] == 8
+        assert report["alighting"] == 3
+        assert report["source"] == "vlm"
+
+    def test_report_falls_back_to_linezone_without_vlm(self):
+        eng = self._engine()
+        frame = self._frame()
+        eng.update(self._bus_only(True), timestamp_s=1.0, frame=frame)
+        eng.update(self._bus_only(False), timestamp_s=2.0, frame=frame)
+        # No apply_vlm_boarding call — simulates VLM circuit open.
+        eng.boarding_total = 4   # what the LineZone heuristic would have observed
+        eng.alighting_total = 1
+        report = eng.report()
+        assert report["source"] == "linezone_fallback"
+        assert report["boarding"] == 4
+        assert report["alighting"] == 1
+
+
+# ===========================================================================
+# pipeline._build_report — LPR per-plate dwell window (F5).
+# ===========================================================================
+@requires_integration_stack
+class TestLprDwellWindow:
+    def test_plate_records_include_dwell_seconds(self):
+        import supervision as sv
+
+        from calibration import Calibration, LprCfg
+        from pipeline import TrackState, _build_report
+
+        cal = Calibration(
+            tasks_enabled={"vehicles", "lpr"},
+            lpr=LprCfg(enabled=True, allowlist=[]),
+        )
+
+        # One vehicle track that was visible from frame 30 to frame 180
+        # (= 1.0s to 6.0s at 30 fps), plate text already attached.
+        track = TrackState()
+        track.observation_count = 50
+        track.total_confidence = 45.0
+        track.class_score = {2: 50.0}  # passenger/van id
+        track.first_observed_frame = 30
+        track.last_observed_frame = 180
+        track.plate_text = "12가3456"
+        track.plate_source = "gemma"
+
+        count_line = sv.LineZone(
+            start=sv.Point(0, 100), end=sv.Point(200, 100),
+        )
+        report = _build_report(
+            tracks={1: track},
+            crossings={1: 2},
+            count_line=count_line,
+            intersection_zone_used=False,
+            segment_counter=None,
+            count_vehicles=True,
+            speed_engine=None,
+            transit_engine=None,
+            transit_output_path=None,
+            light_engine=None,
+            calibration=cal,
+            classified_output_path=None,
+            elapsed_s=10.0,
+            frames_total=300,
+            frames_sampled=30,
+            fps=30.0,
+        )
+        plates = report["plates"]
+        assert "1" in plates
+        rec = plates["1"]
+        assert rec["category"] == "unknown"  # server no longer classifies
+        assert rec["first_seen_s"] == 1.0
+        assert rec["last_seen_s"] == 6.0
+        assert rec["dwell_seconds"] == 5.0
+        assert rec["text_hash"]  # always present for indexing
+        # Server-side summary now reports zeros + classification_pending.
+        assert report["plate_summary"]["resident"] == 0
+        assert report["plate_summary"]["visitor"] == 0
+        assert report["plate_summary"]["classification_pending"] is True
+
+
+# ===========================================================================
+# SpeedEngine — dropped tracks (entry-only) surface as a report field.
+# ===========================================================================
+@requires_integration_stack
+class TestSpeedDroppedTracks:
+    def _engine(self, frame_w: int = 200, frame_h: int = 200):
+        from calibration import SpeedCfg
+        from tasks_speed import SpeedEngine
+
+        cfg = SpeedCfg(
+            source_quad=[
+                [0, 0], [frame_w, 0], [frame_w, frame_h], [0, frame_h],
+            ],
+            real_world_m={"width": 3.5, "length": 20.0},
+            lines_y_ratio=[0.30, 0.70],
+        )
+        return SpeedEngine(cfg=cfg, fps=30.0, frame_w=frame_w, frame_h=frame_h)
+
+    def test_report_counts_entry_only_tracks(self):
+        eng = self._engine()
+        # Two tracks crossed line 1 but never line 2.
+        eng.entry_frames[10] = 20
+        eng.entry_frames[20] = 25
+        # One track completed both lines.
+        eng.entry_frames[30] = 30
+        eng.speeds_kmh[30] = 42.0
+
+        report = eng.report()
+        assert report["dropped_tracks"] == 2
+        assert report["vehicles_measured"] == 1
+        assert report["avg_kmh"] == 42.0
+
+    def test_report_when_no_tracks_at_all(self):
+        eng = self._engine()
+        report = eng.report()
+        assert report["vehicles_measured"] == 0
+        assert report["dropped_tracks"] == 0

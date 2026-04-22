@@ -74,6 +74,29 @@ class VideoAnalysisRemoteResult {
   /// overlay MP4 (`calibration.transit.output_video=true`).
   final bool hasTransitVideo;
 
+  /// Returns a copy with [plates] / [plateSummary] replaced. Used by the
+  /// LPR repository after Supabase classifies each plate as resident /
+  /// visitor based on cross-run history.
+  VideoAnalysisRemoteResult copyWith({
+    List<VideoAnalysisPlate>? plates,
+    VideoAnalysisPlateSummary? plateSummary,
+  }) {
+    return VideoAnalysisRemoteResult(
+      jobId: jobId,
+      totalVehiclesCounted: totalVehiclesCounted,
+      breakdown: breakdown,
+      twoWheelerBreakdown: twoWheelerBreakdown,
+      pedestriansCount: pedestriansCount,
+      speed: speed,
+      transit: transit,
+      trafficLights: trafficLights,
+      plateSummary: plateSummary ?? this.plateSummary,
+      plates: plates ?? this.plates,
+      hasClassifiedVideo: hasClassifiedVideo,
+      hasTransitVideo: hasTransitVideo,
+    );
+  }
+
   factory VideoAnalysisRemoteResult.fromJson(Map<String, dynamic> json) {
     final breakdown = _parseBreakdown(json);
     final total = _resolveTotal(json, breakdown);
@@ -106,6 +129,7 @@ class VideoAnalysisSpeed {
     this.minKmh,
     this.maxKmh,
     this.perTrack = const {},
+    this.droppedTracks = 0,
   });
 
   final int vehiclesMeasured;
@@ -114,6 +138,11 @@ class VideoAnalysisSpeed {
   final double? maxKmh;
   /// Map of `track_id` (string) → measured km/h.
   final Map<String, double> perTrack;
+
+  /// Tracks that crossed the entry line but never the exit line. Surfaced
+  /// as an operator hint that the second line might be misplaced or the
+  /// clip ended mid-traversal.
+  final int droppedTracks;
 
   static VideoAnalysisSpeed? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -132,6 +161,7 @@ class VideoAnalysisSpeed {
       minKmh: _coerceDouble(raw['min_kmh']),
       maxKmh: _coerceDouble(raw['max_kmh']),
       perTrack: perTrack,
+      droppedTracks: _coerceNonNegativeInt(raw['dropped_tracks']) ?? 0,
     );
   }
 }
@@ -147,6 +177,8 @@ class VideoAnalysisTransit {
     required this.boarding,
     required this.alighting,
     required this.busGated,
+    this.arrivals = 0,
+    this.source = 'vlm',
   });
 
   final int peakCount;
@@ -160,14 +192,29 @@ class VideoAnalysisTransit {
   /// because the gate was overly tight.
   final bool busGated;
 
+  /// Number of distinct bus-arrival events the engine observed during the
+  /// clip. One arrival = one VLM_BUS_BOARDING call (when the VLM is
+  /// available). Useful as a confidence anchor for the boarding/alighting
+  /// totals — N=0 means the bus never visibly arrived.
+  final int arrivals;
+
+  /// Either ``"vlm"`` (per-arrival headcount via Gemma) or
+  /// ``"linezone_fallback"`` (legacy door-line tally — only surfaced when
+  /// the VLM circuit was open). UI badges the result so operators know
+  /// which path produced the numbers.
+  final String source;
+
   static VideoAnalysisTransit? tryParse(Object? raw) {
     if (raw is! Map) return null;
+    final src = (raw['source'] ?? 'vlm').toString();
     return VideoAnalysisTransit(
       peakCount: _coerceNonNegativeInt(raw['peak_count']) ?? 0,
       avgDensityPct: _coerceDouble(raw['avg_density_pct']) ?? 0.0,
       boarding: _coerceNonNegativeInt(raw['boarding']) ?? 0,
       alighting: _coerceNonNegativeInt(raw['alighting']) ?? 0,
       busGated: raw['bus_gated'] == true,
+      arrivals: _coerceNonNegativeInt(raw['arrivals']) ?? 0,
+      source: const {'vlm', 'linezone_fallback'}.contains(src) ? src : 'vlm',
     );
   }
 }
@@ -262,7 +309,9 @@ class VideoAnalysisPlateSummary {
     required this.visitor,
     required this.total,
     required this.privacyHashed,
-    required this.allowlistSize,
+    this.allowlistSize = 0,
+    this.classificationPending = false,
+    this.unknown = 0,
   });
 
   final int resident;
@@ -270,6 +319,14 @@ class VideoAnalysisPlateSummary {
   final int total;
   final bool privacyHashed;
   final int allowlistSize;
+  /// True until the mobile client has refreshed plate classifications
+  /// against Supabase — the server reports zeros for resident/visitor
+  /// because it no longer makes that decision.
+  final bool classificationPending;
+  /// Plates without a classification yet. Will be > 0 only when the
+  /// classification round-trip hasn't happened (or when a plate genuinely
+  /// has no recurrence history).
+  final int unknown;
 
   static VideoAnalysisPlateSummary? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -279,6 +336,29 @@ class VideoAnalysisPlateSummary {
       total: _coerceNonNegativeInt(raw['total']) ?? 0,
       privacyHashed: raw['privacy_hashed'] == true,
       allowlistSize: _coerceNonNegativeInt(raw['allowlist_size']) ?? 0,
+      classificationPending: raw['classification_pending'] == true,
+      unknown: _coerceNonNegativeInt(raw['unknown']) ?? 0,
+    );
+  }
+
+  /// Returns a copy with the resident/visitor/unknown counts replaced —
+  /// used after the Supabase round-trip to swap the "pending" zeros for
+  /// the actual classification verdict.
+  VideoAnalysisPlateSummary copyWith({
+    int? resident,
+    int? visitor,
+    int? unknown,
+    bool? classificationPending,
+  }) {
+    return VideoAnalysisPlateSummary(
+      resident: resident ?? this.resident,
+      visitor: visitor ?? this.visitor,
+      total: total,
+      privacyHashed: privacyHashed,
+      allowlistSize: allowlistSize,
+      classificationPending:
+          classificationPending ?? this.classificationPending,
+      unknown: unknown ?? this.unknown,
     );
   }
 }
@@ -290,18 +370,47 @@ class VideoAnalysisPlate {
     this.text,
     this.textHash,
     this.source,
+    this.firstSeenS = 0.0,
+    this.lastSeenS = 0.0,
+    this.dwellSeconds = 0.0,
   });
 
   final String trackId;
-  /// One of `resident`, `visitor`, `unknown`. Falls back to `unknown` when
-  /// the server returned an unrecognised value.
+  /// One of `resident`, `visitor`, `unknown`. Set to `unknown` server-side;
+  /// the recurrence-based classification is filled in by the mobile client
+  /// after the Supabase round-trip.
   final String category;
   /// Raw normalized plate text. Null when the job ran with `hash_plates=true`.
   final String? text;
-  /// SHA-256 prefix of the plate. Null when the job ran with `hash_plates=false`.
+  /// SHA-256 prefix of the plate. Always present from new servers; serves
+  /// as the privacy-safe key for cross-run plate matching when raw text
+  /// isn't stored.
   final String? textHash;
   /// One of `gemma`, `easyocr`, `both`, or null if the server didn't tag.
   final String? source;
+
+  /// Video-clock seconds of this track's first sampled detection.
+  final double firstSeenS;
+  /// Video-clock seconds of this track's most-recent sampled detection.
+  final double lastSeenS;
+  /// `lastSeenS - firstSeenS`. Echoed for convenience.
+  final double dwellSeconds;
+
+  /// Returns a copy with [category] replaced. Used after the Supabase
+  /// classification round-trip so the per-plate row redraws without
+  /// throwing away the dwell / source metadata.
+  VideoAnalysisPlate withCategory(String category) {
+    return VideoAnalysisPlate(
+      trackId: trackId,
+      category: category,
+      text: text,
+      textHash: textHash,
+      source: source,
+      firstSeenS: firstSeenS,
+      lastSeenS: lastSeenS,
+      dwellSeconds: dwellSeconds,
+    );
+  }
 
   static List<VideoAnalysisPlate> parseMap(Object? raw) {
     if (raw is! Map) return const [];
@@ -318,6 +427,9 @@ class VideoAnalysisPlate {
         text: rec['text']?.toString(),
         textHash: rec['text_hash']?.toString(),
         source: rec['source']?.toString(),
+        firstSeenS: _coerceDouble(rec['first_seen_s']) ?? 0.0,
+        lastSeenS: _coerceDouble(rec['last_seen_s']) ?? 0.0,
+        dwellSeconds: _coerceDouble(rec['dwell_seconds']) ?? 0.0,
       ),);
     }
     out.sort((a, b) {

@@ -12,15 +12,18 @@ import 'package:greyeye_mobile/features/sites/models/site_calibration.dart';
 import 'package:greyeye_mobile/features/sites/models/video_analysis_remote_result.dart';
 import 'package:greyeye_mobile/features/sites/providers/site_calibration_provider.dart';
 import 'package:greyeye_mobile/features/sites/screens/count_line_editor_screen.dart';
+import 'package:greyeye_mobile/features/sites/screens/pedestrian_zone_editor_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/plate_allowlist_editor_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/speed_config_editor_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/traffic_light_roi_editor_screen.dart';
 import 'package:greyeye_mobile/features/sites/screens/transit_config_editor_screen.dart';
+import 'package:greyeye_mobile/features/sites/services/plate_repository.dart';
 import 'package:greyeye_mobile/features/sites/services/task_calibration_builder.dart';
 import 'package:greyeye_mobile/features/sites/services/video_analysis_remote_service.dart';
 import 'package:greyeye_mobile/features/sites/services/video_frame_extractor.dart';
+import 'package:greyeye_mobile/features/sites/services/xlsx/results_workbook.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -63,6 +66,12 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
   bool _isDownloadingVideo = false;
   double? _downloadProgress; // null = unknown total (no Content-Length)
   CancelToken? _downloadCancelToken;
+
+  /// Site-wide resident / visitor totals from `plate_classifications`,
+  /// fetched after the post-analysis Supabase round-trip. Null until the
+  /// classification step has run; the plates card hides its "site totals"
+  /// subtitle while this is null.
+  SitePlateTotals? _sitePlateTotals;
 
   @override
   void dispose() {
@@ -180,6 +189,31 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
     _toast(l10n.videoAnalysisBusStopApplied);
   }
 
+  Future<void> _openPedestrianZoneEditor() async {
+    final videoPath = _selectedVideoPath ?? '';
+    PedestrianZoneConfig? seed;
+    final ov = _calRead.pedestrianZoneOverride;
+    if (ov != null) {
+      seed = PedestrianZoneConfig(
+        polygon: ov.polygonXY.map((p) => Offset(p[0], p[1])).toList(),
+      );
+    }
+    final result =
+        await Navigator.of(context).push<PedestrianZoneConfig>(
+      MaterialPageRoute(
+        builder: (_) => PedestrianZoneEditorScreen(
+          videoPath: videoPath,
+          initial: seed,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    await _calNotifier.setPedestrianZoneOverride(PedestrianZoneOverride(
+      polygonXY:
+          result.polygon.map((p) => <double>[p.dx, p.dy]).toList(),
+    ),);
+  }
+
   Future<void> _openCountLineEditor() async {
     final videoPath = _selectedVideoPath ?? '';
     CountLineConfig? seed;
@@ -249,6 +283,12 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
         _phase = _ScreenPhase.done;
         _analysisCompletedAt = DateTime.now();
       });
+      // Phase 3: hand the per-plate observations to Supabase so the
+      // recurrence-based resident/visitor classification can update. The
+      // result widget rebuilds when [_result] is replaced with the
+      // post-classification copy. Failures are non-fatal — the UI keeps
+      // showing the unclassified plate list and surfaces a snackbar.
+      await _classifyPlatesAfterAnalysis(jobId, result);
     } on VideoAnalysisException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -277,15 +317,25 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
 
     try {
       final excel = xl.Excel.createExcel();
-      final sheet = excel['결과값'];
-      excel.delete('Sheet1');
 
+      // Legacy 결과값 sheet (Korean traffic-count 15-min template) — kept
+      // as-is so existing report consumers keep working.
+      final templateSheet = excel['결과값'];
+      excel.delete('Sheet1');
       _ResultsTemplateBuilder(
-        sheet: sheet,
+        sheet: templateSheet,
         siteId: widget.siteId,
         breakdown: result.breakdown,
         analysisStartedAt: _analysisStartedAt,
       ).build();
+
+      // Per-feature sheets (요약 / 보행자 / 속도 / 대중교통 / 신호등 / 번호판).
+      ResultsWorkbook(
+        result: result,
+        siteId: widget.siteId,
+        analysisStartedAt: _analysisStartedAt,
+        siteTotals: _sitePlateTotals,
+      ).appendTo(excel);
 
       final bytes = excel.encode();
       if (bytes == null) return;
@@ -331,6 +381,178 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
     await _calNotifier.setTrafficLightOverrides([
       TrafficLightOverride(label: result.label, roi: result.roi),
     ]);
+  }
+
+  /// Records the per-track plate observations from a finished analysis
+  /// in Supabase and replaces each plate's category in [_result] with
+  /// the recurrence-based verdict.
+  ///
+  /// Lifecycle: this fires immediately after `pollUntilComplete` returns
+  /// success. It is intentionally non-fatal — if the round-trip fails
+  /// (network, RLS, auth disabled), we keep the unclassified plate list
+  /// visible and surface a snackbar so the operator knows to look at
+  /// permissions.
+  Future<void> _classifyPlatesAfterAnalysis(
+    String jobId,
+    VideoAnalysisRemoteResult result,
+  ) async {
+    if (result.plates.isEmpty) return;
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Convert per-track dwell windows into wall-clock timestamps using
+    // the analysis-start moment. The pipeline's `first_seen_s` is in
+    // video-clock seconds from the start of the clip.
+    final start = _analysisStartedAt ?? DateTime.now();
+    final visits = <PlateVisitInsert>[];
+    for (final p in result.plates) {
+      final firstAt = start.add(
+        Duration(milliseconds: (p.firstSeenS * 1000).round()),
+      );
+      final lastAt = start.add(
+        Duration(milliseconds: (p.lastSeenS * 1000).round()),
+      );
+      // We need a stable plate identity. Prefer raw text when present,
+      // fall back to the hash (privacy-mode runs); skip the plate
+      // entirely if both are missing because we can't insert a row.
+      final identity = p.text ?? p.textHash;
+      final hash = p.textHash ?? identity;
+      if (identity == null || hash == null) continue;
+      visits.add(PlateVisitInsert(
+        plateNormalized: identity,
+        plateHash: hash,
+        firstSeenAt: firstAt,
+        lastSeenAt: lastAt,
+        dwellSeconds: p.dwellSeconds,
+        source: p.source ?? 'unknown',
+        trackId: p.trackId,
+      ));
+    }
+    if (visits.isEmpty) return;
+
+    final repo = ref.read(plateRepositoryProvider);
+    final PlateClassificationResult classification;
+    try {
+      classification = await repo.recordVisitsAndClassify(
+        siteId: widget.siteId,
+        jobId: jobId,
+        visits: visits,
+      );
+    } on PlateRepositoryException catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.platesClassifyFailed(e.message))),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    // Apply per-plate verdicts back onto the in-memory result so the
+    // _PlatesCard rebuilds with the new categories.
+    final updatedPlates = [
+      for (final p in result.plates)
+        () {
+          final key = p.text ?? p.textHash;
+          final cat = key == null ? null : classification.categories[key];
+          return cat == null ? p : p.withCategory(cat);
+        }(),
+    ];
+    final residentInRun =
+        updatedPlates.where((p) => p.category == 'resident').length;
+    final visitorInRun =
+        updatedPlates.where((p) => p.category == 'visitor').length;
+    final unknownInRun =
+        updatedPlates.where((p) => p.category == 'unknown').length;
+
+    setState(() {
+      _result = result.copyWith(
+        plates: updatedPlates,
+        plateSummary: (result.plateSummary ??
+                const VideoAnalysisPlateSummary(
+                  resident: 0,
+                  visitor: 0,
+                  total: 0,
+                  privacyHashed: false,
+                ))
+            .copyWith(
+          resident: residentInRun,
+          visitor: visitorInRun,
+          unknown: unknownInRun,
+          classificationPending: false,
+        ),
+      );
+      _sitePlateTotals = classification.siteTotals;
+    });
+  }
+
+  /// Pre-flight wizard for first-time operators: extracts a keyframe from
+  /// the staged video, asks the server's VLM where the traffic light is,
+  /// and shows the proposed bbox over the keyframe so the operator can
+  /// confirm before running the full analysis. If the AI fails or the
+  /// operator wants to override, the dialog hands them off to the manual
+  /// ROI editor with the same keyframe pre-loaded.
+  Future<void> _previewLightRoi() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final videoPath = _selectedVideoPath;
+    if (videoPath == null || videoPath.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.lightPreviewNoVideo)),
+      );
+      return;
+    }
+
+    Uint8List? frame;
+    try {
+      frame = await const VideoFrameExtractor().extractFrame(
+        videoPath,
+        timeMs: 1500,
+      );
+    } on Exception catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      return;
+    }
+    if (frame == null) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.lightPreviewExtractFailed)),
+      );
+      return;
+    }
+
+    final service = ref.read(videoAnalysisRemoteServiceProvider);
+    List<TrafficLightRoiProposal> proposals;
+    try {
+      proposals = await service.previewTrafficLightRoi(frame);
+    } on VideoAnalysisException catch (e) {
+      if (!mounted) return;
+      // 503 from the server (VLM unavailable) — bounce the operator
+      // straight into the manual editor with the keyframe ready.
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+    if (!mounted) return;
+
+    if (proposals.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.lightPreviewEmpty)),
+      );
+      return;
+    }
+
+    final action = await showDialog<_LightPreviewAction>(
+      context: context,
+      builder: (ctx) => _LightPreviewDialog(
+        frameBytes: frame!,
+        proposals: proposals,
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == _LightPreviewAction.manual) {
+      await _openTrafficLightEditor();
+    }
+    // _LightPreviewAction.confirm → keep auto mode, no-op.
   }
 
   Future<void> _openSpeedEditor() async {
@@ -594,6 +816,9 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
                   onConfigureTransit: _openTransitEditor,
                   countLineConfigured: cal.countLineOverride != null,
                   onConfigureCountLine: _openCountLineEditor,
+                  pedestrianZoneConfigured:
+                      cal.pedestrianZoneOverride != null,
+                  onConfigurePedestrianZone: _openPedestrianZoneEditor,
                   lprAllowlistCount: cal.lprAllowlist.length,
                   onConfigureLprAllowlist: _openAllowlistEditor,
                   transitAutoMode: cal.transitAutoMode,
@@ -606,6 +831,8 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
                   onLightAutoModeChanged: _calNotifier.setLightAutoMode,
                   lightAutoLabel: cal.lightAutoLabel,
                   onLightAutoLabelChanged: _calNotifier.setLightAutoLabel,
+                  onPreviewLightRoi: _previewLightRoi,
+                  hasStagedVideo: _selectedVideoPath != null,
                 ),
                 if (_phase == _ScreenPhase.staged &&
                     _selectedVideoPath != null) ...[
@@ -688,6 +915,7 @@ class _VideoAnalysisScreenState extends ConsumerState<VideoAnalysisScreen> {
                       summary: _result!.plateSummary,
                       plates: _result!.plates,
                       theme: theme,
+                      siteTotals: _sitePlateTotals,
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -749,6 +977,8 @@ class _PickerCard extends StatelessWidget {
     required this.onConfigureTransit,
     required this.countLineConfigured,
     required this.onConfigureCountLine,
+    required this.pedestrianZoneConfigured,
+    required this.onConfigurePedestrianZone,
     required this.lprAllowlistCount,
     required this.onConfigureLprAllowlist,
     required this.transitAutoMode,
@@ -759,6 +989,8 @@ class _PickerCard extends StatelessWidget {
     required this.onLightAutoModeChanged,
     required this.lightAutoLabel,
     required this.onLightAutoLabelChanged,
+    required this.onPreviewLightRoi,
+    required this.hasStagedVideo,
   });
 
   final bool isUploading;
@@ -779,6 +1011,8 @@ class _PickerCard extends StatelessWidget {
   final VoidCallback onConfigureTransit;
   final bool countLineConfigured;
   final VoidCallback onConfigureCountLine;
+  final bool pedestrianZoneConfigured;
+  final VoidCallback onConfigurePedestrianZone;
   final int lprAllowlistCount;
   final VoidCallback onConfigureLprAllowlist;
   final bool transitAutoMode;
@@ -789,6 +1023,13 @@ class _PickerCard extends StatelessWidget {
   final ValueChanged<bool> onLightAutoModeChanged;
   final String lightAutoLabel;
   final ValueChanged<String> onLightAutoLabelChanged;
+  /// Fires when the operator taps "Preview ROI" inside the auto-light
+  /// row. Drives the keyframe-extract → VLM-preview → confirmation-dialog
+  /// flow on the parent screen.
+  final VoidCallback onPreviewLightRoi;
+  /// True when a video has been picked. The preview button stays disabled
+  /// otherwise (the flow needs a frame to send to the VLM).
+  final bool hasStagedVideo;
 
   @override
   Widget build(BuildContext context) {
@@ -870,6 +1111,8 @@ class _PickerCard extends StatelessWidget {
               onConfigureTransit: onConfigureTransit,
               countLineConfigured: countLineConfigured,
               onConfigureCountLine: onConfigureCountLine,
+              pedestrianZoneConfigured: pedestrianZoneConfigured,
+              onConfigurePedestrianZone: onConfigurePedestrianZone,
               lprAllowlistCount: lprAllowlistCount,
               onConfigureLprAllowlist: onConfigureLprAllowlist,
               transitAutoMode: transitAutoMode,
@@ -880,6 +1123,8 @@ class _PickerCard extends StatelessWidget {
               onLightAutoModeChanged: onLightAutoModeChanged,
               lightAutoLabel: lightAutoLabel,
               onLightAutoLabelChanged: onLightAutoLabelChanged,
+              onPreviewLightRoi: onPreviewLightRoi,
+              hasStagedVideo: hasStagedVideo,
             ),
             const SizedBox(height: 16),
             Row(
@@ -1791,6 +2036,8 @@ class _TasksToRunPanel extends StatelessWidget {
     required this.onConfigureTransit,
     required this.countLineConfigured,
     required this.onConfigureCountLine,
+    required this.pedestrianZoneConfigured,
+    required this.onConfigurePedestrianZone,
     required this.lprAllowlistCount,
     required this.onConfigureLprAllowlist,
     required this.transitAutoMode,
@@ -1801,6 +2048,8 @@ class _TasksToRunPanel extends StatelessWidget {
     required this.onLightAutoModeChanged,
     required this.lightAutoLabel,
     required this.onLightAutoLabelChanged,
+    required this.onPreviewLightRoi,
+    required this.hasStagedVideo,
   });
 
   final bool isUploading;
@@ -1815,6 +2064,8 @@ class _TasksToRunPanel extends StatelessWidget {
   final VoidCallback onConfigureTransit;
   final bool countLineConfigured;
   final VoidCallback onConfigureCountLine;
+  final bool pedestrianZoneConfigured;
+  final VoidCallback onConfigurePedestrianZone;
   final int lprAllowlistCount;
   final VoidCallback onConfigureLprAllowlist;
   final bool transitAutoMode;
@@ -1825,6 +2076,8 @@ class _TasksToRunPanel extends StatelessWidget {
   final ValueChanged<bool> onLightAutoModeChanged;
   final String lightAutoLabel;
   final ValueChanged<String> onLightAutoLabelChanged;
+  final VoidCallback onPreviewLightRoi;
+  final bool hasStagedVideo;
 
   @override
   Widget build(BuildContext context) {
@@ -1855,6 +2108,13 @@ class _TasksToRunPanel extends StatelessWidget {
         _taskTile(
           l10n.videoAnalysisTaskPedestrians,
           task: AnalysisTask.pedestrians,
+          trailing: enabledTasks.contains(AnalysisTask.pedestrians)
+              ? _ConfigureChip(
+                  label: l10n.pedestrianZoneConfigure,
+                  configured: pedestrianZoneConfigured,
+                  onTap: isUploading ? null : onConfigurePedestrianZone,
+                )
+              : null,
         ),
         _taskTile(
           l10n.videoAnalysisTaskSpeed,
@@ -1910,6 +2170,8 @@ class _TasksToRunPanel extends StatelessWidget {
             label: lightAutoLabel,
             onLabelChanged: onLightAutoLabelChanged,
             isUploading: isUploading,
+            onPreviewRoi: onPreviewLightRoi,
+            hasStagedVideo: hasStagedVideo,
           ),
         _taskTile(
           l10n.videoAnalysisTaskLpr,
@@ -2150,20 +2412,26 @@ class _AutoTransitRowState extends State<_AutoTransitRow> {
 }
 
 /// Inline panel shown under the Traffic-light task tile when auto mode
-/// is on. Collects only the label (used to disambiguate when there are
-/// multiple lights in the report).
+/// is on. Collects the label (disambiguates multiple lights in the
+/// report), surfaces the first-time-user help card, and exposes the
+/// pre-flight ROI preview button so operators can see what the AI will
+/// be measuring before they commit to the full analysis run.
 class _AutoLightRow extends StatefulWidget {
   const _AutoLightRow({
     required this.theme,
     required this.label,
     required this.onLabelChanged,
     required this.isUploading,
+    required this.onPreviewRoi,
+    required this.hasStagedVideo,
   });
 
   final ThemeData theme;
   final String label;
   final ValueChanged<String> onLabelChanged;
   final bool isUploading;
+  final VoidCallback onPreviewRoi;
+  final bool hasStagedVideo;
 
   @override
   State<_AutoLightRow> createState() => _AutoLightRowState();
@@ -2207,6 +2475,10 @@ class _AutoLightRowState extends State<_AutoLightRow> {
             ),
           ),
           const SizedBox(height: 8),
+          // First-time wizard explainer. Default-collapsed so power users
+          // aren't pestered, but visible enough for new operators to find.
+          _LightHelpCard(theme: widget.theme),
+          const SizedBox(height: 8),
           TextField(
             controller: _ctrl,
             enabled: !widget.isUploading,
@@ -2222,10 +2494,212 @@ class _AutoLightRowState extends State<_AutoLightRow> {
               }
             },
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed:
+                (widget.isUploading || !widget.hasStagedVideo)
+                    ? null
+                    : widget.onPreviewRoi,
+            icon: const Icon(Icons.preview_outlined, size: 18),
+            label: Text(l10n.lightPreviewButton),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+/// Expandable explainer for first-time operators. Title + 3-step body
+/// from `lightHelpTitle` / `lightHelpBody`. Default-collapsed so it stays
+/// out of the way for repeat users.
+class _LightHelpCard extends StatelessWidget {
+  const _LightHelpCard({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerLow,
+      margin: EdgeInsets.zero,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        leading: Icon(
+          Icons.help_outline,
+          color: theme.colorScheme.primary,
+        ),
+        title: Text(
+          l10n.lightHelpTitle,
+          style: theme.textTheme.titleSmall,
+        ),
+        children: [
+          Text(
+            l10n.lightHelpBody,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Outcome of the traffic-light ROI preview dialog. The screen reads the
+/// returned value to decide whether to keep auto mode (`confirm`) or
+/// open the manual editor (`manual`).
+enum _LightPreviewAction { confirm, manual }
+
+/// Modal that overlays the AI's proposed bbox(es) on top of the
+/// extracted keyframe and lets the operator confirm or jump to manual
+/// editing.
+class _LightPreviewDialog extends StatelessWidget {
+  const _LightPreviewDialog({
+    required this.frameBytes,
+    required this.proposals,
+  });
+
+  final Uint8List frameBytes;
+  final List<TrafficLightRoiProposal> proposals;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final lowConf = proposals.any((p) => !p.aboveThreshold);
+    final lowestPct = proposals
+        .map((p) => p.confidence)
+        .fold<double>(1.0, (a, b) => a < b ? a : b);
+
+    return AlertDialog(
+      title: Text(l10n.lightPreviewTitle),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.lightPreviewSubtitle(proposals.length),
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (lowConf) ...[
+              const SizedBox(height: 4),
+              Text(
+                l10n.lightPreviewLowConfidence(
+                  (lowestPct * 100).toStringAsFixed(0),
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.memory(
+                      frameBytes,
+                      fit: BoxFit.contain,
+                    ),
+                    LayoutBuilder(
+                      builder: (ctx, constraints) {
+                        return CustomPaint(
+                          painter: _LightProposalPainter(
+                            proposals: proposals,
+                            primaryColor: theme.colorScheme.primary,
+                            errorColor: theme.colorScheme.error,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () =>
+              Navigator.pop(context, _LightPreviewAction.manual),
+          child: Text(l10n.lightPreviewManual),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.pop(context, _LightPreviewAction.confirm),
+          child: Text(l10n.lightPreviewConfirm),
+        ),
+      ],
+    );
+  }
+}
+
+class _LightProposalPainter extends CustomPainter {
+  _LightProposalPainter({
+    required this.proposals,
+    required this.primaryColor,
+    required this.errorColor,
+  });
+
+  final List<TrafficLightRoiProposal> proposals;
+  final Color primaryColor;
+  final Color errorColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in proposals) {
+      final rect = Rect.fromLTWH(
+        p.x * size.width,
+        p.y * size.height,
+        p.width * size.width,
+        p.height * size.height,
+      );
+      final color = p.aboveThreshold ? primaryColor : errorColor;
+      final stroke = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5;
+      canvas.drawRect(rect, stroke);
+
+      final fill = Paint()
+        ..color = color.withValues(alpha: 0.15)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(rect, fill);
+
+      final text = TextPainter(
+        text: TextSpan(
+          text: ' ${p.label} ${(p.confidence * 100).toStringAsFixed(0)}% ',
+          style: TextStyle(
+            color: Colors.white,
+            backgroundColor: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      text.paint(canvas, rect.topLeft.translate(0, -text.height));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LightProposalPainter old) =>
+      old.proposals != proposals;
 }
 
 /// Configure / Manage button shown next to a task checkbox once it's
@@ -2558,6 +3032,21 @@ class _TransitCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            if (transit.arrivals > 0 || transit.source == 'linezone_fallback')
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  transit.source == 'vlm'
+                      ? l10n.videoAnalysisTransitVlmArrivals(transit.arrivals)
+                      : l10n.videoAnalysisTransitFallback,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: transit.source == 'vlm'
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.error,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -2782,11 +3271,16 @@ class _PlatesCard extends StatelessWidget {
     required this.summary,
     required this.plates,
     required this.theme,
+    this.siteTotals,
   });
 
   final VideoAnalysisPlateSummary? summary;
   final List<VideoAnalysisPlate> plates;
   final ThemeData theme;
+  /// Site-wide all-time totals from `plate_classifications`. Null while
+  /// the post-analysis Supabase round-trip is still in flight or has
+  /// failed; in that case the "site totals" footer is hidden.
+  final SitePlateTotals? siteTotals;
 
   @override
   Widget build(BuildContext context) {
@@ -2835,12 +3329,26 @@ class _PlatesCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                l10n.videoAnalysisLprAllowlistSize(summary!.allowlistSize),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              if (siteTotals != null) ...[
+                Text(
+                  l10n.platesSiteTotals(
+                    siteTotals!.resident,
+                    siteTotals!.visitor,
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+              ] else if (summary!.classificationPending) ...[
+                Text(
+                  l10n.platesClassificationPending,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
               if (summary!.privacyHashed) ...[
                 const SizedBox(height: 4),
                 Text(

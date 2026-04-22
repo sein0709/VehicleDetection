@@ -1985,7 +1985,7 @@ abstract class AppLocalizations {
   /// No description provided for @videoAnalysisExportCsv.
   ///
   /// In en, this message translates to:
-  /// **'Export CSV'**
+  /// **'Export XLSX'**
   String get videoAnalysisExportCsv;
 
   /// No description provided for @videoAnalysisRetry.
@@ -2203,6 +2203,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All door-line crossings counted (no bus-zone gate).'**
   String get videoAnalysisTransitNotGated;
+
+  /// No description provided for @videoAnalysisTransitVlmArrivals.
+  ///
+  /// In en, this message translates to:
+  /// **'VLM headcount across {count, plural, =1{1 bus arrival} other{{count} bus arrivals}}.'**
+  String videoAnalysisTransitVlmArrivals(int count);
+
+  /// No description provided for @videoAnalysisTransitFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'VLM unavailable — fell back to door-line counts (less accurate).'**
+  String get videoAnalysisTransitFallback;
+
+  /// No description provided for @platesClassifyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate classification could not be saved: {message}'**
+  String platesClassifyFailed(String message);
+
+  /// No description provided for @platesSiteTotals.
+  ///
+  /// In en, this message translates to:
+  /// **'This site (all-time): {resident} resident / {visitor} visitor'**
+  String platesSiteTotals(int resident, int visitor);
+
+  /// No description provided for @platesClassificationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification pending — connect to Supabase to compute resident vs visitor.'**
+  String get platesClassificationPending;
+
+  /// No description provided for @lightHelpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How does traffic-light timing work?'**
+  String get lightHelpTitle;
+
+  /// No description provided for @lightHelpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'1) The pipeline samples the colour inside a bounding box around the lamp housing every few frames.\n2) Auto mode asks the AI to find that box for you on a representative keyframe — no manual drawing required.\n3) The pipeline then logs every red/yellow/green transition and reports cycle counts plus average duration per state.\n\nFirst time? Keep Auto mode on, tap \"Preview ROI\" to confirm the AI got the lamp location right, then run the analysis. If the preview looks wrong, switch to Manual.'**
+  String get lightHelpBody;
+
+  /// No description provided for @lightPreviewButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview ROI'**
+  String get lightPreviewButton;
+
+  /// No description provided for @lightPreviewConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Looks good'**
+  String get lightPreviewConfirm;
+
+  /// No description provided for @lightPreviewManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust manually'**
+  String get lightPreviewManual;
+
+  /// No description provided for @lightPreviewNoVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a video first to preview the traffic-light ROI.'**
+  String get lightPreviewNoVideo;
+
+  /// No description provided for @lightPreviewExtractFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not extract a keyframe from this video.'**
+  String get lightPreviewExtractFailed;
+
+  /// No description provided for @lightPreviewVlmUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI is offline right now — switch to Manual mode to draw the ROI yourself.'**
+  String get lightPreviewVlmUnavailable;
+
+  /// No description provided for @lightPreviewEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI didn\'t find any traffic light in this frame. Try Manual mode.'**
+  String get lightPreviewEmpty;
+
+  /// No description provided for @lightPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI proposed ROI'**
+  String get lightPreviewTitle;
+
+  /// No description provided for @lightPreviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 light detected} other{{count} lights detected}}'**
+  String lightPreviewSubtitle(int count);
+
+  /// No description provided for @lightPreviewLowConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Low confidence ({pct}%) — review carefully.'**
+  String lightPreviewLowConfidence(String pct);
 
   /// No description provided for @videoAnalysisTrafficLightTitle.
   ///
@@ -2894,6 +2996,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Two virtual lines: a vehicle is counted as one only when its track crosses BOTH lines (order doesn\'t matter). More accurate than a single tripwire and separates IN vs OUT direction.'**
   String get countLineWhatIsThisBody;
+
+  /// No description provided for @pedestrianZoneConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedestrian ROI'**
+  String get pedestrianZoneConfigure;
+
+  /// No description provided for @pedestrianZoneEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedestrian ROI'**
+  String get pedestrianZoneEditorTitle;
+
+  /// No description provided for @pedestrianZoneEditorClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear polygon'**
+  String get pedestrianZoneEditorClear;
+
+  /// No description provided for @pedestrianZoneEditorTooSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedestrian ROI needs at least 3 vertices.'**
+  String get pedestrianZoneEditorTooSmall;
+
+  /// No description provided for @pedestrianZoneEditorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add a polygon vertex. {remaining} more needed.'**
+  String pedestrianZoneEditorHint(int remaining);
+
+  /// No description provided for @pedestrianZoneEditorHintDone.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI ready ({count} vertices). Tap to add more or save.'**
+  String pedestrianZoneEditorHintDone(int count);
+
+  /// No description provided for @pedestrianZoneWhatIsThisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this configure?'**
+  String get pedestrianZoneWhatIsThisTitle;
+
+  /// No description provided for @pedestrianZoneWhatIsThisBody.
+  ///
+  /// In en, this message translates to:
+  /// **'An optional polygon outlining the area where pedestrians should be counted. Only people whose feet land inside the polygon are added to the total — ideal for sites where the camera also frames an unrelated sidewalk in the background. Leave it unset to count the whole frame.'**
+  String get pedestrianZoneWhatIsThisBody;
 
   /// No description provided for @lprWhatIsThisTitle.
   ///

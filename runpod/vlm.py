@@ -36,7 +36,7 @@ import json
 import logging
 import threading
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -62,6 +62,11 @@ class VLMTask(str, Enum):
     PLATE_OCR = "plate_ocr"
     DENSITY_CHECK = "density_check"
     LIGHT_STATE = "light_state"
+    # Per-arrival headcount for transit boarding/alighting. Submitted with
+    # 1-3 sequential crops covering one bus-arrival window (door open → door
+    # close). Replaces the supervision LineZone direction-tagging heuristic
+    # which was unreliable on supervision 0.27.
+    BUS_BOARDING = "bus_boarding"
     # Auto-calibration tasks: run ONCE per video before the decode loop on a
     # representative keyframe. Output coordinates are normalized 0..1 so the
     # same JSON works regardless of frame resolution.
@@ -135,6 +140,30 @@ Return ONLY JSON:
 {"state": "<one of allowed>", "confidence": <float 0-1>}
 """.strip()
 
+_PROMPT_BUS_BOARDING = """
+You are a transit-camera analyst. The images are 1-3 sequential frames
+captured during a SINGLE bus-arrival event at a Korean bus stop — from when
+the bus pulled in until it pulled away. Compare the frames over time.
+
+Count the people who:
+- BOARDED (got ON the bus): people who walked TOWARD the bus and are no
+  longer visible at the stop (they entered the bus).
+- ALIGHTED (got OFF the bus): people who appeared next to the bus and then
+  walked AWAY from the bus toward the platform / sidewalk.
+
+Do NOT count:
+- Bus drivers, crew, or staff already inside the bus.
+- People walking past the stop without interacting with the bus.
+- People who waited the whole time but never moved toward the bus
+  (still waiting for a different bus).
+
+If the bus never opened doors / never stopped properly, return zeros and
+note it.
+
+Return ONLY valid JSON:
+{"boarding": <int>, "alighting": <int>, "confidence": <float 0-1>, "notes": "<short>"}
+""".strip()
+
 _PROMPT_BUS_STOP_LAYOUT = """
 You are a transit-camera calibration assistant. The image is one frame from a
 fixed camera that watches a Korean bus stop. Identify three regions and return
@@ -198,6 +227,7 @@ _PROMPTS: dict[VLMTask, str] = {
     VLMTask.PLATE_OCR: _PROMPT_PLATE,
     VLMTask.DENSITY_CHECK: _PROMPT_DENSITY,
     VLMTask.LIGHT_STATE: _PROMPT_LIGHT,
+    VLMTask.BUS_BOARDING: _PROMPT_BUS_BOARDING,
     VLMTask.BUS_STOP_LAYOUT: _PROMPT_BUS_STOP_LAYOUT,
     VLMTask.LIGHT_LAYOUT: _PROMPT_LIGHT_LAYOUT,
 }
@@ -212,6 +242,11 @@ class VLMRequest:
     image: np.ndarray
     context: dict[str, Any]           # e.g. {"detected_id": 9, "detected_name": "Class 5"}
     track_id: int | None = None       # for logging / pending-set bookkeeping
+    # Optional additional images sent to the same prompt — e.g. BUS_BOARDING
+    # ships 1-3 sequential frames covering one bus-arrival event so the model
+    # can reason about boarding/alighting motion across time. The primary
+    # ``image`` field is sent first and the extras follow, in order.
+    extra_images: list[np.ndarray] = field(default_factory=list)
 
 
 class VLMPool:
@@ -322,7 +357,16 @@ class VLMPool:
         if self._circuit_open or self._model is None:
             return None
 
-        cache_key = f"{req.task.value}:{self._crop_hash(req.image)}"
+        # Multi-image requests fold the extra crops into the cache key so a
+        # repeat bus-arrival sequence still hits the cache while a different
+        # set of frames goes to the model. Single-image tasks behave exactly
+        # as before.
+        primary_hash = self._crop_hash(req.image)
+        if req.extra_images:
+            extra_hashes = "+".join(self._crop_hash(im) for im in req.extra_images)
+            cache_key = f"{req.task.value}:{primary_hash}+{extra_hashes}"
+        else:
+            cache_key = f"{req.task.value}:{primary_hash}"
         with self._cache_lock:
             cached = self._cache.get(cache_key)
         if cached is not None:
@@ -366,11 +410,18 @@ class VLMPool:
                 detected_name=req.context.get("detected_name", "?"),
             )
 
-        success, buf = cv2.imencode(".jpg", req.image, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        if not success:
-            raise RuntimeError("cv2.imencode failed")
-        image_part = types.Part.from_bytes(data=buf.tobytes(), mime_type="image/jpeg")
-        contents = [prompt, image_part]
+        # Encode the primary crop plus any extras (BUS_BOARDING ships up to
+        # 3 sequential frames in one request so the model can reason about
+        # boarding/alighting motion).
+        image_parts: list = []
+        for img in [req.image, *req.extra_images]:
+            success, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if not success:
+                raise RuntimeError("cv2.imencode failed")
+            image_parts.append(
+                types.Part.from_bytes(data=buf.tobytes(), mime_type="image/jpeg"),
+            )
+        contents = [prompt, *image_parts]
         config = types.GenerateContentConfig(temperature=VLM_TEMPERATURE)
 
         # google-genai's generate_content is synchronous; run in executor to

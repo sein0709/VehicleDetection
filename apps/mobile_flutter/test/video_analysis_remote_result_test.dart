@@ -566,6 +566,52 @@ void main() {
         final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{});
         expect(result.transit, isNull);
       });
+
+      test('parses arrivals + source from VLM-only pipeline', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'transit': {
+            'peak_count': 6,
+            'avg_density_pct': 18.0,
+            'boarding': 9,
+            'alighting': 4,
+            'bus_gated': true,
+            'arrivals': 3,
+            'source': 'vlm',
+          },
+        });
+        expect(result.transit!.arrivals, 3);
+        expect(result.transit!.source, 'vlm');
+      });
+
+      test('clamps unknown source to vlm default', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'transit': {
+            'peak_count': 0,
+            'avg_density_pct': 0.0,
+            'boarding': 0,
+            'alighting': 0,
+            'bus_gated': false,
+            'source': 'something_else',
+          },
+        });
+        expect(result.transit!.source, 'vlm');
+      });
+
+      test('linezone_fallback source is preserved', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'transit': {
+            'peak_count': 0,
+            'avg_density_pct': 0.0,
+            'boarding': 2,
+            'alighting': 1,
+            'bus_gated': true,
+            'arrivals': 0,
+            'source': 'linezone_fallback',
+          },
+        });
+        expect(result.transit!.source, 'linezone_fallback');
+        expect(result.transit!.arrivals, 0);
+      });
     });
 
     group('F7 traffic light', () {
@@ -677,6 +723,114 @@ void main() {
         final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{});
         expect(result.plates, isEmpty);
         expect(result.plateSummary, isNull);
+      });
+
+      test('parses dwell window fields on per-plate records', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'plates': {
+            '7': {
+              'category': 'unknown',
+              'text': '12가3456',
+              'text_hash': 'abc123',
+              'source': 'gemma',
+              'first_seen_s': 1.5,
+              'last_seen_s': 7.0,
+              'dwell_seconds': 5.5,
+            },
+          },
+        });
+        expect(result.plates, hasLength(1));
+        final plate = result.plates.first;
+        expect(plate.firstSeenS, 1.5);
+        expect(plate.lastSeenS, 7.0);
+        expect(plate.dwellSeconds, 5.5);
+        expect(plate.textHash, 'abc123');
+      });
+
+      test('plate_summary surfaces classification_pending + unknown', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'plate_summary': {
+            'resident': 0,
+            'visitor': 0,
+            'unknown': 4,
+            'total': 4,
+            'privacy_hashed': false,
+            'classification_pending': true,
+          },
+        });
+        expect(result.plateSummary!.classificationPending, isTrue);
+        expect(result.plateSummary!.unknown, 4);
+      });
+
+      test('plate.withCategory swaps category but preserves dwell metadata',
+          () {
+        const plate = VideoAnalysisPlate(
+          trackId: '5',
+          category: 'unknown',
+          text: 'XYZ',
+          source: 'gemma',
+          firstSeenS: 2.0,
+          lastSeenS: 9.0,
+          dwellSeconds: 7.0,
+        );
+        final updated = plate.withCategory('resident');
+        expect(updated.category, 'resident');
+        expect(updated.firstSeenS, 2.0);
+        expect(updated.lastSeenS, 9.0);
+        expect(updated.dwellSeconds, 7.0);
+        expect(updated.text, 'XYZ');
+      });
+
+      test('PlateSummary.copyWith replaces categories + flips pending flag',
+          () {
+        const summary = VideoAnalysisPlateSummary(
+          resident: 0,
+          visitor: 0,
+          total: 5,
+          privacyHashed: false,
+          classificationPending: true,
+          unknown: 5,
+        );
+        final updated = summary.copyWith(
+          resident: 2,
+          visitor: 3,
+          unknown: 0,
+          classificationPending: false,
+        );
+        expect(updated.resident, 2);
+        expect(updated.visitor, 3);
+        expect(updated.unknown, 0);
+        expect(updated.classificationPending, isFalse);
+        // total / privacy untouched.
+        expect(updated.total, 5);
+      });
+    });
+
+    group('F4 speed dropped tracks', () {
+      test('parses dropped_tracks field', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'speed': {
+            'vehicles_measured': 3,
+            'avg_kmh': 45.0,
+            'min_kmh': 30.0,
+            'max_kmh': 60.0,
+            'per_track': {'1': 30.0, '2': 45.0, '3': 60.0},
+            'dropped_tracks': 2,
+          },
+        });
+        expect(result.speed!.droppedTracks, 2);
+        expect(result.speed!.vehiclesMeasured, 3);
+      });
+
+      test('absent dropped_tracks defaults to 0', () {
+        final result = VideoAnalysisRemoteResult.fromJson(<String, dynamic>{
+          'speed': {
+            'vehicles_measured': 0,
+            'avg_kmh': null,
+            'per_track': {},
+          },
+        });
+        expect(result.speed!.droppedTracks, 0);
       });
     });
   });

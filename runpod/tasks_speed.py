@@ -129,8 +129,28 @@ class SpeedEngine:
                     self.speeds_kmh[tid_int] = round(kmh, 1)
 
     def report(self) -> dict[str, Any]:
+        # Tracks that crossed the first line but never the second are an
+        # operator hint that the exit line is misplaced (too low / off the
+        # vehicle path) or the clip ended mid-traversal. Surfaced as a
+        # report field AND a debug log so it shows up both in the xlsx
+        # output and in the pod logs.
+        dropped = sorted(
+            tid for tid in self.entry_frames if tid not in self.speeds_kmh
+        )
+        if dropped:
+            logger.debug(
+                "Speed: %d track(s) crossed line 1 but never line 2 (tids=%s) — "
+                "check that line 2 sits on the vehicle path and the clip is long enough",
+                len(dropped), dropped[:10],
+            )
+
         if not self.speeds_kmh:
-            return {"vehicles_measured": 0, "avg_kmh": None, "per_track": {}}
+            return {
+                "vehicles_measured": 0,
+                "avg_kmh": None,
+                "per_track": {},
+                "dropped_tracks": len(dropped),
+            }
         values = list(self.speeds_kmh.values())
         return {
             "vehicles_measured": len(values),
@@ -138,4 +158,5 @@ class SpeedEngine:
             "min_kmh": min(values),
             "max_kmh": max(values),
             "per_track": {str(k): v for k, v in self.speeds_kmh.items()},
+            "dropped_tracks": len(dropped),
         }

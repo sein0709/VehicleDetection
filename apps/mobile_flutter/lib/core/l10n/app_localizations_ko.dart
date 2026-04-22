@@ -989,7 +989,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get videoAnalysisBreakdown => '차종별 분류';
 
   @override
-  String get videoAnalysisExportCsv => 'CSV 내보내기';
+  String get videoAnalysisExportCsv => 'XLSX 내보내기';
 
   @override
   String get videoAnalysisRetry => '재시도';
@@ -1124,6 +1124,71 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get videoAnalysisTransitNotGated => '모든 도어 라인 통과를 카운트합니다 (버스 게이트 없음).';
+
+  @override
+  String videoAnalysisTransitVlmArrivals(int count) {
+    return 'VLM 분석 — 버스 도착 $count회 기준.';
+  }
+
+  @override
+  String get videoAnalysisTransitFallback =>
+      'VLM 사용 불가 — 도어 라인 카운트로 대체 (정확도 낮음).';
+
+  @override
+  String platesClassifyFailed(String message) {
+    return '번호판 분류 저장 실패: $message';
+  }
+
+  @override
+  String platesSiteTotals(int resident, int visitor) {
+    return '이 사이트 누적: 상주 $resident / 방문 $visitor';
+  }
+
+  @override
+  String get platesClassificationPending =>
+      '분류 대기 중 — Supabase에 연결되어야 상주/방문이 계산됩니다.';
+
+  @override
+  String get lightHelpTitle => '신호등 시간 측정은 어떻게 작동하나요?';
+
+  @override
+  String get lightHelpBody =>
+      '1) 파이프라인은 신호등 박스 내부의 색상을 몇 프레임마다 샘플링합니다.\n2) 자동 모드에서는 AI가 대표 프레임에서 박스를 자동으로 찾아주므로 직접 그릴 필요가 없습니다.\n3) 빨강/노랑/초록 전환을 모두 기록하여 주기 횟수와 평균 지속 시간을 리포트합니다.\n\n처음 사용하시나요? 자동 모드를 켠 채 \"ROI 미리보기\"를 눌러 AI가 제대로 찾았는지 확인한 뒤 분석을 실행하세요. 결과가 부정확하다면 수동 모드로 전환합니다.';
+
+  @override
+  String get lightPreviewButton => 'ROI 미리보기';
+
+  @override
+  String get lightPreviewConfirm => '이대로 사용';
+
+  @override
+  String get lightPreviewManual => '수동으로 설정';
+
+  @override
+  String get lightPreviewNoVideo => '먼저 영상을 선택해야 ROI를 미리볼 수 있습니다.';
+
+  @override
+  String get lightPreviewExtractFailed => '영상에서 프레임을 추출하지 못했습니다.';
+
+  @override
+  String get lightPreviewVlmUnavailable =>
+      'AI 서버가 응답하지 않습니다 — 수동 모드로 직접 그려 주세요.';
+
+  @override
+  String get lightPreviewEmpty => 'AI가 이 프레임에서 신호등을 찾지 못했습니다. 수동 모드를 사용하세요.';
+
+  @override
+  String get lightPreviewTitle => 'AI가 제안한 ROI';
+
+  @override
+  String lightPreviewSubtitle(int count) {
+    return '$count개의 신호등이 감지되었습니다';
+  }
+
+  @override
+  String lightPreviewLowConfidence(String pct) {
+    return '신뢰도 낮음 ($pct%) — 결과를 자세히 확인하세요.';
+  }
 
   @override
   String get videoAnalysisTrafficLightTitle => '신호등 시간';
@@ -1512,6 +1577,35 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get countLineWhatIsThisBody =>
       '두 가상의 선을 그으면 차량이 두 선을 모두 통과할 때 1대로 카운트됩니다(순서 무관). 단일 선보다 정확하며 진입(IN)/진출(OUT) 방향까지 분리됩니다.';
+
+  @override
+  String get pedestrianZoneConfigure => '보행자 ROI';
+
+  @override
+  String get pedestrianZoneEditorTitle => '보행자 ROI';
+
+  @override
+  String get pedestrianZoneEditorClear => '영역 초기화';
+
+  @override
+  String get pedestrianZoneEditorTooSmall => '보행자 ROI에는 최소 3개의 꼭짓점이 필요합니다.';
+
+  @override
+  String pedestrianZoneEditorHint(int remaining) {
+    return '탭하여 꼭짓점을 추가하세요. $remaining개 더 필요합니다.';
+  }
+
+  @override
+  String pedestrianZoneEditorHintDone(int count) {
+    return 'ROI 준비 완료 ($count개 꼭짓점). 더 추가하거나 저장하세요.';
+  }
+
+  @override
+  String get pedestrianZoneWhatIsThisTitle => '이 설정은 무엇인가요?';
+
+  @override
+  String get pedestrianZoneWhatIsThisBody =>
+      '보행자를 계수할 영역을 지정하는 선택적 다각형입니다. 발이 다각형 안에 있는 사람만 합계에 포함됩니다 — 카메라가 관련 없는 인도를 함께 비추는 사이트에 유용합니다. 설정하지 않으면 전체 프레임을 계수합니다.';
 
   @override
   String get lprWhatIsThisTitle => '이 설정은 무엇인가요?';

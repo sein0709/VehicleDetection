@@ -399,7 +399,7 @@
   "videoAnalysisProcessingHint": "영상이 업로드되었습니다. 서버에서 처리 중이며, 영상 길이에 따라 수 분이 소요될 수 있습니다.",
   "videoAnalysisTotalCounted": "총 감지 차량 수",
   "videoAnalysisBreakdown": "차종별 분류",
-  "videoAnalysisExportCsv": "CSV 내보내기",
+  "videoAnalysisExportCsv": "XLSX 내보내기",
   "videoAnalysisRetry": "재시도",
   "videoAnalysisIncludeAnnotatedVideo": "주석 영상 생성",
   "videoAnalysisIncludeAnnotatedVideoHint": "분석 후 다운로드할 수 있는 라벨이 표시된 MP4를 생성합니다. 처리 시간이 늘어납니다.",
@@ -470,6 +470,51 @@
   },
   "videoAnalysisTransitBusGated": "버스 도착 시에만 승하차를 카운트합니다.",
   "videoAnalysisTransitNotGated": "모든 도어 라인 통과를 카운트합니다 (버스 게이트 없음).",
+  "videoAnalysisTransitVlmArrivals": "VLM 분석 — 버스 도착 {count}회 기준.",
+  "@videoAnalysisTransitVlmArrivals": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "videoAnalysisTransitFallback": "VLM 사용 불가 — 도어 라인 카운트로 대체 (정확도 낮음).",
+
+  "platesClassifyFailed": "번호판 분류 저장 실패: {message}",
+  "@platesClassifyFailed": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+  "platesSiteTotals": "이 사이트 누적: 상주 {resident} / 방문 {visitor}",
+  "@platesSiteTotals": {
+    "placeholders": {
+      "resident": { "type": "int" },
+      "visitor": { "type": "int" }
+    }
+  },
+  "platesClassificationPending": "분류 대기 중 — Supabase에 연결되어야 상주/방문이 계산됩니다.",
+
+  "lightHelpTitle": "신호등 시간 측정은 어떻게 작동하나요?",
+  "lightHelpBody": "1) 파이프라인은 신호등 박스 내부의 색상을 몇 프레임마다 샘플링합니다.\n2) 자동 모드에서는 AI가 대표 프레임에서 박스를 자동으로 찾아주므로 직접 그릴 필요가 없습니다.\n3) 빨강/노랑/초록 전환을 모두 기록하여 주기 횟수와 평균 지속 시간을 리포트합니다.\n\n처음 사용하시나요? 자동 모드를 켠 채 \"ROI 미리보기\"를 눌러 AI가 제대로 찾았는지 확인한 뒤 분석을 실행하세요. 결과가 부정확하다면 수동 모드로 전환합니다.",
+  "lightPreviewButton": "ROI 미리보기",
+  "lightPreviewConfirm": "이대로 사용",
+  "lightPreviewManual": "수동으로 설정",
+  "lightPreviewNoVideo": "먼저 영상을 선택해야 ROI를 미리볼 수 있습니다.",
+  "lightPreviewExtractFailed": "영상에서 프레임을 추출하지 못했습니다.",
+  "lightPreviewVlmUnavailable": "AI 서버가 응답하지 않습니다 — 수동 모드로 직접 그려 주세요.",
+  "lightPreviewEmpty": "AI가 이 프레임에서 신호등을 찾지 못했습니다. 수동 모드를 사용하세요.",
+  "lightPreviewTitle": "AI가 제안한 ROI",
+  "lightPreviewSubtitle": "{count}개의 신호등이 감지되었습니다",
+  "@lightPreviewSubtitle": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "lightPreviewLowConfidence": "신뢰도 낮음 ({pct}%) — 결과를 자세히 확인하세요.",
+  "@lightPreviewLowConfidence": {
+    "placeholders": {
+      "pct": { "type": "String" }
+    }
+  },
 
   "videoAnalysisTrafficLightTitle": "신호등 시간",
   "videoAnalysisTrafficLightLabel": "신호: {label}",
@@ -651,6 +696,25 @@
 
   "countLineWhatIsThisTitle": "이 설정은 무엇인가요?",
   "countLineWhatIsThisBody": "두 가상의 선을 그으면 차량이 두 선을 모두 통과할 때 1대로 카운트됩니다(순서 무관). 단일 선보다 정확하며 진입(IN)/진출(OUT) 방향까지 분리됩니다.",
+
+  "pedestrianZoneConfigure": "보행자 ROI",
+  "pedestrianZoneEditorTitle": "보행자 ROI",
+  "pedestrianZoneEditorClear": "영역 초기화",
+  "pedestrianZoneEditorTooSmall": "보행자 ROI에는 최소 3개의 꼭짓점이 필요합니다.",
+  "pedestrianZoneEditorHint": "탭하여 꼭짓점을 추가하세요. {remaining}개 더 필요합니다.",
+  "@pedestrianZoneEditorHint": {
+    "placeholders": {
+      "remaining": { "type": "int" }
+    }
+  },
+  "pedestrianZoneEditorHintDone": "ROI 준비 완료 ({count}개 꼭짓점). 더 추가하거나 저장하세요.",
+  "@pedestrianZoneEditorHintDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pedestrianZoneWhatIsThisTitle": "이 설정은 무엇인가요?",
+  "pedestrianZoneWhatIsThisBody": "보행자를 계수할 영역을 지정하는 선택적 다각형입니다. 발이 다각형 안에 있는 사람만 합계에 포함됩니다 — 카메라가 관련 없는 인도를 함께 비추는 사이트에 유용합니다. 설정하지 않으면 전체 프레임을 계수합니다.",
 
   "lprWhatIsThisTitle": "이 설정은 무엇인가요?",
   "lprWhatIsThisBody": "허용 목록(상주 차량)에 등록된 번호판은 ‘상주’로, 그 외는 ‘방문’으로 분류됩니다. 번호판 자체는 AI가 자동으로 인식하므로 ROI 설정이 필요 없습니다.",

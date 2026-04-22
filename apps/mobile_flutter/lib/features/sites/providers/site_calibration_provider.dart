@@ -97,6 +97,16 @@ class SiteCalibrationNotifier extends StateNotifier<SiteCalibrationState> {
     return update(next);
   }
 
+  Future<void> setPedestrianZoneOverride(
+    PedestrianZoneOverride? override,
+  ) {
+    final cur = state.calibration;
+    final next = override == null
+        ? cur.withoutPedestrianZone()
+        : cur.copyWith(pedestrianZoneOverride: override);
+    return update(next);
+  }
+
   Future<void> setLprAllowlist(List<String> plates) =>
       update(state.calibration.copyWith(lprAllowlist: plates));
 

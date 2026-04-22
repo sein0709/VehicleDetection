@@ -141,6 +141,52 @@ class VideoAnalysisRemoteService {
     }
   }
 
+  /// Pre-flight traffic-light ROI preview.
+  ///
+  /// Uploads [frameBytes] (a JPEG/PNG-encoded keyframe extracted on-device)
+  /// and returns the list of proposed light bboxes. Throws
+  /// [VideoAnalysisException] when the VLM is unavailable on the server (HTTP
+  /// 503) so the UI can drop the operator straight into the manual editor.
+  Future<List<TrafficLightRoiProposal>> previewTrafficLightRoi(
+    Uint8List frameBytes, {
+    String filename = 'frame.jpg',
+  }) async {
+    final formData = FormData.fromMap({
+      'image': MultipartFile.fromBytes(
+        frameBytes,
+        filename: filename,
+      ),
+    });
+
+    final Response<Map<String, dynamic>> response;
+    try {
+      response = await _dio.post<Map<String, dynamic>>(
+        ApiConstants.trafficLightPreviewUrl,
+        data: formData,
+        options: Options(
+          // VLM round-trip can take a few seconds even on a cached crop;
+          // give it more headroom than the default 30s receive timeout.
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
+    } on DioException catch (e) {
+      throw VideoAnalysisException(_messageFromDioException(e));
+    }
+
+    final data = response.data;
+    if (data == null) {
+      throw const VideoAnalysisException(
+        'Server returned an empty preview response.',
+      );
+    }
+    final raw = data['lights'];
+    if (raw is! List) return const [];
+    return [
+      for (final item in raw)
+        if (item is Map) TrafficLightRoiProposal.fromJson(item),
+    ];
+  }
+
   /// Single GET to the job status endpoint.
   Future<Map<String, dynamic>> _checkJobStatus(String jobId) async {
     final Response<Map<String, dynamic>> response;
@@ -168,6 +214,45 @@ class VideoAnalysisException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// One traffic-light bbox proposal returned by the preview endpoint.
+/// Coordinates are normalized 0..1 (caller scales by the displayed image
+/// dimensions for overlay rendering).
+class TrafficLightRoiProposal {
+  const TrafficLightRoiProposal({
+    required this.label,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+    required this.confidence,
+    required this.aboveThreshold,
+  });
+
+  final String label;
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+  final double confidence;
+  final bool aboveThreshold;
+
+  factory TrafficLightRoiProposal.fromJson(Map<dynamic, dynamic> json) {
+    final roiRaw = json['roi'];
+    final roi = roiRaw is List && roiRaw.length == 4
+        ? roiRaw.map((v) => (v as num).toDouble()).toList()
+        : <double>[0, 0, 0, 0];
+    return TrafficLightRoiProposal(
+      label: (json['label'] ?? 'main').toString(),
+      x: roi[0],
+      y: roi[1],
+      width: roi[2],
+      height: roi[3],
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      aboveThreshold: json['above_threshold'] == true,
+    );
+  }
 }
 
 String _messageFromDioException(DioException e) {

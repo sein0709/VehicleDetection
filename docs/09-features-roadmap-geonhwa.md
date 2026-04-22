@@ -19,12 +19,12 @@ Legend: ✅ done · 🚧 partial · ❌ not started
 | # | Feature (KR) | Status | Lives in |
 |---|---|---|---|
 | F1 | 차종별 인식영상 (가로/3G/4G/회전) | 🚧 3G validated, others untested | `pipeline.py` + per-site calibration |
-| F2 | 보행자 이동 카운팅 | ❌ blocked — no pedestrian class in `best.pt` | needs detector change |
+| F2 | 보행자 이동 카운팅 | ✅ YOLO11n secondary detector + optional ROI polygon | `pipeline.py` (`PEDESTRIAN_CLASS_ID=100`), `pedestrian_zone_editor_screen.dart` |
 | F3 | PM/오토바이/킥보드/자전거 2륜차 카운팅 | 🚧 detection wired, output schema TBD | `config.py` (`TWO_WHEELER_CLASS_IDS`) |
-| F4 | 속도분석 (두 라인) | ✅ code done, needs site calibration | `tasks_speed.py` |
-| F5 | 주거시설 상주/방문 (번호판) | 🚧 Gemma+EasyOCR wired, resident allowlist TBD | `ocr.py`, `vlm.py` |
-| F6 | 대중교통 승하차 + 밀집도 | ✅ counting + density wired, **VLM auto-calibration** ships polygons | `tasks_transit.py`, `auto_calibration.py` |
-| F7 | 신호등 시간계산 | ✅ multi-light + **VLM auto-ROI** + ambiguous-state correction wired | `tasks_light.py`, `auto_calibration.py` |
+| F4 | 속도분석 (두 라인) | ✅ code done, dropped-tracks surfaced in report; needs site calibration | `tasks_speed.py` |
+| F5 | 주거시설 상주/방문 (번호판) | ✅ Gemma+EasyOCR + Supabase recurrence-based classification (replaces allowlist) | `ocr.py`, `vlm.py`, `plate_repository.dart`, Supabase: `plate_visits` + `plate_classifications` |
+| F6 | 대중교통 승하차 + 밀집도 | ✅ **VLM-per-bus-arrival** boarding/alighting (was heuristic) + density | `tasks_transit.py` (`BusArrival`, `pop_finalized_arrivals`), `vlm.py::BUS_BOARDING` |
+| F7 | 신호등 시간계산 | ✅ multi-light + VLM auto-ROI + **first-time wizard with ROI preview dialog** | `tasks_light.py`, `auto_calibration.py`, `server.py::/preview_traffic_light_roi` |
 
 ---
 
@@ -67,30 +67,29 @@ Single pipeline with pluggable calibration:
 
 ## F2 — 보행자 이동 카운팅
 
-Count pedestrians crossing the frame.
+Count pedestrians crossing the frame, optionally restricted to an
+operator-drawn polygon ROI.
 
-### Today
-**Not functional.** The trained `best.pt` has **no pedestrian class** (verified: `m.names` shows 21 classes, none of them `person`). `config.py` has `PEDESTRIAN_CLASS_ID = -1` as a sentinel so the code doesn't crash but always returns 0.
+### Today (✅ shipped)
+- Secondary `YOLO11n` detector runs in parallel with the vehicle RT-DETR;
+  COCO `person` (class 0) is remapped to the unified `PEDESTRIAN_CLASS_ID = 100`
+  so the merged `sv.Detections` has one canonical id per category
+  (`runpod/config.py`, `runpod/pipeline.py::get_pedestrian_model`).
+- Tracker ids are namespace-shifted by `PEDESTRIAN_TRACK_ID_OFFSET = 1_000_000`
+  to avoid collisions with vehicle tracker ids.
+- Optional **`pedestrian_zone`** polygon (`PedestrianZoneCfg`) — when set,
+  pedestrians whose `BOTTOM_CENTER` anchor never lands inside the polygon
+  are excluded from the report total. Mobile editor:
+  `pedestrian_zone_editor_screen.dart` (reuses `CalibrationCanvas`).
+- `_build_report` exposes `report["pedestrian"] = {roi_used, roi_excluded}`
+  so operators can see how many tracks the filter removed.
 
 ### Gaps
-Everything. The detector can't see pedestrians.
-
-### Approach — three viable paths
-| Path | Pros | Cons |
-|---|---|---|
-| **A. Add pedestrian labels to the RT-DETR training set + retrain** | Single-model simplicity, matches existing deployment | Multi-week labelling + training |
-| **B. Run a secondary YOLO detector in parallel for person/bike (COCO classes 0, 1, 3)** | Fast — `yolo11n.pt` is already in the repo. Decoupled from vehicle model. | Second inference pass (~2-3× CPU, negligible on GPU) |
-| **C. Use Gemma on sampled frames** | No extra model file | Slow + quota-expensive for per-frame counting |
-
-### Recommendation — **Path B**
-Dual-model pipeline: RT-DETR for vehicles, YOLO11n for person+bike+motorcycle. Merge `sv.Detections` from both. Tracker sees the union.
-
-### Blockers
-- Weights for `yolo11n.pt` already in repo root. Just wire a second `YOLO()` call.
-- Need to decide confidence threshold for people (typically lower than vehicles — 0.25 is reasonable).
+- Per-15-min counts inside the ROI (currently aggregate only). Tracked but
+  not in scope for the current phase.
 
 ### Effort
-**S** — ~1 day to wire a second detector and a merge step. Unit tests straightforward.
+Done. Future work (per-15-min table) is **S**.
 
 ---
 
@@ -167,110 +166,118 @@ Fully coded in `tasks_speed.py`:
 
 ## F5 — 주거시설 상주/방문 (차량번호판 인식)
 
-For residential driveways, read Korean plates, classify each plate as *resident* (on allowlist) or *visitor*.
+Read Korean plates and classify each plate as *resident* or *visitor* based
+on **recurrence across analysis runs** (a plate that appears across ≥ N
+distinct jobs at a site is a resident; one-offs are visitors).
 
-### Today
-OCR stack is built:
-- `vlm.py` — Gemma does plate detection + OCR in a single call (returns bbox + text)
-- `ocr.py` — EasyOCR(`ko`, `en`) as a secondary verifier on the Gemma-returned plate crop
-- Triggered per tracked vehicle when `calibration.lpr.enabled=true`
-- Korean plate normalizer regex: `(\d{2,3})([가-힣])(\d{4})`
+### Today (✅ shipped)
+- OCR stack: `vlm.py::PLATE_OCR` (Gemma, plate bbox + text in one call) +
+  `ocr.py::EasyOcrVerifier` (Korean+English secondary pass on the Gemma
+  crop). Triggered per tracked vehicle when `calibration.lpr.enabled=true`.
+- **Server stops classifying.** `pipeline._build_report` no longer matches
+  against an inline allowlist. Each per-plate record now carries
+  `{text|text_hash, source, first_seen_s, last_seen_s, dwell_seconds, category: "unknown"}`
+  so the mobile client owns the classification.
+- **Supabase schema** (migration `lpr_plate_visits_and_classifications`):
+  - `plate_visits` — one row per (analysis run, plate). Org-scoped RLS
+    mirrors the existing `sites` policies.
+  - `plate_classifications` — denormalized verdict per `(site, plate)`,
+    refreshed via the `refresh_plate_classification(_site, _plate, _threshold)`
+    Postgres function (default threshold = **3 distinct jobs**).
+- **`PlateRepository`** (`apps/mobile_flutter/lib/features/sites/services/plate_repository.dart`):
+  inserts the run's visits, calls the refresh RPC per plate, fetches the
+  site's all-time totals, and returns a per-plate `categories` map +
+  `SitePlateTotals`. The screen swaps the in-memory plates with the new
+  categories and shows a "site total: X resident / Y visitor" subtitle.
+- **xlsx export** includes a 번호판 sheet with per-plate rows + this-run
+  + all-time totals.
 
 ### Gaps
-| Item | Fix |
-|---|---|
-| **Resident allowlist storage** | Needs a table (likely Supabase based on existing repo setup). Site admins upload resident plate list per facility |
-| **Resident/visitor tagging in the report** | Compare extracted plate against allowlist; add `{plate_text, category: "resident"|"visitor", seen_at: ts}` |
-| **Plate privacy handling** | Plates are PII. Need retention/encryption policy. Coordinate with `docs/06-security-and-compliance.md` |
-| **Daytime validation** | Gemma plate reads have not been benchmarked against ground truth |
-| **EasyOCR gpu=True on CPU build** | Currently `easyocr.Reader(..., gpu=True)` fails on Mac. Already gated in `ocr.py`, but ensure `OCR_USE_GPU` env var controls this cleanly |
-
-### Approach
-1. Data model: add `residential_plates` table (fields: `site_id`, `plate_text`, `resident_name`, `added_at`)
-2. Calibration extends: `lpr: {enabled, residential_only, allowlist_source: "supabase"|"inline", allowlist: [...]}`
-3. Report adds `plates: [{track_id, text, source, category}]`
-4. Mobile: new screen for managing resident plate list per site
-5. Privacy review per security doc — hash plate text for storage if policy requires
-
-### Blockers
-- Legal / compliance review on plate storage
-- Supabase schema changes (need DBA sign-off)
-- No benchmark dataset for Korean plate OCR accuracy on this camera angle
+- Plate retention policy still needs a written sign-off — `docs/06-security-and-compliance.md` should reference the new tables explicitly.
+- No benchmark dataset for Korean plate OCR accuracy on this camera angle.
+- The threshold (`3 distinct jobs`) is hardcoded in the repository's
+  `_defaultResidentThresholdJobs`. A future iteration could surface it as a
+  per-site setting.
 
 ### Effort
-**M** — ~3 days for backend + schema + privacy review + mobile UI. Core pipeline is done.
+Done. Privacy/policy review is the only remaining work item.
 
 ---
 
 ## F6 — 대중교통 승하차 + 밀집도
 
-At a bus stop:
-- Count **승차 (boarding)** and **하차 (alighting)** separately, each tagged visually with a different colour
-- Compute **밀집도 (density)** as a percentage, visualised with a circle marker on each detected head
+At a bus stop, count **승차 (boarding)** and **하차 (alighting)** per
+arrival event and report **밀집도 (density)** as a rolling percentage.
 
-### Today
-`tasks_transit.py`:
-- `sv.PolygonZone` for the bus-stop footprint (counts persons inside)
-- `sv.LineZone` per door for boarding/alighting counts
-- Density = `count_inside / max_capacity × 100`
-- Bus-presence gate via optional `bus_zone_polygon`
-- Annotated MP4 output with head circles + boarding (green) / alighting (red) tags
-- Report schema: `{peak_count, avg_density_pct, boarding, alighting, samples: [...], bus_gated}`
-- **VLM auto-calibration** (`runpod/auto_calibration.py`): when the mobile client is in "auto" mode, the server samples one keyframe and asks Gemma to propose the stop polygon, door line, and bus zone — falls back to the wide-bottom-band default if the VLM is unavailable or low-confidence
-- **VLM density correction** (`TransitEngine.apply_vlm_density_correction`): on near-capacity scenes the CV count is overridden by Gemma's headcount when occlusion is suspected; the override never lowers an already-observed pixel-level count
+### Today (✅ shipped)
+- `tasks_transit.py`:
+  - `sv.PolygonZone` for the bus-stop footprint (density / peak count).
+  - **Bus-arrival event detector**: state machine on `_any_bus_present()`
+    transitions a `BusArrival` through `arrival_t → door_crops → departure_t`.
+    Up to `MAX_ARRIVAL_CROPS = 12` door-region crops per arrival; on
+    departure the pipeline picks `{first, mid, last}` and submits one
+    multi-image VLM call.
+  - `pop_finalized_arrivals()` lets the pipeline drain just-closed
+    arrivals between frames; `finalize_open_arrival()` handles the case
+    where the clip ends mid-event.
+  - `apply_vlm_boarding(arrival_idx, boarding, alighting, confidence)` is
+    routed by `_apply_aux_vlm("bus_boarding", ...)`.
+- `vlm.py`:
+  - New `VLMTask.BUS_BOARDING` + multi-image prompt that asks Gemma to
+    count people moving toward / away from the bus across sequential
+    frames.
+  - `VLMRequest.extra_images` lets any task ship 1-N additional crops in
+    one prompt; `_call_model` encodes each as a separate `Part`.
+- Report (`TransitEngine.report`) now ships:
+  - `boarding`, `alighting` summed across VLM-applied arrivals (or the
+    LineZone fallback when the VLM is unavailable).
+  - `arrivals: K` and `source: "vlm" | "linezone_fallback"`.
+  - `per_arrival: [{arrival_t, departure_t, boarding, alighting, vlm_applied}]`.
+- VLM density correction (`apply_vlm_density_correction`) and auto-
+  calibration (`auto_calibration.py::BUS_STOP_LAYOUT`) carry over
+  unchanged.
+- Mobile: `_TransitCard` shows the source flag and the arrival count.
 
 ### Gaps
-| Item | Fix |
-|---|---|
-| **Per-pedestrian boarding tag accuracy** | The current `_harvest_door_crossings` heuristic tags the first N "unseen" tracker IDs as the directional crossings; supervision 0.27 doesn't expose per-crossing tids directly. Counts themselves come from `LineZone` so totals are accurate, but the visual head-circle colouring is approximate |
-| **Validation footage** | Still need a labelled bus-stop clip with known boarding/alighting events to ground-truth the totals end-to-end |
-
-### Approach
-1. Land F2 Path B first (secondary YOLO for person)
-2. Add head-circle rendering: for each person detection inside polygon, draw a circle at `((x1+x2)/2, y1 + 0.1*(y2-y1))`
-3. Output video stream: extend pipeline to optionally write an annotated MP4
-4. Direction-colour LineZone annotator (green for 승차, red for 하차 — common convention)
-5. Bus-presence gating: use the existing vehicle detector. If a track of class_2 (bus) is inside a `bus_stop_polygon` sub-region, gate the door LineZone
-
-### Blockers
-- F2 must land first (no person detection)
-- Need one test video filmed at a bus stop with known boarding/alighting events for validation
+- Need a labelled bus-stop clip with known boarding/alighting events to
+  ground-truth VLM accuracy end-to-end.
 
 ### Effort
-**M-L** — ~4 days. Mostly visualization + the bus-presence gate.
+Done. Validation pass is the next step.
 
 ---
 
 ## F7 — 신호등 시간계산
 
-Compute red/yellow/green dwell times over the clip duration.
+Compute red/yellow/green dwell times. Same engine as before — the focus
+of this phase was **first-time-operator UX**, since the engine itself was
+already production-quality.
 
-### Today
-Fully coded in `tasks_light.py`:
-- Multi-light support — `traffic_lights: [{label, roi}, …]`
-- HSV mask per sampled frame, `cv2.inRange` on red (2 ranges), green, yellow
-- State machine appends `StateSpan` on transitions
-- Report: `{traffic_lights: [{label, cycles, timeline}, …]}` (singular `cycles`/`timeline` kept for back-compat when only one light is configured)
-- **VLM auto-ROI** (`auto_calibration.py`): mobile "auto" mode ships only the label; the server VLM proposes a tight bbox around the lamp housing from a keyframe
-- **VLM ambiguous-state correction** (now wired): when the HSV pass returns `unknown` for several frames in a row, the pipeline submits the crop as `LIGHT_STATE` to Gemma, drains the result in `_apply_aux_vlm`, and rewrites the matching `StateSpan` (was previously submitted-and-forgotten — fixed in this iteration)
+### Today (✅ shipped)
+- `tasks_light.py`:
+  - Multi-light support, HSV state machine, `StateSpan` per transition,
+    `cycles + timeline` report shape.
+  - VLM auto-ROI (`auto_calibration.py::LIGHT_LAYOUT`) and ambiguous-state
+    correction (`LIGHT_STATE` for `unknown` runs).
+- **First-time wizard** (this phase):
+  - Inline `_LightHelpCard` (3-step explainer) under the auto-light row in
+    the task panel.
+  - **`POST /preview_traffic_light_roi`** server endpoint that accepts one
+    keyframe (multipart upload) and returns the VLM's proposed bbox per
+    light head in normalized coords.
+  - Mobile "ROI 미리보기" button extracts the keyframe via
+    `VideoFrameExtractor`, posts it, and shows the bbox over the keyframe
+    in `_LightPreviewDialog`. Operator confirms (keep auto) or jumps into
+    `TrafficLightRoiEditorScreen` (manual).
 
 ### Gaps
-| Item | Fix |
-|---|---|
-| **Arrow signals (좌회전/직진/보행)** | HSV can only distinguish red/yellow/green hues. Directional arrows within the same colour are indistinguishable without a shape classifier or per-transition Gemma call (cheap — only fires at state changes) |
-| **Validation** | No ground-truth signal-phase data for any test site |
-
-### Approach
-1. Calibration schema: `traffic_lights: [{label, roi}, {label, roi}, ...]` (array instead of single)
-2. Report schema: `{traffic_lights: [{label, cycles, timeline}, ...]}`
-3. Arrow detection: optional VLM-per-transition call that asks "what direction is the current signal?" — only fires at state changes (cheap)
-4. Calibration helper script similar to F4: load first frame, click ROI per light head
-
-### Blockers
-- None technical. Just needs calibration UI and validation clips.
+- Arrow signals (좌회전/직진/보행) — HSV can only distinguish hue. A
+  per-transition VLM call ("what direction?") is the cheapest fix and is
+  trivially layered on top of the existing `LIGHT_STATE` path.
+- No ground-truth signal-phase data for any test site.
 
 ### Effort
-**S** — ~1 day for multi-light support + calibration helper.
+Done.
 
 ---
 
@@ -308,7 +315,13 @@ F1, F3, F5 all make Gemma calls per track. At a busy intersection (~200 vehicles
 - Gemma result caching across repeat site visits (perceptual hash is already in `vlm.py`)
 
 ### C5. Output formats
-Today every task returns JSON. F6 wants an annotated MP4. F7 could use a timeline chart. Decide early if we're shipping videos (big payloads) or overlays-as-SVG (lightweight for mobile).
+- **JSON** — primary report shape, every task contributes a section.
+- **Annotated MP4** — opt-in via `output_video` / `transit.output_video`;
+  served from `GET /video/{job_id}?kind={classified|transit}`.
+- **xlsx** — multi-sheet workbook generated client-side. Sheets:
+  `결과값` (legacy Korean traffic-count template, kept for back-compat)
+  + `요약` + per-feature sheets (`보행자 / 속도 / 대중교통 / 신호등 / 번호판`).
+  Builders live under `apps/mobile_flutter/lib/features/sites/services/xlsx/`.
 
 ---
 

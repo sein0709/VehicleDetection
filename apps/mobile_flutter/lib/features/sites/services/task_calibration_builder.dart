@@ -94,6 +94,18 @@ class CountLineOverride {
   final List<List<double>> outLineXY;
 }
 
+/// Optional pedestrian ROI polygon for F2. When set, the server's
+/// `parse_calibration` builds a `sv.PolygonZone` and only counts
+/// pedestrian tracks whose BOTTOM_CENTER anchor lay inside the polygon
+/// at any sampled frame. When null, the entire frame is counted —
+/// preserves the legacy behaviour for sites that don't need a filter.
+class PedestrianZoneOverride {
+  const PedestrianZoneOverride({required this.polygonXY});
+
+  /// 3+ vertices, each `[x, y]` in normalized [0..1] image-space.
+  final List<List<double>> polygonXY;
+}
+
 /// Transit-task override for F6.
 class TransitOverride {
   const TransitOverride({
@@ -117,6 +129,7 @@ String buildCalibrationJson({
   SpeedOverride? speedOverride,
   TransitOverride? transitOverride,
   CountLineOverride? countLineOverride,
+  PedestrianZoneOverride? pedestrianZoneOverride,
   List<String> lprAllowlist = const [],
   // Auto-mode flags: when true the geometry is omitted and the server's
   // VLM auto-calibration pre-pass fills it from a video keyframe.
@@ -140,6 +153,17 @@ String buildCalibrationJson({
     body['count_lines'] = <String, Object?>{
       'in': countLineOverride.inLineXY,
       'out': countLineOverride.outLineXY,
+    };
+  }
+
+  // Pedestrian ROI is independent of `tasks_enabled` — operators can
+  // draw it whenever the pedestrians task is on (which is the default),
+  // and the server silently ignores it otherwise. Only emit when the
+  // operator actually saved a polygon.
+  if (pedestrianZoneOverride != null &&
+      pedestrianZoneOverride.polygonXY.length >= 3) {
+    body['pedestrian_zone'] = <String, Object?>{
+      'polygon': pedestrianZoneOverride.polygonXY,
     };
   }
 

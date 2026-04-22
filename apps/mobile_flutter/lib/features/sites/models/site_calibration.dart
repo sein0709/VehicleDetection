@@ -16,6 +16,7 @@ class SiteCalibration {
     this.speedOverride,
     this.transitOverride,
     this.countLineOverride,
+    this.pedestrianZoneOverride,
     this.lprAllowlist = const [],
     this.transitAutoMode = true,
     this.lightAutoMode = true,
@@ -34,6 +35,10 @@ class SiteCalibration {
   final SpeedOverride? speedOverride;
   final TransitOverride? transitOverride;
   final CountLineOverride? countLineOverride;
+  /// Optional pedestrian ROI polygon (F2). Restricts the pedestrian
+  /// total to tracks whose anchor lay inside the polygon. Null means
+  /// "count the whole frame" — the legacy default.
+  final PedestrianZoneOverride? pedestrianZoneOverride;
   final List<String> lprAllowlist;
   /// When true, the transit task is sent to the server with only
   /// [transitMaxCapacity] — no polygons. The server's auto-calibration
@@ -60,6 +65,7 @@ class SiteCalibration {
     SpeedOverride? speedOverride,
     TransitOverride? transitOverride,
     CountLineOverride? countLineOverride,
+    PedestrianZoneOverride? pedestrianZoneOverride,
     List<String>? lprAllowlist,
     bool? transitAutoMode,
     bool? lightAutoMode,
@@ -75,6 +81,8 @@ class SiteCalibration {
       speedOverride: speedOverride ?? this.speedOverride,
       transitOverride: transitOverride ?? this.transitOverride,
       countLineOverride: countLineOverride ?? this.countLineOverride,
+      pedestrianZoneOverride:
+          pedestrianZoneOverride ?? this.pedestrianZoneOverride,
       lprAllowlist: lprAllowlist ?? this.lprAllowlist,
       transitAutoMode: transitAutoMode ?? this.transitAutoMode,
       lightAutoMode: lightAutoMode ?? this.lightAutoMode,
@@ -93,6 +101,7 @@ class SiteCalibration {
         speedOverride: null,
         transitOverride: transitOverride,
         countLineOverride: countLineOverride,
+        pedestrianZoneOverride: pedestrianZoneOverride,
         lprAllowlist: lprAllowlist,
         transitAutoMode: transitAutoMode,
         lightAutoMode: lightAutoMode,
@@ -106,6 +115,7 @@ class SiteCalibration {
         speedOverride: speedOverride,
         transitOverride: null,
         countLineOverride: countLineOverride,
+        pedestrianZoneOverride: pedestrianZoneOverride,
         lprAllowlist: lprAllowlist,
         transitAutoMode: transitAutoMode,
         lightAutoMode: lightAutoMode,
@@ -119,6 +129,21 @@ class SiteCalibration {
         speedOverride: speedOverride,
         transitOverride: transitOverride,
         countLineOverride: null,
+        pedestrianZoneOverride: pedestrianZoneOverride,
+        lprAllowlist: lprAllowlist,
+        transitAutoMode: transitAutoMode,
+        lightAutoMode: lightAutoMode,
+        transitMaxCapacity: transitMaxCapacity,
+        lightAutoLabel: lightAutoLabel,
+      );
+  SiteCalibration withoutPedestrianZone() => SiteCalibration(
+        includeAnnotatedVideo: includeAnnotatedVideo,
+        enabledTasks: enabledTasks,
+        trafficLightOverrides: trafficLightOverrides,
+        speedOverride: speedOverride,
+        transitOverride: transitOverride,
+        countLineOverride: countLineOverride,
+        pedestrianZoneOverride: null,
         lprAllowlist: lprAllowlist,
         transitAutoMode: transitAutoMode,
         lightAutoMode: lightAutoMode,
@@ -163,6 +188,10 @@ class SiteCalibration {
             'in_line_xy': countLineOverride!.inLineXY,
             'out_line_xy': countLineOverride!.outLineXY,
           },
+        if (pedestrianZoneOverride != null)
+          'pedestrian_zone_override': <String, Object?>{
+            'polygon_xy': pedestrianZoneOverride!.polygonXY,
+          },
       };
 
   static SiteCalibration fromJson(Map<String, Object?> json) {
@@ -187,6 +216,8 @@ class SiteCalibration {
       speedOverride: _parseSpeed(json['speed_override']),
       transitOverride: _parseTransit(json['transit_override']),
       countLineOverride: _parseCountLine(json['count_line_override']),
+      pedestrianZoneOverride:
+          _parsePedestrianZone(json['pedestrian_zone_override']),
       lprAllowlist: allowlist,
       // schema_version=1 records didn't include these fields; default
       // to ON so existing sites get the new VLM-driven UX automatically.
@@ -257,6 +288,19 @@ SpeedOverride? _parseSpeed(Object? raw) {
   );
 }
 
+PedestrianZoneOverride? _parsePedestrianZone(Object? raw) {
+  if (raw is! Map) return null;
+  final polyRaw = raw['polygon_xy'];
+  if (polyRaw is! List) return null;
+  final polygon = polyRaw
+      .whereType<List<dynamic>>()
+      .map<List<double>>(
+          (p) => p.map((v) => (v as num).toDouble()).toList(),)
+      .toList();
+  if (polygon.length < 3) return null;
+  return PedestrianZoneOverride(polygonXY: polygon);
+}
+
 CountLineOverride? _parseCountLine(Object? raw) {
   if (raw is! Map) return null;
   List<List<double>> readLine(Object? v) {
@@ -307,6 +351,7 @@ String toCalibrationJson(SiteCalibration cal) {
     speedOverride: cal.speedOverride,
     transitOverride: cal.transitOverride,
     countLineOverride: cal.countLineOverride,
+    pedestrianZoneOverride: cal.pedestrianZoneOverride,
     lprAllowlist: cal.lprAllowlist,
     transitAutoMode: cal.transitAutoMode,
     lightAutoMode: cal.lightAutoMode,

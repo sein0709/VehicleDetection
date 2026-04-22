@@ -399,7 +399,7 @@
   "videoAnalysisProcessingHint": "The video has been uploaded. The server is processing it now. This may take several minutes depending on video length.",
   "videoAnalysisTotalCounted": "Total vehicles counted",
   "videoAnalysisBreakdown": "Breakdown by Class",
-  "videoAnalysisExportCsv": "Export CSV",
+  "videoAnalysisExportCsv": "Export XLSX",
   "videoAnalysisRetry": "Retry",
   "videoAnalysisIncludeAnnotatedVideo": "Generate annotated video",
   "videoAnalysisIncludeAnnotatedVideoHint": "Adds a labeled MP4 you can download after analysis. Increases processing time.",
@@ -470,6 +470,51 @@
   },
   "videoAnalysisTransitBusGated": "Counts gated to bus presence.",
   "videoAnalysisTransitNotGated": "All door-line crossings counted (no bus-zone gate).",
+  "videoAnalysisTransitVlmArrivals": "VLM headcount across {count, plural, =1{1 bus arrival} other{{count} bus arrivals}}.",
+  "@videoAnalysisTransitVlmArrivals": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "videoAnalysisTransitFallback": "VLM unavailable — fell back to door-line counts (less accurate).",
+
+  "platesClassifyFailed": "Plate classification could not be saved: {message}",
+  "@platesClassifyFailed": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+  "platesSiteTotals": "This site (all-time): {resident} resident / {visitor} visitor",
+  "@platesSiteTotals": {
+    "placeholders": {
+      "resident": { "type": "int" },
+      "visitor": { "type": "int" }
+    }
+  },
+  "platesClassificationPending": "Classification pending — connect to Supabase to compute resident vs visitor.",
+
+  "lightHelpTitle": "How does traffic-light timing work?",
+  "lightHelpBody": "1) The pipeline samples the colour inside a bounding box around the lamp housing every few frames.\n2) Auto mode asks the AI to find that box for you on a representative keyframe — no manual drawing required.\n3) The pipeline then logs every red/yellow/green transition and reports cycle counts plus average duration per state.\n\nFirst time? Keep Auto mode on, tap \"Preview ROI\" to confirm the AI got the lamp location right, then run the analysis. If the preview looks wrong, switch to Manual.",
+  "lightPreviewButton": "Preview ROI",
+  "lightPreviewConfirm": "Looks good",
+  "lightPreviewManual": "Adjust manually",
+  "lightPreviewNoVideo": "Pick a video first to preview the traffic-light ROI.",
+  "lightPreviewExtractFailed": "Could not extract a keyframe from this video.",
+  "lightPreviewVlmUnavailable": "The AI is offline right now — switch to Manual mode to draw the ROI yourself.",
+  "lightPreviewEmpty": "The AI didn't find any traffic light in this frame. Try Manual mode.",
+  "lightPreviewTitle": "AI proposed ROI",
+  "lightPreviewSubtitle": "{count, plural, =1{1 light detected} other{{count} lights detected}}",
+  "@lightPreviewSubtitle": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "lightPreviewLowConfidence": "Low confidence ({pct}%) — review carefully.",
+  "@lightPreviewLowConfidence": {
+    "placeholders": {
+      "pct": { "type": "String" }
+    }
+  },
 
   "videoAnalysisTrafficLightTitle": "Traffic-light timing",
   "videoAnalysisTrafficLightLabel": "Light: {label}",
@@ -651,6 +696,25 @@
 
   "countLineWhatIsThisTitle": "What does this configure?",
   "countLineWhatIsThisBody": "Two virtual lines: a vehicle is counted as one only when its track crosses BOTH lines (order doesn't matter). More accurate than a single tripwire and separates IN vs OUT direction.",
+
+  "pedestrianZoneConfigure": "Pedestrian ROI",
+  "pedestrianZoneEditorTitle": "Pedestrian ROI",
+  "pedestrianZoneEditorClear": "Clear polygon",
+  "pedestrianZoneEditorTooSmall": "Pedestrian ROI needs at least 3 vertices.",
+  "pedestrianZoneEditorHint": "Tap to add a polygon vertex. {remaining} more needed.",
+  "@pedestrianZoneEditorHint": {
+    "placeholders": {
+      "remaining": { "type": "int" }
+    }
+  },
+  "pedestrianZoneEditorHintDone": "ROI ready ({count} vertices). Tap to add more or save.",
+  "@pedestrianZoneEditorHintDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pedestrianZoneWhatIsThisTitle": "What does this configure?",
+  "pedestrianZoneWhatIsThisBody": "An optional polygon outlining the area where pedestrians should be counted. Only people whose feet land inside the polygon are added to the total — ideal for sites where the camera also frames an unrelated sidewalk in the background. Leave it unset to count the whole frame.",
 
   "lprWhatIsThisTitle": "What does this configure?",
   "lprWhatIsThisBody": "Plates on the allowlist are tagged 'resident', others 'visitor'. The AI reads plates automatically — no ROI needed.",

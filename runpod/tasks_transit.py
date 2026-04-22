@@ -2,9 +2,18 @@
 
 * Density: supervision.PolygonZone counts persons inside the bus-stop footprint
   every sampled frame. density_pct = count / max_capacity × 100.
-* Boarding/alighting: one supervision.LineZone per bus door. Counts only advance
-  while a bus is physically at the stop (optional ``bus_zone_polygon``) — this
-  keeps passers-by from inflating transit counts between bus arrivals.
+* Boarding/alighting (PRIMARY): VLM-per-arrival. The engine watches for
+  bus-presence transitions; each true→false transition closes a "bus arrival
+  event" with up to 3 sampled crops covering the door-open window. The
+  pipeline submits each arrival to ``VLMTask.BUS_BOARDING`` and the response
+  fills boarding/alighting for that arrival. Totals in the report are the
+  sum across all VLM-applied arrivals — far more reliable than the old
+  per-frame LineZone direction-tagging on supervision 0.27, which couldn't
+  expose per-crossing track ids.
+* Boarding/alighting (FALLBACK): if the VLM circuit is open or no arrivals
+  were observed, the legacy ``sv.LineZone`` per-door totals are reported and
+  flagged with ``source: "linezone_fallback"`` so the operator can tell
+  which path produced the number.
 * Annotated video output (optional): circles drawn on each person's head (top-
   centre of bbox), colour-shaded by density. Tracks that recently crossed a
   door line flash green (boarding) or red (alighting) for a short fade window.
@@ -33,6 +42,33 @@ BUS_CLASS_ID = 6
 # tracker_id after it crosses a door line.
 CROSSING_TAG_TTL = 8
 
+# Cap on stored crops per arrival so a long bus dwell (e.g. terminal layover)
+# doesn't balloon memory. The VLM only needs a representative sample.
+MAX_ARRIVAL_CROPS = 12
+
+# Padding around the door-region bounding rect so the VLM sees a bit of
+# context around the bus / curb instead of a pixel-tight crop.
+ARRIVAL_CROP_PAD_PX = 24
+
+
+@dataclass
+class BusArrival:
+    """One bus-stop event: from arrival_t to departure_t.
+
+    ``door_crops`` accumulates while the bus is present; on departure the
+    pipeline harvests a small representative subset (first / mid / last) and
+    submits them as a single multi-image VLM request. ``boarding`` and
+    ``alighting`` are 0 until the VLM result is applied via
+    ``TransitEngine.apply_vlm_boarding``.
+    """
+    arrival_t: float
+    departure_t: float = 0.0
+    door_crops: list = field(default_factory=list)
+    boarding: int = 0
+    alighting: int = 0
+    vlm_applied: bool = False
+    vlm_confidence: float = 0.0
+
 
 @dataclass
 class TransitEngine:
@@ -52,11 +88,24 @@ class TransitEngine:
     _alighted_ttl: dict[int, int] = field(default_factory=dict)
     # per-door previous in/out counts so we can detect which tids just crossed
     _door_counts: list[tuple[int, int]] = field(default_factory=list)
-    # Cumulative, bus-gated boarding/alighting totals
+    # FALLBACK boarding/alighting totals from the LineZone heuristic. Only
+    # surfaced when no VLM arrivals were observed (circuit open or no bus).
     boarding_total: int = 0
     alighting_total: int = 0
     # Per-tid direction bookkeeping so a tid is only counted once per door.
     _tid_direction: dict[int, str] = field(default_factory=dict)
+
+    # Bus-arrival event detector state.
+    arrivals: list[BusArrival] = field(default_factory=list)
+    _bus_present_prev: bool = False
+    _current_arrival: BusArrival | None = None
+    # Indices of arrivals finalized in the most-recent update() call.
+    # The pipeline polls this via pop_finalized_arrivals() to know which
+    # arrivals to send to the VLM right now.
+    _just_departed_idx: list[int] = field(default_factory=list)
+    # Cached door-region bbox (computed lazily once we know the polygons
+    # have been resolved to pixel coords).
+    _door_bbox: tuple[int, int, int, int] | None = None
 
     def __post_init__(self) -> None:
         poly = np.array(self.cfg.stop_polygon, dtype=np.int32)
@@ -85,7 +134,22 @@ class TransitEngine:
         self,
         detections: sv.Detections,
         timestamp_s: float,
+        frame: np.ndarray | None = None,
     ) -> None:
+        # Bus-presence gate is computed first so it's always available for
+        # arrival-event detection even when there are no person detections
+        # (a bus pulling in with nobody at the stop is still an arrival).
+        bus_present = (
+            False
+            if detections.class_id is None or len(detections) == 0
+            else self._any_bus_present(detections)
+        )
+
+        # Arrival / departure transitions drive the BusArrival queue. The
+        # pipeline polls pop_finalized_arrivals() after each update to ship
+        # the closed events to the VLM.
+        self._update_bus_arrival(bus_present, timestamp_s, frame)
+
         if detections.class_id is None or len(detections) == 0:
             self._decay_tags()
             return
@@ -107,13 +171,9 @@ class TransitEngine:
                  "density_pct": round(pct, 1)}
             )
 
-        # Bus-presence gate. Counts only advance when a bus detection overlaps
-        # the bus_zone_polygon (or any bus exists in frame, if no zone given).
-        bus_present = self._any_bus_present(detections)
-
         # Door crossings — always call trigger() to keep supervision's internal
         # state consistent (tracker ids it has already seen), but only credit
-        # the count when a bus is at the stop.
+        # the FALLBACK count when a bus is at the stop.
         if len(persons) > 0:
             for i, door in enumerate(self.doors):
                 door.trigger(persons)
@@ -122,7 +182,115 @@ class TransitEngine:
 
         self._decay_tags()
 
+    def _update_bus_arrival(
+        self,
+        bus_present: bool,
+        timestamp_s: float,
+        frame: np.ndarray | None,
+    ) -> None:
+        """State machine on bus presence.
+
+        false→true: open a new BusArrival; capture first crop.
+        true→true:  append crop (capped) so we have a sequence to send.
+        true→false: close the arrival and queue it for VLM dispatch.
+        """
+        if bus_present and not self._bus_present_prev:
+            self._current_arrival = BusArrival(arrival_t=round(timestamp_s, 2))
+            self._maybe_capture_crop(frame)
+        elif bus_present and self._current_arrival is not None:
+            self._maybe_capture_crop(frame)
+        elif not bus_present and self._bus_present_prev \
+                and self._current_arrival is not None:
+            self._current_arrival.departure_t = round(timestamp_s, 2)
+            self.arrivals.append(self._current_arrival)
+            self._just_departed_idx.append(len(self.arrivals) - 1)
+            self._current_arrival = None
+        self._bus_present_prev = bus_present
+
+    def _maybe_capture_crop(self, frame: np.ndarray | None) -> None:
+        if frame is None or self._current_arrival is None:
+            return
+        if len(self._current_arrival.door_crops) >= MAX_ARRIVAL_CROPS:
+            # Replace the middle crop so we always keep first + last as
+            # context anchors but still pull in something representative
+            # from the long middle.
+            mid = len(self._current_arrival.door_crops) // 2
+            crop = self._extract_door_region(frame)
+            if crop is not None:
+                self._current_arrival.door_crops[mid] = crop
+            return
+        crop = self._extract_door_region(frame)
+        if crop is not None:
+            self._current_arrival.door_crops.append(crop)
+
+    def _extract_door_region(self, frame: np.ndarray) -> np.ndarray | None:
+        if self._door_bbox is None:
+            polys = []
+            if len(self.cfg.stop_polygon) >= 3:
+                polys.append(np.array(self.cfg.stop_polygon, dtype=np.int32))
+            if self.cfg.bus_zone_polygon is not None \
+               and len(self.cfg.bus_zone_polygon) >= 3:
+                polys.append(np.array(
+                    self.cfg.bus_zone_polygon, dtype=np.int32,
+                ))
+            if not polys:
+                return None
+            stacked = np.concatenate(polys, axis=0)
+            x, y, w, h = cv2.boundingRect(stacked)
+            x = max(0, x - ARRIVAL_CROP_PAD_PX)
+            y = max(0, y - ARRIVAL_CROP_PAD_PX)
+            w = min(self.frame_w - x, w + 2 * ARRIVAL_CROP_PAD_PX)
+            h = min(self.frame_h - y, h + 2 * ARRIVAL_CROP_PAD_PX)
+            self._door_bbox = (x, y, w, h)
+        x, y, w, h = self._door_bbox
+        if w <= 0 or h <= 0:
+            return None
+        crop = frame[y:y + h, x:x + w]
+        return crop.copy() if crop.size > 0 else None
+
     # ---------------------------------------------------- reporting APIs
+    def pop_finalized_arrivals(self) -> list[tuple[int, BusArrival]]:
+        """Return arrivals finalized in the most recent update() call.
+
+        Returned indices remain stable for the lifetime of the engine, so
+        the pipeline can stash ``(arrival_idx, future)`` and route the VLM
+        verdict back via ``apply_vlm_boarding`` once the future resolves.
+        """
+        out = [(i, self.arrivals[i]) for i in self._just_departed_idx]
+        self._just_departed_idx = []
+        return out
+
+    def finalize_open_arrival(self, timestamp_s: float) -> None:
+        """Close out any in-progress arrival when the video ends mid-event.
+
+        Without this, a clip that ends while the bus is still at the stop
+        would silently drop the arrival from the report. The pipeline calls
+        this once after the decode loop, before draining VLM futures.
+        """
+        if self._current_arrival is None:
+            return
+        self._current_arrival.departure_t = round(timestamp_s, 2)
+        self.arrivals.append(self._current_arrival)
+        self._just_departed_idx.append(len(self.arrivals) - 1)
+        self._current_arrival = None
+        self._bus_present_prev = False
+
+    def apply_vlm_boarding(
+        self,
+        arrival_idx: int,
+        boarding: int,
+        alighting: int,
+        confidence: float = 0.0,
+    ) -> None:
+        """Stamp the VLM verdict onto a previously-queued arrival event."""
+        if not (0 <= arrival_idx < len(self.arrivals)):
+            return
+        a = self.arrivals[arrival_idx]
+        a.boarding = max(0, int(boarding))
+        a.alighting = max(0, int(alighting))
+        a.vlm_confidence = float(confidence)
+        a.vlm_applied = True
+
     def near_capacity(self) -> bool:
         if not self.density_samples:
             return False
@@ -161,11 +329,41 @@ class TransitEngine:
         avg_pct = 0.0
         if self.density_samples:
             avg_pct = sum(s["density_pct"] for s in self.density_samples) / len(self.density_samples)
+
+        # Boarding/alighting source resolution. The VLM totals are the
+        # primary number; if no arrival had a successful VLM result we fall
+        # back to the LineZone heuristic so the operator still gets *some*
+        # number when the VLM is unavailable.
+        vlm_arrivals = [a for a in self.arrivals if a.vlm_applied]
+        if vlm_arrivals:
+            boarding = sum(a.boarding for a in vlm_arrivals)
+            alighting = sum(a.alighting for a in vlm_arrivals)
+            source = "vlm"
+        else:
+            boarding = self.boarding_total
+            alighting = self.alighting_total
+            source = "linezone_fallback"
+
+        per_arrival = [
+            {
+                "arrival_t": a.arrival_t,
+                "departure_t": a.departure_t,
+                "boarding": a.boarding,
+                "alighting": a.alighting,
+                "vlm_applied": a.vlm_applied,
+                "vlm_confidence": round(a.vlm_confidence, 2),
+            }
+            for a in self.arrivals
+        ]
+
         out: dict[str, Any] = {
             "peak_count": self.peak_count,
             "avg_density_pct": round(avg_pct, 1),
-            "boarding": self.boarding_total,
-            "alighting": self.alighting_total,
+            "boarding": boarding,
+            "alighting": alighting,
+            "source": source,
+            "arrivals": len(self.arrivals),
+            "per_arrival": per_arrival,
             "samples": self.density_samples[-200:],
             "bus_gated": self.bus_zone is not None,
         }

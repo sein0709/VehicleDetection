@@ -33,6 +33,13 @@ abstract final class ApiConstants {
   static String videoUrl(String jobId, {String kind = 'classified'}) =>
       '${_analyzeBase()}/video/$jobId?kind=$kind';
 
+  /// Pre-flight traffic-light ROI preview. Mobile uploads a single keyframe
+  /// (extracted on-device) and the server returns the VLM's proposed bbox
+  /// per detected light head so the operator can confirm before running
+  /// the full analysis.
+  static String get trafficLightPreviewUrl =>
+      '${_analyzeBase()}/preview_traffic_light_roi';
+
   static String _analyzeBase() {
     final idx = analyzeVideoUrl.lastIndexOf('/analyze_video');
     return idx >= 0 ? analyzeVideoUrl.substring(0, idx) : analyzeVideoUrl;

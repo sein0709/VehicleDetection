@@ -151,14 +151,31 @@ class TrackState:
     ever_inside_polygon: bool = False
     ever_outside_polygon: bool = False
     polygon_seen: bool = False
+    # Pedestrian ROI membership — set when a pedestrian track's
+    # BOTTOM_CENTER anchor lay inside calibration.pedestrian_zone at any
+    # sampled frame. Used in `_build_report` to filter the pedestrian
+    # total when an operator-drawn zone is configured. Not used for
+    # vehicle tracks.
+    ever_inside_pedestrian_zone: bool = False
+
+    # Frame indices of the first and most-recent sampled detection for
+    # this track. Powers per-plate dwell time in the LPR report (the
+    # mobile client converts dwell + analysis-start wall clock into
+    # absolute first_seen_at / last_seen_at timestamps for Supabase).
+    first_observed_frame: int | None = None
+    last_observed_frame: int = 0
 
     def polygon_crossed(self) -> bool:
         return self.ever_inside_polygon and self.ever_outside_polygon
 
-    def vote(self, class_id: int, confidence: float) -> None:
+    def vote(self, class_id: int, confidence: float, frame_idx: int = 0) -> None:
         self.class_score[class_id] = self.class_score.get(class_id, 0.0) + confidence
         self.observation_count += 1
         self.total_confidence += confidence
+        if self.first_observed_frame is None:
+            self.first_observed_frame = frame_idx
+        if frame_idx > self.last_observed_frame:
+            self.last_observed_frame = frame_idx
 
     def majority_class(self) -> int | None:
         if not self.class_score:
@@ -324,6 +341,23 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
         intersection_zone = sv.PolygonZone(
             polygon=np.array(calibration.intersection_polygon.polygon, dtype=np.int32),
             triggering_anchors=(sv.Position.BOTTOM_CENTER,),
+        )
+
+    # Optional pedestrian ROI — when configured, only pedestrians whose
+    # BOTTOM_CENTER anchor falls inside the polygon contribute to the
+    # final count. When absent (the default) every pedestrian track is
+    # counted, preserving legacy behaviour.
+    pedestrian_zone: sv.PolygonZone | None = None
+    if calibration.pedestrian_zone is not None:
+        pedestrian_zone = sv.PolygonZone(
+            polygon=np.array(
+                calibration.pedestrian_zone.polygon, dtype=np.int32,
+            ),
+            triggering_anchors=(sv.Position.BOTTOM_CENTER,),
+        )
+        logger.info(
+            "Pedestrian ROI configured (%d vertices) — pedestrians outside the polygon will be excluded",
+            len(calibration.pedestrian_zone.polygon),
         )
 
     # --- Optional engines ---
@@ -496,10 +530,42 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
             if intersection_zone is not None and count_vehicles
             else None
         )
+        # Pedestrian ROI mask runs unconditionally when configured — the
+        # `count_vehicles` toggle controls vehicle counting only, and
+        # pedestrian-only deployments (bus stop, square) need the ROI
+        # filter to work even when vehicles is off.
+        pedestrian_zone_mask = (
+            pedestrian_zone.trigger(detections=detections)
+            if pedestrian_zone is not None
+            else None
+        )
         if speed_engine is not None:
             speed_engine.update(detections, frame_idx=frame_idx)
         if transit_engine is not None:
-            transit_engine.update(detections, timestamp_s=timestamp_s)
+            transit_engine.update(
+                detections, timestamp_s=timestamp_s, frame=frame,
+            )
+            # Each closed bus-arrival event becomes one VLM_BUS_BOARDING
+            # call. The arrival index travels in the future's context so
+            # the response can be routed back to the right arrival in
+            # _apply_aux_vlm.
+            for arrival_idx, arrival in transit_engine.pop_finalized_arrivals():
+                if not arrival.door_crops or not vlm_pool.is_available():
+                    continue
+                primary, extras = _select_arrival_crops(arrival.door_crops)
+                fut = vlm_pool.submit(VLMRequest(
+                    task=VLMTask.BUS_BOARDING,
+                    image=primary,
+                    extra_images=extras,
+                    context={
+                        "arrival_idx": arrival_idx,
+                        "arrival_t": arrival.arrival_t,
+                        "departure_t": arrival.departure_t,
+                    },
+                ))
+                pending_aux_vlm.append(("bus_boarding", fut, {
+                    "arrival_idx": arrival_idx,
+                }))
             if transit_writer is not None:
                 transit_writer.write(transit_engine.annotate_frame(frame, detections))
         _maybe_light_sample(
@@ -536,7 +602,7 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
             area = max(0, x2 - x1) * max(0, y2 - y1)
 
             state = tracks[tid]
-            state.vote(cls, conf)
+            state.vote(cls, conf, frame_idx=frame_idx)
 
             # Keep the highest area*confidence crop — sharper than "biggest".
             crop_score = area * conf
@@ -563,6 +629,14 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
                     state.polygon_seen = True
                 else:
                     state.ever_outside_polygon = True
+
+            # Pedestrian ROI: latch True the first time a pedestrian
+            # detection's anchor falls inside the operator-drawn polygon.
+            # Cheap state — checked once at report time, no per-frame cost
+            # beyond the trigger() call already made above.
+            if pedestrian_zone_mask is not None and cls == PEDESTRIAN_CLASS_ID \
+               and bool(pedestrian_zone_mask[i]):
+                state.ever_inside_pedestrian_zone = True
 
             # --- Operator-drawn IN/OUT segment counter ---
             # Use the bottom-center anchor (matches sv.LineZone default).
@@ -650,6 +724,31 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
         transit_writer.release()
     if classified_writer is not None:
         classified_writer.release()
+
+    # If the clip ended while a bus was still at the stop, finalize the
+    # open arrival so its VLM call still runs. Without this, an arrival
+    # that straddles the end-of-video would silently disappear from the
+    # report.
+    if transit_engine is not None:
+        last_t = frame_idx / fps
+        transit_engine.finalize_open_arrival(last_t)
+        for arrival_idx, arrival in transit_engine.pop_finalized_arrivals():
+            if not arrival.door_crops or not vlm_pool.is_available():
+                continue
+            primary, extras = _select_arrival_crops(arrival.door_crops)
+            fut = vlm_pool.submit(VLMRequest(
+                task=VLMTask.BUS_BOARDING,
+                image=primary,
+                extra_images=extras,
+                context={
+                    "arrival_idx": arrival_idx,
+                    "arrival_t": arrival.arrival_t,
+                    "departure_t": arrival.departure_t,
+                },
+            ))
+            pending_aux_vlm.append(("bus_boarding", fut, {
+                "arrival_idx": arrival_idx,
+            }))
 
     # --- Drain VLM futures ---
     logger.info("Draining VLM pending calls...")
@@ -785,6 +884,26 @@ def _just_crossed_local(state: TrackState, y_center: float, wire_y: int) -> bool
     return (old < wire_y <= y_center) or (old > wire_y >= y_center)
 
 
+def _select_arrival_crops(
+    crops: list[np.ndarray],
+) -> tuple[np.ndarray, list[np.ndarray]]:
+    """Pick a representative {first, mid, last} subset for the VLM.
+
+    The TransitEngine accumulates one crop per sampled frame while the bus
+    is at the stop. For VLM efficiency we only ship up to 3: arrival,
+    middle of the dwell, and departure. ``crops[0]`` is always returned as
+    the primary (anchors the cache key).
+    """
+    n = len(crops)
+    if n == 0:
+        raise ValueError("_select_arrival_crops requires >= 1 crop")
+    if n == 1:
+        return crops[0], []
+    if n == 2:
+        return crops[0], [crops[1]]
+    return crops[0], [crops[n // 2], crops[-1]]
+
+
 def _maybe_light_sample(
     light: TrafficLightEngine | None,
     frame: np.ndarray,
@@ -872,6 +991,7 @@ def _apply_aux_vlm(
     """
     light_corrections = 0
     density_corrections = 0
+    bus_boarding_applied = 0
     for kind, fut, ctx in pending_aux_vlm:
         try:
             result = fut.result(timeout=30)
@@ -897,10 +1017,23 @@ def _apply_aux_vlm(
                 )
                 density_corrections += 1
 
+        elif kind == "bus_boarding" and transit is not None:
+            arrival_idx = int(ctx.get("arrival_idx", -1))
+            boarding = result.get("boarding")
+            alighting = result.get("alighting")
+            conf = float(result.get("confidence", 0.0))
+            if isinstance(boarding, (int, float)) \
+                    and isinstance(alighting, (int, float)):
+                transit.apply_vlm_boarding(
+                    arrival_idx, int(boarding), int(alighting), conf,
+                )
+                bus_boarding_applied += 1
+
     if pending_aux_vlm:
         logger.info(
-            "Aux VLM applied: %d light corrections, %d density corrections (of %d submitted)",
-            light_corrections, density_corrections, len(pending_aux_vlm),
+            "Aux VLM applied: %d light, %d density, %d bus_boarding (of %d submitted)",
+            light_corrections, density_corrections, bus_boarding_applied,
+            len(pending_aux_vlm),
         )
 
 
@@ -985,6 +1118,28 @@ def _build_report(
         elif tid in crossings:
             final_class[tid] = crossings[tid]
 
+    # Pedestrian ROI: when an operator drew a polygon, that polygon is the
+    # canonical source of the pedestrian count — independent of whether
+    # vehicle counting paths fired. Add every pedestrian track whose
+    # anchor entered the polygon (and that survived the phantom-filter)
+    # to final_class. Vehicle tracks aren't touched here.
+    if calibration.pedestrian_zone is not None:
+        for tid, state in tracks.items():
+            if not state.ever_inside_pedestrian_zone:
+                continue
+            if not state.is_real_vehicle():
+                continue
+            cls = (
+                state.vlm_class_override
+                if state.vlm_class_override is not None
+                else state.majority_class()
+            )
+            if cls != PEDESTRIAN_CLASS_ID:
+                continue
+            final_class.setdefault(tid, PEDESTRIAN_CLASS_ID)
+
+    pedestrian_zone_active = calibration.pedestrian_zone is not None
+    pedestrian_zone_excluded = 0
     vehicle_breakdown: Counter = Counter()
     pedestrians = 0
     bicycles = 0
@@ -994,6 +1149,15 @@ def _build_report(
         if cls in VEHICLE_CLASS_NAMES:
             vehicle_breakdown[VEHICLE_CLASS_NAMES[cls]] += 1
         elif cls == PEDESTRIAN_CLASS_ID:
+            # When an operator-drawn pedestrian ROI is configured, drop
+            # any pedestrian track that never had its BOTTOM_CENTER
+            # anchor inside the polygon. This is the canonical filter
+            # for sites where the camera also frames irrelevant
+            # pedestrians (e.g. far sidewalk).
+            if pedestrian_zone_active \
+               and not tracks[tid].ever_inside_pedestrian_zone:
+                pedestrian_zone_excluded += 1
+                continue
             pedestrians += 1
         elif cls == 1:
             bicycles += 1
@@ -1001,6 +1165,11 @@ def _build_report(
             motorcycles += 1
         elif cls == 16:
             personal_mobility += 1
+    if pedestrian_zone_active and pedestrian_zone_excluded:
+        logger.info(
+            "Pedestrian ROI excluded %d track(s) outside the polygon; counted %d",
+            pedestrian_zone_excluded, pedestrians,
+        )
 
     totals = {
         "vehicles": sum(1 for c in final_class.values() if c in VEHICLE_IDS),
@@ -1033,6 +1202,14 @@ def _build_report(
         "totals": totals,
         "vehicle_breakdown": breakdown_dict,
         "two_wheeler_breakdown": two_wheeler_breakdown,
+        # Pedestrian ROI summary — flat block so the mobile xlsx layer
+        # can decide whether to render the ROI flag in the 보행자 sheet
+        # without re-walking the calibration JSON.
+        "pedestrian": {
+            "count": pedestrians,
+            "roi_used": pedestrian_zone_active,
+            "roi_excluded": pedestrian_zone_excluded,
+        },
         "counting": {
             "method": counting_method,
             "unique_tracks_counted": len(final_class),
@@ -1068,37 +1245,58 @@ def _build_report(
     if light_engine is not None:
         report["traffic_light"] = light_engine.report()
     if calibration.lpr.enabled:
-        from ocr import classify_plate, hash_plate, normalize_plate
+        from ocr import hash_plate, normalize_plate
 
         plates: dict[str, dict[str, Any]] = {}
-        resident_count = 0
-        visitor_count = 0
         for tid, s in tracks.items():
             if not s.plate_text:
                 continue
             norm = normalize_plate(s.plate_text)
-            category = classify_plate(norm, calibration.lpr.allowlist)
+            # Per-track dwell window in video-clock seconds. The mobile
+            # client converts these into wall-clock first_seen_at /
+            # last_seen_at (using the analysis-start timestamp it knows)
+            # before persisting to Supabase. Server-side classification is
+            # intentionally NOT done here — recurrence-based resident vs
+            # visitor classification needs cross-run history that lives
+            # only in Supabase, so the client makes the call after the
+            # round-trip.
+            first_frame = s.first_observed_frame or 0
+            last_frame = s.last_observed_frame or first_frame
+            first_seen_s = round(first_frame / fps, 2) if fps else 0.0
+            last_seen_s = round(last_frame / fps, 2) if fps else 0.0
+            dwell_s = max(0.0, round((last_frame - first_frame) / fps, 2)) if fps else 0.0
+
             record: dict[str, Any] = {
                 "source": s.plate_source,
-                "category": category,
+                # category stays "unknown" until the mobile client looks
+                # the plate up in plate_classifications. Old allowlist
+                # logic dropped — mobile owns the classification now.
+                "category": "unknown",
+                "first_seen_s": first_seen_s,
+                "last_seen_s": last_seen_s,
+                "dwell_seconds": dwell_s,
+                # Always include the hash so the client can index by it
+                # for privacy-mode runs without re-hashing.
+                "text_hash": hash_plate(norm),
             }
-            # Privacy toggle: store SHA-256 prefix instead of raw text.
-            if calibration.lpr.hash_plates:
-                record["text_hash"] = hash_plate(norm)
-            else:
+            # Privacy toggle: omit raw text when hash_plates=true.
+            if not calibration.lpr.hash_plates:
                 record["text"] = norm
             plates[str(tid)] = record
-            if category == "resident":
-                resident_count += 1
-            elif category == "visitor":
-                visitor_count += 1
+
         report["plates"] = plates
         report["plate_summary"] = {
-            "resident": resident_count,
-            "visitor": visitor_count,
+            # Resident/visitor totals are filled in by the mobile client
+            # after the Supabase plate_classifications round-trip. The
+            # server reports 0/0 here so old clients that ignore the
+            # round-trip just see the totals as "unknown" rather than
+            # showing a stale allowlist verdict.
+            "resident": 0,
+            "visitor": 0,
+            "unknown": len(plates),
             "total": len(plates),
             "privacy_hashed": calibration.lpr.hash_plates,
-            "allowlist_size": len(calibration.lpr.allowlist),
+            "classification_pending": True,
         }
 
     return report
