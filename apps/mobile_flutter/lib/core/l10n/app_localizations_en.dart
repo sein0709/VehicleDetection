@@ -946,6 +946,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoAnalysisRecord => 'Record Video';
 
   @override
+  String get videoAnalysisPickFileTitle => 'Choose a video file (MP4 or DAV)';
+
+  @override
+  String get videoAnalysisStartAnalysis => 'Start analysis';
+
+  @override
+  String get videoAnalysisChooseDifferentFile => 'Choose a different file';
+
+  @override
+  String videoAnalysisStagedFile(String filename) {
+    return 'Selected: $filename';
+  }
+
+  @override
+  String get videoAnalysisStagedHint =>
+      'Review the tasks below, then tap Start to upload and analyze.';
+
+  @override
+  String get videoAnalysisBusStopPreset => 'Bus stop preset';
+
+  @override
+  String get videoAnalysisBusStopPresetHint =>
+      'One-tap setup for a bus stop: disables vehicle counting, enables transit (boarding / alighting) and pedestrians.';
+
+  @override
+  String get videoAnalysisBusStopApplied =>
+      'Bus stop preset applied — vehicle counting is off.';
+
+  @override
+  String get videoAnalysisCountLineConfigure => 'Configure count lines';
+
+  @override
+  String get videoAnalysisCountLineConfigured => 'IN/OUT lines set';
+
+  @override
+  String get videoAnalysisDavNotSupported =>
+      'DAV files cannot be uploaded for analysis. Open the Speed, Transit, or Traffic-light editor to use this file as a calibration backdrop, or transcode it to MP4 first.';
+
+  @override
   String get videoAnalysisUploading => 'Uploading and analyzing…';
 
   @override
@@ -970,6 +1009,580 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoAnalysisRetry => 'Retry';
+
+  @override
+  String get videoAnalysisIncludeAnnotatedVideo => 'Generate annotated video';
+
+  @override
+  String get videoAnalysisIncludeAnnotatedVideoHint =>
+      'Adds a labeled MP4 you can download after analysis. Increases processing time.';
+
+  @override
+  String get videoAnalysisDownloadVideo => 'Download annotated video';
+
+  @override
+  String get videoAnalysisDownloadTransitVideo =>
+      'Download transit overlay video';
+
+  @override
+  String get videoAnalysisDownloadingVideo => 'Downloading annotated video…';
+
+  @override
+  String get videoAnalysisDownloadCanceled => 'Download canceled.';
+
+  @override
+  String videoAnalysisDownloadSaved(String path) {
+    return 'Saved: $path';
+  }
+
+  @override
+  String get videoAnalysisTasksTitle => 'Tasks to run';
+
+  @override
+  String get videoAnalysisTasksHint =>
+      'Each task needs site calibration to produce useful numbers. Defaults assume a centered road in the lower half of the frame.';
+
+  @override
+  String get videoAnalysisTaskVehicles =>
+      'Vehicles (counting + classification)';
+
+  @override
+  String get videoAnalysisTaskPedestrians => 'Pedestrians (people crossing)';
+
+  @override
+  String get videoAnalysisTaskSpeed => 'Speed (two-line measurement)';
+
+  @override
+  String get videoAnalysisTaskTransit =>
+      'Transit (boarding / alighting / density)';
+
+  @override
+  String get videoAnalysisTaskTrafficLight => 'Traffic-light timing';
+
+  @override
+  String get videoAnalysisTaskLpr => 'License plates (resident vs visitor)';
+
+  @override
+  String get videoAnalysisPedestrianTitle => 'Pedestrians';
+
+  @override
+  String videoAnalysisPedestrianCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pedestrians counted',
+      one: '1 pedestrian counted',
+      zero: 'No pedestrians counted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoAnalysisPedestrianDetectorOff =>
+      'Pedestrian detector is off — set ENABLE_PEDESTRIAN_DETECTOR=1 on the server.';
+
+  @override
+  String get videoAnalysisSpeedTitle => 'Speed';
+
+  @override
+  String get videoAnalysisSpeedNoMeasurements =>
+      'No vehicles crossed both speed lines.';
+
+  @override
+  String get videoAnalysisSpeedAvg => 'Average';
+
+  @override
+  String get videoAnalysisSpeedMin => 'Min';
+
+  @override
+  String get videoAnalysisSpeedMax => 'Max';
+
+  @override
+  String videoAnalysisSpeedKmh(String value) {
+    return '$value km/h';
+  }
+
+  @override
+  String videoAnalysisSpeedMeasured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vehicles measured',
+      one: '1 vehicle measured',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoAnalysisSpeedPerTrack => 'Per-vehicle speeds';
+
+  @override
+  String videoAnalysisSpeedTrackRow(String trackId) {
+    return 'Track $trackId';
+  }
+
+  @override
+  String get videoAnalysisTransitTitle => 'Public transit';
+
+  @override
+  String get videoAnalysisTransitBoarding => 'Boarding';
+
+  @override
+  String get videoAnalysisTransitAlighting => 'Alighting';
+
+  @override
+  String get videoAnalysisTransitPeak => 'Peak inside stop';
+
+  @override
+  String get videoAnalysisTransitDensity => 'Avg density';
+
+  @override
+  String videoAnalysisTransitDensityValue(String value) {
+    return '$value%';
+  }
+
+  @override
+  String get videoAnalysisTransitBusGated => 'Counts gated to bus presence.';
+
+  @override
+  String get videoAnalysisTransitNotGated =>
+      'All door-line crossings counted (no bus-zone gate).';
+
+  @override
+  String get videoAnalysisTrafficLightTitle => 'Traffic-light timing';
+
+  @override
+  String videoAnalysisTrafficLightLabel(String label) {
+    return 'Light: $label';
+  }
+
+  @override
+  String get videoAnalysisTrafficLightCycles => 'Cycles';
+
+  @override
+  String get videoAnalysisTrafficLightAvgDuration => 'Avg';
+
+  @override
+  String get videoAnalysisTrafficLightTotalDuration => 'Total';
+
+  @override
+  String videoAnalysisTrafficLightSeconds(String value) {
+    return '${value}s';
+  }
+
+  @override
+  String get videoAnalysisTrafficLightRed => 'Red';
+
+  @override
+  String get videoAnalysisTrafficLightGreen => 'Green';
+
+  @override
+  String get videoAnalysisTrafficLightYellow => 'Yellow';
+
+  @override
+  String get videoAnalysisLprTitle => 'License plates';
+
+  @override
+  String get videoAnalysisLprResident => 'Resident';
+
+  @override
+  String get videoAnalysisLprVisitor => 'Visitor';
+
+  @override
+  String videoAnalysisLprAllowlistSize(int count) {
+    return 'Allowlist: $count plate(s)';
+  }
+
+  @override
+  String get videoAnalysisLprPrivacyHashed =>
+      'Plate text stored as SHA-256 prefix (privacy mode).';
+
+  @override
+  String get videoAnalysisLprPlatePrefix => 'Plate';
+
+  @override
+  String get videoAnalysisLprHashPrefix => 'Hash';
+
+  @override
+  String get videoAnalysisConfigure => 'Configure';
+
+  @override
+  String get videoAnalysisConfigureNoVideo =>
+      'Pick a video first to enable per-task configuration.';
+
+  @override
+  String videoAnalysisRoiConfigured(
+      String label, String width, String height, String position) {
+    return 'ROI set: $label ($width×$height, $position)';
+  }
+
+  @override
+  String get roiEditorTitle => 'Traffic-light ROI';
+
+  @override
+  String get roiEditorLabel => 'Light label (e.g. main, left_turn)';
+
+  @override
+  String get roiEditorReset => 'Clear';
+
+  @override
+  String get roiEditorSave => 'Save';
+
+  @override
+  String get roiEditorCancel => 'Cancel';
+
+  @override
+  String get roiEditorPickStill => 'Pick a still image instead';
+
+  @override
+  String get roiEditorPickBackdrop => 'Choose backdrop file';
+
+  @override
+  String get roiEditorPickBackdropTitle => 'Pick MP4, DAV, or still image';
+
+  @override
+  String get roiEditorNoBackdrop =>
+      'No backdrop loaded yet. Pick an MP4, DAV, or still image of the scene to start drawing.';
+
+  @override
+  String get roiEditorFrameLoadFailed =>
+      'Couldn\'t extract a frame from the video. Pick a still image of the same scene.';
+
+  @override
+  String get roiEditorRoiTooSmall =>
+      'ROI is too small. Pick two corners further apart.';
+
+  @override
+  String get roiEditorHintTopLeft =>
+      'Tap the TOP-LEFT corner of the signal head.';
+
+  @override
+  String get roiEditorHintBottomRight =>
+      'Tap the BOTTOM-RIGHT corner of the signal head.';
+
+  @override
+  String get roiEditorHintRefine =>
+      'Tap to refine either corner. Press Save when ready.';
+
+  @override
+  String get lprAllowlistTitle => 'Resident plates';
+
+  @override
+  String get lprAllowlistEmpty =>
+      'No resident plates yet. Add the first one below.';
+
+  @override
+  String get lprAllowlistHint =>
+      'Korean format: NNga NNNN (e.g. 12가 3456). Spaces are stripped automatically.';
+
+  @override
+  String get lprAllowlistAddHint => 'Plate (e.g. 12가 3456)';
+
+  @override
+  String get lprAllowlistAdd => 'Add';
+
+  @override
+  String get lprAllowlistInvalid =>
+      'Plate doesn\'t match the Korean format (NN(N)가 NNNN).';
+
+  @override
+  String get lprAllowlistDuplicate => 'That plate is already on the allowlist.';
+
+  @override
+  String get lprAllowlistRemove => 'Remove';
+
+  @override
+  String lprAllowlistCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count plates',
+      one: '1 plate',
+      zero: 'No plates',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lprAllowlistConfigure => 'Manage allowlist';
+
+  @override
+  String get speedEditorTitle => 'Speed lines & quad';
+
+  @override
+  String get speedEditorResetQuad => 'Clear quad';
+
+  @override
+  String speedEditorModeQuad(int count) {
+    return 'Quad ($count/4)';
+  }
+
+  @override
+  String get speedEditorModeLine1 => 'Line 1';
+
+  @override
+  String get speedEditorModeLine2 => 'Line 2';
+
+  @override
+  String get speedEditorWidthM => 'Width (m)';
+
+  @override
+  String get speedEditorLengthM => 'Length (m)';
+
+  @override
+  String speedEditorHintQuad(int remaining) {
+    return 'Tap $remaining more corner(s) of a known real-world rectangle (e.g. lane markings).';
+  }
+
+  @override
+  String get speedEditorHintQuadDone =>
+      'Quad complete. Tap again to start over, or switch to Line 1 / Line 2.';
+
+  @override
+  String get speedEditorHintLine1Start =>
+      'Tap the START point of Line 1 (entry).';
+
+  @override
+  String get speedEditorHintLine1End => 'Tap the END point of Line 1 (entry).';
+
+  @override
+  String get speedEditorHintLine1Done => 'Line 1 set. Tap again to redraw.';
+
+  @override
+  String get speedEditorHintLine2Start =>
+      'Tap the START point of Line 2 (exit).';
+
+  @override
+  String get speedEditorHintLine2End => 'Tap the END point of Line 2 (exit).';
+
+  @override
+  String get speedEditorHintLine2Done => 'Line 2 set. Tap again to redraw.';
+
+  @override
+  String get speedEditorSnapHorizontal => 'Snap lines to horizontal';
+
+  @override
+  String get speedEditorSnapHorizontalHint =>
+      'Forces both lines to be perfectly horizontal — old behavior; uncheck for arbitrary lines.';
+
+  @override
+  String get speedEditorQuadIncomplete =>
+      'Tap all 4 quad corners before saving.';
+
+  @override
+  String get speedEditorLinesIncomplete =>
+      'Both speed lines need 2 endpoints each before saving.';
+
+  @override
+  String get speedEditorLinesTooClose =>
+      'Lines must be at least 5% of frame height apart.';
+
+  @override
+  String get speedEditorBadMetres =>
+      'Width and length must be positive numbers in metres.';
+
+  @override
+  String get countLineEditorTitle => 'Count lines (IN / OUT)';
+
+  @override
+  String get countLineEditorModeIn => 'IN line';
+
+  @override
+  String get countLineEditorModeOut => 'OUT line';
+
+  @override
+  String get countLineEditorReset => 'Reset line';
+
+  @override
+  String get countLineEditorHintInStart =>
+      'Tap the START point of the IN line.';
+
+  @override
+  String get countLineEditorHintInEnd => 'Tap the END point of the IN line.';
+
+  @override
+  String get countLineEditorHintInDone => 'IN line set. Tap again to redraw.';
+
+  @override
+  String get countLineEditorHintOutStart =>
+      'Tap the START point of the OUT line.';
+
+  @override
+  String get countLineEditorHintOutEnd => 'Tap the END point of the OUT line.';
+
+  @override
+  String get countLineEditorHintOutDone => 'OUT line set. Tap again to redraw.';
+
+  @override
+  String get countLineEditorIncomplete =>
+      'Both lines need 2 endpoints each before saving.';
+
+  @override
+  String get countLineEditorDescription =>
+      'Vehicles count once when a track crosses both lines, in either order. Place IN where vehicles enter the scene and OUT where they leave.';
+
+  @override
+  String get transitEditorTitle => 'Bus stop & door line';
+
+  @override
+  String get transitEditorUndo => 'Undo last point';
+
+  @override
+  String get transitEditorModeStopPolygon => 'Stop polygon';
+
+  @override
+  String get transitEditorModeDoorLine => 'Door line';
+
+  @override
+  String get transitEditorModeBusZone => 'Bus zone';
+
+  @override
+  String get transitEditorBusZoneEnable => 'Gate counting on bus presence';
+
+  @override
+  String get transitEditorBusZoneHint =>
+      'When enabled, door-line crossings only count while a bus overlaps this polygon.';
+
+  @override
+  String get transitEditorBusZoneDisabled =>
+      'Bus-zone gating is off — every door-line crossing counts.';
+
+  @override
+  String get transitEditorCapacity => 'Max capacity (persons)';
+
+  @override
+  String get transitEditorCapacityHint =>
+      'Density % = persons inside the stop polygon ÷ capacity.';
+
+  @override
+  String transitEditorHintStopPolygon(int remaining) {
+    return 'Tap to add a polygon vertex. $remaining more needed.';
+  }
+
+  @override
+  String get transitEditorHintStopPolygonDone =>
+      'Stop polygon ready. Add more vertices or switch tabs.';
+
+  @override
+  String transitEditorHintDoorLine(int remaining) {
+    return 'Tap to set door-line endpoint $remaining of 2.';
+  }
+
+  @override
+  String get transitEditorHintDoorLineDone =>
+      'Door line ready. Tap again to redraw.';
+
+  @override
+  String transitEditorHintBusZone(int remaining) {
+    return 'Tap to add a bus-zone vertex. $remaining more needed.';
+  }
+
+  @override
+  String get transitEditorHintBusZoneDone => 'Bus zone ready.';
+
+  @override
+  String get transitEditorStopPolygonTooSmall =>
+      'Stop polygon needs at least 3 vertices.';
+
+  @override
+  String get transitEditorDoorLineIncomplete =>
+      'Door line needs exactly 2 endpoints.';
+
+  @override
+  String get transitEditorBusZoneTooSmall =>
+      'Bus zone needs at least 3 vertices (or turn it off).';
+
+  @override
+  String get transitEditorBadCapacity => 'Capacity must be a positive integer.';
+
+  @override
+  String get calibrationModeAuto => 'Auto';
+
+  @override
+  String get calibrationModeManual => 'Manual';
+
+  @override
+  String get transitAutoModeTitle => 'AI auto-detect mode';
+
+  @override
+  String get transitAutoModeBody =>
+      'AI analyses one keyframe of the video and finds the bus stop area, door line, and bus parking spot automatically. You only need to enter the capacity.';
+
+  @override
+  String get transitManualModeBody =>
+      'Switch to Manual to draw the regions yourself.';
+
+  @override
+  String get transitWhatIsThisTitle => 'What does this configure?';
+
+  @override
+  String get transitWhatIsThisBody =>
+      'The stop polygon (green) is where people stand — used to compute density (%). The door line (yellow) sits across the bus door — people crossing it count as boarding/alighting. The bus zone (blue) is where the bus parks — boarding only counts while a bus overlaps it.';
+
+  @override
+  String get lightAutoModeTitle => 'AI auto-detect mode';
+
+  @override
+  String get lightAutoModeBody =>
+      'AI finds the traffic light in the video automatically. Just provide a label (used to disambiguate when multiple lights are visible).';
+
+  @override
+  String get lightManualModeBody =>
+      'Switch to Manual to draw the ROI yourself.';
+
+  @override
+  String get lightAutoLabelField => 'Label (e.g. straight, left_turn)';
+
+  @override
+  String get lightWhatIsThisTitle => 'What does this configure?';
+
+  @override
+  String get lightWhatIsThisBody =>
+      'The traffic-light ROI is a tight box around the lamp housing only — no sky, no pole, no signs. A loose box pulls in dark background pixels and confuses the colour state machine.';
+
+  @override
+  String get speedWhatIsThisTitle => 'What does this configure?';
+
+  @override
+  String get speedWhatIsThisBody =>
+      'The trapezoid removes the camera\'s perspective so the road looks like a top-down view. The width / length in metres convert pixels to metres, and the two lines time how long a vehicle takes to travel between them — that gives km/h. Use the lane width (usually 3.5 m) and a known distance.';
+
+  @override
+  String get speedDefaultPresetButton => 'Apply preset (1 lane 3.5m × 10m)';
+
+  @override
+  String get speedDefaultPresetApplied =>
+      'Default preset applied. Adjust to fit your video.';
+
+  @override
+  String get countLineWhatIsThisTitle => 'What does this configure?';
+
+  @override
+  String get countLineWhatIsThisBody =>
+      'Two virtual lines: a vehicle is counted as one only when its track crosses BOTH lines (order doesn\'t matter). More accurate than a single tripwire and separates IN vs OUT direction.';
+
+  @override
+  String get lprWhatIsThisTitle => 'What does this configure?';
+
+  @override
+  String get lprWhatIsThisBody =>
+      'Plates on the allowlist are tagged \'resident\', others \'visitor\'. The AI reads plates automatically — no ROI needed.';
+
+  @override
+  String get calibrationResetTooltip => 'Reset site calibration';
+
+  @override
+  String get calibrationResetTitle => 'Reset calibration?';
+
+  @override
+  String get calibrationResetMessage =>
+      'Clears every per-task setting saved for this site (enabled tasks, ROIs, speed lines, transit polygons, plate allowlist). Cannot be undone.';
+
+  @override
+  String get calibrationResetConfirm => 'Reset';
+
+  @override
+  String get calibrationResetDone => 'Site calibration cleared.';
 
   @override
   String get reportTitle => 'GreyEye Traffic Report';

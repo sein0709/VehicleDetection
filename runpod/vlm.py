@@ -1,13 +1,23 @@
 """Async Gemma / Vertex AI worker pool.
 
 Replaces the inline ``ask_gemma_for_override()`` call that used to block the
-detection loop. Five VLM triggers share one pool:
+detection loop. Seven VLM triggers share one pool:
 
-    AXLE_CHECK       heavy-truck tripwire crossing → axle count + class override
-    CLASS_REVERIFY   mid-band detection score → class confirmation
-    PLATE_OCR        vehicle crop → plate localization + Korean OCR
-    DENSITY_CHECK    crowded PolygonZone → passenger count sanity check
-    LIGHT_STATE      HSV-ambiguous ROI → traffic-light colour confirmation
+    AXLE_CHECK         heavy-truck tripwire crossing → axle count + class override
+    CLASS_REVERIFY     mid-band detection score → class confirmation
+    PLATE_OCR          vehicle crop → plate localization + Korean OCR
+    DENSITY_CHECK      crowded PolygonZone → passenger count sanity check
+    LIGHT_STATE        HSV-ambiguous ROI → traffic-light colour confirmation
+    BUS_STOP_LAYOUT    one keyframe → bus stop polygon + door line + bus zone
+                       (auto-calibration; replaces 3 manual ROI editors)
+    LIGHT_LAYOUT       one keyframe → bbox(es) around traffic-light heads
+                       (auto-calibration; replaces ROI tap)
+
+SDK note (2026-04-21 migration): uses the unified ``google-genai`` SDK, not
+the deprecated ``vertexai.generative_models`` module. The new SDK accepts
+Gemini *and* Gemma publisher-model IDs through the same ``Client`` interface
+with ``vertexai=True``. Model names like ``google/gemma-4-31b-it`` (with the
+publisher prefix) or ``gemini-2.5-flash`` both work.
 
 Design:
 - Each call yields a Future; callers can await concurrently while the decode
@@ -52,6 +62,11 @@ class VLMTask(str, Enum):
     PLATE_OCR = "plate_ocr"
     DENSITY_CHECK = "density_check"
     LIGHT_STATE = "light_state"
+    # Auto-calibration tasks: run ONCE per video before the decode loop on a
+    # representative keyframe. Output coordinates are normalized 0..1 so the
+    # same JSON works regardless of frame resolution.
+    BUS_STOP_LAYOUT = "bus_stop_layout"
+    LIGHT_LAYOUT = "light_layout"
 
 
 # ---------------------------------------------------------------------------
@@ -120,12 +135,71 @@ Return ONLY JSON:
 {"state": "<one of allowed>", "confidence": <float 0-1>}
 """.strip()
 
+_PROMPT_BUS_STOP_LAYOUT = """
+You are a transit-camera calibration assistant. The image is one frame from a
+fixed camera that watches a Korean bus stop. Identify three regions and return
+NORMALIZED coordinates (every x, y must be a float in [0, 1] — divide pixel x
+by image width, pixel y by image height).
+
+1. "bus_zone_polygon": a 4-point polygon outlining the area of the road where a
+   bus stops at this stop. If no bus is currently visible, infer the area from
+   the curb / road markings. This region GATES boarding counts (only counted
+   when a bus is parked here).
+2. "door_lines": one short 2-point line per visible bus door. Place each line
+   ACROSS the door opening (perpendicular to the direction passengers walk),
+   on the curb side. If no bus is visible, infer ONE line at the centre of the
+   bus_zone_polygon's curb edge. People crossing this line are counted as
+   boarding (toward the bus) or alighting (away from the bus).
+3. "stop_polygon": a 4-point polygon outlining the bus-stop platform / waiting
+   area where pedestrians stand before boarding. People inside this polygon
+   contribute to the density / crowding metric.
+
+If you genuinely cannot identify any of these (e.g. the camera is pointed at
+the wrong scene), return confidence < 0.3 and your best guess. The pipeline
+will fall back to defaults when confidence is low.
+
+Return ONLY valid JSON:
+{
+  "bus_zone_polygon": [[x,y],[x,y],[x,y],[x,y]],
+  "door_lines": [{"line":[[x1,y1],[x2,y2]]}],
+  "stop_polygon": [[x,y],[x,y],[x,y],[x,y]],
+  "confidence": <float 0-1>,
+  "notes": "<short reasoning, e.g. 'bus visible, door inferred from front-right'>"
+}
+""".strip()
+
+_PROMPT_LIGHT_LAYOUT = """
+You are a traffic-camera calibration assistant. The image is one frame from a
+fixed camera that watches a road intersection. Find every TRAFFIC LIGHT HEAD
+(the metal box housing the red/yellow/green lamps for vehicles) that is
+visible and clearly identifiable.
+
+For each light, return a TIGHT bounding box around the lamp housing only — do
+NOT include sky, pole, or signs. Coordinates are NORMALIZED (every value in
+[0, 1] — divide pixel x by image width, pixel y by image height).
+
+Order the lights by importance: main vehicle signal first, then turn signals,
+then pedestrian heads. Skip pedestrian-only signals if a vehicle signal is
+also visible.
+
+If no traffic light is visible, return an empty list.
+
+Return ONLY valid JSON:
+{
+  "lights": [
+    {"label":"main", "bbox_xyxy":[x1,y1,x2,y2], "confidence":<float 0-1>}
+  ]
+}
+""".strip()
+
 _PROMPTS: dict[VLMTask, str] = {
     VLMTask.AXLE_CHECK: _PROMPT_AXLE,
     VLMTask.CLASS_REVERIFY: _PROMPT_REVERIFY,
     VLMTask.PLATE_OCR: _PROMPT_PLATE,
     VLMTask.DENSITY_CHECK: _PROMPT_DENSITY,
     VLMTask.LIGHT_STATE: _PROMPT_LIGHT,
+    VLMTask.BUS_STOP_LAYOUT: _PROMPT_BUS_STOP_LAYOUT,
+    VLMTask.LIGHT_LAYOUT: _PROMPT_LIGHT_LAYOUT,
 }
 
 
@@ -147,7 +221,12 @@ class VLMPool:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._sem: asyncio.Semaphore | None = None
-        self._model = None
+        # google-genai Client — created per-pool so the underlying gRPC channel
+        # is reused across calls. Stored as _model for API compatibility with
+        # callers that check `_model is not None`; actual type is `genai.Client`.
+        self._client = None
+        self._model = None   # alias kept for legacy is_available() check
+        self._resolved_model_id: str = ""
         self._cache: dict[str, dict[str, Any]] = {}
         self._cache_lock = threading.Lock()
         self._consecutive_failures = 0
@@ -180,12 +259,30 @@ class VLMPool:
 
     def _initialize_vertex(self) -> None:
         try:
-            import vertexai
-            from vertexai.generative_models import GenerativeModel
+            from google import genai
 
-            vertexai.init(project=VERTEX_PROJECT, location=VERTEX_LOCATION)
-            self._model = GenerativeModel(VLM_MODEL_ID)
-            logger.info("VLM initialized: %s @ %s", VLM_MODEL_ID, VERTEX_LOCATION)
+            self._client = genai.Client(
+                vertexai=True,
+                project=VERTEX_PROJECT,
+                location=VERTEX_LOCATION,
+            )
+            # google-genai accepts canonical Model Garden IDs directly
+            # (e.g. "gemini-2.5-flash") OR publisher-prefixed forms (e.g.
+            # "google/gemma-4-31b-it") OR full endpoint resource names.
+            # Normalize by stripping the `google/` prefix if present — some
+            # SDK paths accept it, others don't, and stripping is always safe
+            # because Vertex scopes the model by project/location/publisher.
+            mid = VLM_MODEL_ID
+            if mid.startswith("google/"):
+                mid = mid[len("google/"):]
+            self._resolved_model_id = mid
+            # Back-compat: legacy is_available() checks `_model is not None`.
+            # Keep that shape alive by aliasing the client.
+            self._model = self._client
+            logger.info(
+                "VLM initialized: model=%s  project=%s  location=%s",
+                mid, VERTEX_PROJECT, VERTEX_LOCATION,
+            )
         except Exception as exc:
             # Don't crash the server — log loudly and operate in degraded mode
             # so CV-only tasks (counting, HSV light, EasyOCR) still work.
@@ -193,7 +290,7 @@ class VLMPool:
             self._circuit_open = True
             logger.error(
                 "VLM init FAILED (%s) — circuit open, all VLM triggers will fall "
-                "back to CV defaults. Check VLM_MODEL_ID=%s in config.py.",
+                "back to CV defaults. Check VLM_MODEL_ID=%s + GOOGLE_APPLICATION_CREDENTIALS.",
                 exc, VLM_MODEL_ID,
             )
 
@@ -260,7 +357,7 @@ class VLMPool:
         return None
 
     async def _call_model(self, req: VLMRequest) -> dict[str, Any]:
-        from vertexai.generative_models import Part
+        from google.genai import types
 
         prompt = _PROMPTS[req.task]
         if req.task is VLMTask.CLASS_REVERIFY:
@@ -272,13 +369,17 @@ class VLMPool:
         success, buf = cv2.imencode(".jpg", req.image, [cv2.IMWRITE_JPEG_QUALITY, 85])
         if not success:
             raise RuntimeError("cv2.imencode failed")
-        image_part = Part.from_data(data=buf.tobytes(), mime_type="image/jpeg")
+        image_part = types.Part.from_bytes(data=buf.tobytes(), mime_type="image/jpeg")
+        contents = [prompt, image_part]
+        config = types.GenerateContentConfig(temperature=VLM_TEMPERATURE)
 
-        # Vertex SDK is sync; run in executor to avoid blocking the event loop.
+        # google-genai's generate_content is synchronous; run in executor to
+        # keep the event loop responsive to other submitters.
         def _sync_call() -> str:
-            resp = self._model.generate_content(  # type: ignore[union-attr]
-                [prompt, image_part],
-                generation_config={"temperature": VLM_TEMPERATURE},
+            resp = self._client.models.generate_content(  # type: ignore[union-attr]
+                model=self._resolved_model_id,
+                contents=contents,
+                config=config,
             )
             return resp.text
 

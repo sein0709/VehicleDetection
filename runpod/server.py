@@ -14,10 +14,11 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
+from auto_calibration import autofill_calibration
 from calibration import parse_calibration
 from config import JOB_TTL_SECONDS, TEMP_DIR
 from pipeline import get_model, run_pipeline
@@ -82,6 +83,10 @@ def _reap_stale_jobs() -> None:
 def _process(job_id: str, video_path: str, calibration_raw: str | None) -> None:
     try:
         cal = parse_calibration(calibration_raw)
+        # Auto-calibration pre-pass: fills missing transit / traffic-light
+        # geometry by asking the VLM about a single keyframe. No-op when
+        # the operator already supplied geometry or VLM_AUTOCALIBRATE=0.
+        cal = autofill_calibration(video_path, cal)
         report = run_pipeline(video_path, cal)
         # Stamp the finish time INSIDE meta — never at the top level. A stray
         # top-level numeric (epoch seconds) confuses any client that does a
@@ -158,3 +163,33 @@ async def check_status(job_id: str) -> JSONResponse:
     if job is None:
         return JSONResponse(status_code=404, content={"error": "Job not found"})
     return JSONResponse(content=job)
+
+
+# Stream the annotated MP4 for a finished job. Which variant is returned
+# depends on the query parameter:
+#   ?kind=classified   → class-annotated (bboxes + MOLIT labels)  [default]
+#   ?kind=transit      → transit overlay (head circles + boarding colours)
+# 404 if the job is unknown, still processing, or didn't request that output.
+@app.get("/video/{job_id}")
+async def get_video(job_id: str, kind: str = "classified") -> FileResponse:
+    job = jobs_db.get(job_id)
+    if job is None or job.get("status") != "success":
+        raise HTTPException(status_code=404, detail="Job not found or not finished")
+
+    if kind == "classified":
+        path = job.get("annotated_video")
+    elif kind == "transit":
+        path = (job.get("transit") or {}).get("annotated_video")
+    else:
+        raise HTTPException(status_code=400, detail="kind must be 'classified' or 'transit'")
+
+    if not path or not os.path.exists(path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"No '{kind}' video produced for this job (was output_video enabled?)",
+        )
+    return FileResponse(
+        path=path,
+        media_type="video/mp4",
+        filename=os.path.basename(path),
+    )

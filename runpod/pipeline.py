@@ -176,6 +176,106 @@ class TrackState:
 
 
 # ---------------------------------------------------------------------------
+# Operator-drawn IN/OUT segment counter
+# ---------------------------------------------------------------------------
+class SegmentCounter:
+    """Two arbitrary line segments → segment-style vehicle counting.
+
+    A track is counted exactly once when it crosses BOTH lines during the
+    clip, regardless of order. Crossing order tags the direction
+    (in→out vs out→in) so per-direction flow can still be reported. This
+    rejects oscillating tracks near a single tripwire (which today inflate
+    the count) and handles oblique camera angles where a horizontal
+    tripwire would clip large swathes of the frame.
+
+    Implementation note: we don't use `sv.LineZone` here because its API
+    only exposes "did anyone cross this frame" by tracker_id and we need
+    per-track BOTH-crossed bookkeeping. The geometric crossing test works
+    on the per-detection bottom-center anchor, which is also what
+    `sv.LineZone` uses by default.
+    """
+
+    def __init__(self, in_line: list[list[float]], out_line: list[list[float]]):
+        self.in_p1 = (float(in_line[0][0]), float(in_line[0][1]))
+        self.in_p2 = (float(in_line[1][0]), float(in_line[1][1]))
+        self.out_p1 = (float(out_line[0][0]), float(out_line[0][1]))
+        self.out_p2 = (float(out_line[1][0]), float(out_line[1][1]))
+
+        # Per-track: last-seen anchor (used to detect crossings between samples)
+        self._last_pt: dict[int, tuple[float, float]] = {}
+        # Per-track sampled-frame index on first IN/OUT crossing (None until then)
+        self.in_first_at: dict[int, int] = {}
+        self.out_first_at: dict[int, int] = {}
+        # Set of track_ids that have crossed BOTH lines (counted exactly once)
+        self.crossed: set[int] = set()
+        # Per-line raw crossing counters (any direction). Useful as a
+        # diagnostic when the segment count seems low.
+        self.in_crossings = 0
+        self.out_crossings = 0
+
+    @staticmethod
+    def _segments_intersect(
+        a1: tuple[float, float], a2: tuple[float, float],
+        b1: tuple[float, float], b2: tuple[float, float],
+    ) -> bool:
+        """Standard 2-D segment intersection test using orientation signs.
+
+        Returns True when segments [a1,a2] and [b1,b2] strictly cross or
+        meet. Collinear-touching cases are accepted — for our use this
+        only fires when an anchor lands exactly on the line, which is
+        rare and harmless (the next sample disambiguates).
+        """
+
+        def orient(p, q, r) -> float:
+            return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+        o1 = orient(a1, a2, b1)
+        o2 = orient(a1, a2, b2)
+        o3 = orient(b1, b2, a1)
+        o4 = orient(b1, b2, a2)
+        if (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0):
+            return True
+        # Collinear-on-segment: rare; accept to keep edge cases countable.
+        if abs(o1) < 1e-9 and min(a1[0], a2[0]) <= b1[0] <= max(a1[0], a2[0]) \
+           and min(a1[1], a2[1]) <= b1[1] <= max(a1[1], a2[1]):
+            return True
+        return False
+
+    def update(self, tid: int, anchor: tuple[float, float], frame_idx: int) -> None:
+        """Call once per detection per sampled frame with the bottom-center
+        anchor. Records segment-line crossings transition-edge style — a
+        crossing fires only when the segment from the previous anchor to
+        the current anchor intersects the line."""
+        prev = self._last_pt.get(tid)
+        self._last_pt[tid] = anchor
+        if prev is None:
+            return
+
+        if tid not in self.in_first_at and self._segments_intersect(
+            prev, anchor, self.in_p1, self.in_p2,
+        ):
+            self.in_first_at[tid] = frame_idx
+            self.in_crossings += 1
+        if tid not in self.out_first_at and self._segments_intersect(
+            prev, anchor, self.out_p1, self.out_p2,
+        ):
+            self.out_first_at[tid] = frame_idx
+            self.out_crossings += 1
+
+        if tid in self.in_first_at and tid in self.out_first_at:
+            self.crossed.add(tid)
+
+    def direction(self, tid: int) -> str | None:
+        """'in_to_out' if the IN line was crossed first, 'out_to_in' otherwise.
+        Returns None for tracks that haven't crossed both."""
+        if tid not in self.crossed:
+            return None
+        in_at = self.in_first_at[tid]
+        out_at = self.out_first_at[tid]
+        return "in_to_out" if in_at <= out_at else "out_to_in"
+
+
+# ---------------------------------------------------------------------------
 # Main entry
 # ---------------------------------------------------------------------------
 def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
@@ -191,6 +291,10 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # Mobile clients send normalized (0..1) coordinates because they don't
+    # know the video resolution until upload completes. Convert in-place
+    # before any engine reads pixel coords. No-op for pixel-space inputs.
+    calibration.resolve_ratio_coords(w, h)
     logger.info(
         "Video: %dx%d @ %.1f fps, %d frames; tasks=%s",
         w, h, fps, total_frames, sorted(calibration.tasks_enabled),
@@ -198,10 +302,23 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
 
     # --- Counting: polygon zone is canonical when provided (handles turns);
     # the horizontal LineZone always runs as a directional signal (in vs out).
+    # When the operator supplies an arbitrary IN/OUT line pair, the
+    # SegmentCounter takes over from the horizontal tripwire — a track is
+    # counted only when it crosses BOTH lines.
     tripwire_y = int(h * calibration.tripwire.y_ratio)
     count_line = sv.LineZone(
         start=sv.Point(0, tripwire_y), end=sv.Point(w, tripwire_y)
     )
+    segment_counter: SegmentCounter | None = None
+    if calibration.count_lines is not None:
+        segment_counter = SegmentCounter(
+            in_line=calibration.count_lines.in_line,
+            out_line=calibration.count_lines.out_line,
+        )
+        logger.info(
+            "Using operator-drawn IN/OUT segment counter (in=%s, out=%s)",
+            calibration.count_lines.in_line, calibration.count_lines.out_line,
+        )
     intersection_zone: sv.PolygonZone | None = None
     if calibration.intersection_polygon is not None:
         intersection_zone = sv.PolygonZone(
@@ -213,6 +330,39 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
     speed_engine: SpeedEngine | None = None
     if calibration.wants("speed") and calibration.speed is not None:
         speed_engine = SpeedEngine(cfg=calibration.speed, fps=fps, frame_w=w, frame_h=h)
+
+    # --- Class-annotated MP4 writer (independent of transit's own video) ---
+    classified_writer: cv2.VideoWriter | None = None
+    classified_output_path: str | None = None
+    box_annotator: sv.BoxAnnotator | None = None
+    label_annotator: sv.LabelAnnotator | None = None
+    if calibration.output_video:
+        src = os.fspath(video_path)
+        base, _ext = os.path.splitext(src)
+        classified_output_path = f"{base}_classified.mp4"
+        sampled_fps = max(1.0, fps / FRAME_SKIP)
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        classified_writer = cv2.VideoWriter(
+            classified_output_path, fourcc, sampled_fps, (w, h),
+        )
+        if not classified_writer.isOpened():
+            logger.warning(
+                "classified VideoWriter failed to open %s — output disabled",
+                classified_output_path,
+            )
+            classified_writer = None
+            classified_output_path = None
+        else:
+            box_annotator = sv.BoxAnnotator(
+                color=sv.ColorPalette.DEFAULT, thickness=2,
+            )
+            label_annotator = sv.LabelAnnotator(
+                color=sv.ColorPalette.DEFAULT, text_scale=0.5, text_thickness=1,
+            )
+            logger.info(
+                "Writing class-annotated video to %s @ %.1f fps",
+                classified_output_path, sampled_fps,
+            )
 
     transit_engine: TransitEngine | None = None
     transit_writer: cv2.VideoWriter | None = None
@@ -250,6 +400,19 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
     # --- Per-track state ---
     tracks: dict[int, TrackState] = defaultdict(TrackState)
     crossings: dict[int, int] = {}  # track_id → majority class at crossing time
+    # Side-channel for VLM calls that don't belong to any single track:
+    # ambiguous LIGHT_STATE samples and bus-stop DENSITY_CHECK overrides.
+    # Each entry is (kind, future, context). Drained alongside the per-track
+    # futures after the decode loop so the VLM verdict actually reaches the
+    # report (was previously dropped on the floor — see _apply_aux_vlm).
+    pending_aux_vlm: list[tuple[str, Future, dict]] = []
+
+    # When the operator turned off the `vehicles` task entirely (e.g.
+    # bus-stop scenario with only pedestrians + transit enabled), skip
+    # the count-line + classification + VLM-class-reverify work even
+    # though the vehicle detector still runs (transit/speed/lpr need it
+    # for bus / vehicle tracking).
+    count_vehicles = calibration.wants("vehicles")
 
     # --- Loop ---
     frame_idx = 0
@@ -310,19 +473,27 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
                 parts.append(p)
 
         if not parts:
-            _maybe_light_sample(light_engine, frame, timestamp_s)
+            _maybe_light_sample(
+                light_engine, frame, timestamp_s, pending_aux_vlm=pending_aux_vlm,
+            )
             continue
 
         detections = sv.Detections.merge(parts) if len(parts) > 1 else parts[0]
         if len(detections) == 0:
-            _maybe_light_sample(light_engine, frame, timestamp_s)
+            _maybe_light_sample(
+                light_engine, frame, timestamp_s, pending_aux_vlm=pending_aux_vlm,
+            )
             continue
 
         # --- Run engines that consume the full Detections set ---
-        count_line.trigger(detections)
+        # Tripwire LineZone is the directional in/out signal kept for
+        # diagnostic parity with previous reports; the segment counter
+        # (when set) is the canonical source of vehicle counts.
+        if count_vehicles:
+            count_line.trigger(detections)
         polygon_mask = (
             intersection_zone.trigger(detections=detections)
-            if intersection_zone is not None
+            if intersection_zone is not None and count_vehicles
             else None
         )
         if speed_engine is not None:
@@ -331,7 +502,24 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
             transit_engine.update(detections, timestamp_s=timestamp_s)
             if transit_writer is not None:
                 transit_writer.write(transit_engine.annotate_frame(frame, detections))
-        _maybe_light_sample(light_engine, frame, timestamp_s, transit=transit_engine)
+        _maybe_light_sample(
+            light_engine, frame, timestamp_s,
+            transit=transit_engine, pending_aux_vlm=pending_aux_vlm,
+        )
+
+        # --- Class-annotated video (tracked bboxes + MOLIT labels) ---
+        # Skip when vehicles task is off — operator doesn't want a count,
+        # so a frame full of vehicle bboxes is just visual noise.
+        if count_vehicles and classified_writer is not None \
+           and box_annotator is not None and label_annotator is not None:
+            classified_writer.write(
+                _annotate_classification_frame(
+                    frame, detections, box_annotator, label_annotator,
+                    frame_idx, total_frames, tripwire_y,
+                    calibration.intersection_polygon,
+                    segment_counter=segment_counter,
+                )
+            )
 
         # --- Per-detection bookkeeping + VLM triggers ---
         xyxy = detections.xyxy
@@ -376,9 +564,25 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
                 else:
                     state.ever_outside_polygon = True
 
-            # --- Tripwire crossing → directional signal + heavy-truck VLM trigger ---
-            y_center = (y1 + y2) / 2
-            just_crossed = _just_crossed_local(state, y_center, tripwire_y)
+            # --- Operator-drawn IN/OUT segment counter ---
+            # Use the bottom-center anchor (matches sv.LineZone default).
+            # Crossing both lines locks in the track's class vote — same
+            # semantics as the legacy tripwire snapshot.
+            if segment_counter is not None and count_vehicles:
+                anchor = ((x1 + x2) / 2.0, float(y2))
+                already_crossed = tid in segment_counter.crossed
+                segment_counter.update(tid, anchor, frame_idx)
+                just_crossed = (
+                    not already_crossed and tid in segment_counter.crossed
+                )
+            else:
+                # --- Legacy tripwire (horizontal line) — direction signal +
+                # crossing-event trigger when no segment lines are configured.
+                y_center = (y1 + y2) / 2
+                just_crossed = (
+                    count_vehicles
+                    and _just_crossed_local(state, y_center, tripwire_y)
+                )
 
             if just_crossed:
                 # Freeze the vehicle's class vote at crossing time.
@@ -417,8 +621,10 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
             # classification pass — gated by `reverify_requested` for dedup
             # and by `observation_count >= 3` so best_crop is actually the
             # best-seen crop (not the first noisy detection). Heavy trucks
-            # still take the axle-check path (richer prompt).
-            if cls in VEHICLE_IDS \
+            # still take the axle-check path (richer prompt). Skipped when
+            # the operator turned off the vehicles task entirely.
+            if count_vehicles \
+               and cls in VEHICLE_IDS \
                and not state.reverify_requested \
                and not state.axle_requested \
                and state.observation_count >= 3 \
@@ -442,10 +648,13 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
     cap.release()
     if transit_writer is not None:
         transit_writer.release()
+    if classified_writer is not None:
+        classified_writer.release()
 
     # --- Drain VLM futures ---
     logger.info("Draining VLM pending calls...")
     _apply_vlm_results(tracks, light_engine)
+    _apply_aux_vlm(pending_aux_vlm, light_engine, transit_engine)
 
     # --- Build report ---
     elapsed = time.time() - t0
@@ -454,11 +663,14 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
         crossings=crossings,
         count_line=count_line,
         intersection_zone_used=intersection_zone is not None,
+        segment_counter=segment_counter,
+        count_vehicles=count_vehicles,
         speed_engine=speed_engine,
         transit_engine=transit_engine,
         transit_output_path=transit_output_path,
         light_engine=light_engine,
         calibration=calibration,
+        classified_output_path=classified_output_path,
         elapsed_s=elapsed,
         frames_total=total_frames,
         frames_sampled=sampled,
@@ -475,6 +687,70 @@ def run_pipeline(video_path: str, calibration: Calibration) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _annotate_classification_frame(
+    frame: np.ndarray,
+    detections: sv.Detections,
+    box_ann: sv.BoxAnnotator,
+    label_ann: sv.LabelAnnotator,
+    frame_idx: int,
+    total_frames: int,
+    tripwire_y: int,
+    intersection_polygon_cfg: Any,
+    segment_counter: "SegmentCounter | None" = None,
+) -> np.ndarray:
+    """Draw bboxes + MOLIT class labels + HUD on the sampled frame.
+
+    When `segment_counter` is provided, the operator's IN/OUT lines are
+    drawn (green = IN, red = OUT) and the legacy horizontal tripwire is
+    suppressed — drawing both would be visually confusing for a non-
+    horizontal site setup.
+    """
+    h, w = frame.shape[:2]
+    out = frame.copy()
+
+    if len(detections) > 0:
+        labels: list[str] = []
+        for i in range(len(detections)):
+            tid = int(detections.tracker_id[i]) if detections.tracker_id is not None else -1
+            cls = int(detections.class_id[i]) if detections.class_id is not None else -1
+            conf = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+            name = ALL_CLASS_NAMES.get(cls, f"id_{cls}")
+            labels.append(f"#{tid} {name} {conf:.2f}")
+        out = box_ann.annotate(scene=out, detections=detections)
+        out = label_ann.annotate(scene=out, detections=detections, labels=labels)
+
+    if segment_counter is not None:
+        # Operator-drawn IN (green) + OUT (red) line vectors.
+        in_p1 = (int(segment_counter.in_p1[0]), int(segment_counter.in_p1[1]))
+        in_p2 = (int(segment_counter.in_p2[0]), int(segment_counter.in_p2[1]))
+        out_p1 = (int(segment_counter.out_p1[0]), int(segment_counter.out_p1[1]))
+        out_p2 = (int(segment_counter.out_p2[0]), int(segment_counter.out_p2[1]))
+        cv2.line(out, in_p1, in_p2, (0, 200, 0), 2, cv2.LINE_AA)
+        cv2.line(out, out_p1, out_p2, (0, 0, 200), 2, cv2.LINE_AA)
+        cv2.putText(out, "IN", in_p1, cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (0, 200, 0), 2, cv2.LINE_AA)
+        cv2.putText(out, "OUT", out_p1, cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (0, 0, 200), 2, cv2.LINE_AA)
+    else:
+        # Legacy horizontal tripwire (stays for sites with no editor pass).
+        cv2.line(out, (0, tripwire_y), (w, tripwire_y), (0, 0, 255), 1, cv2.LINE_AA)
+
+    # Intersection polygon outline
+    if intersection_polygon_cfg is not None:
+        poly = np.array(intersection_polygon_cfg.polygon, dtype=np.int32)
+        cv2.polylines(out, [poly], True, (0, 255, 255), 2, cv2.LINE_AA)
+
+    # HUD — frame count at the top
+    hud_h = 32
+    cv2.rectangle(out, (0, 0), (w, hud_h), (0, 0, 0), -1)
+    cv2.putText(
+        out,
+        f"frame {frame_idx}/{total_frames}  detections={len(detections)}",
+        (10, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2,
+    )
+    return out
+
+
 def _observation_histogram(tracks: dict[int, "TrackState"], counted: list[int]) -> dict[str, int]:
     """Bucketed observation counts for the counted tracks — tells us whether
     overcount is coming from many short tracks (ID switching) or few long ones
@@ -514,15 +790,18 @@ def _maybe_light_sample(
     frame: np.ndarray,
     timestamp_s: float,
     transit: TransitEngine | None = None,
+    pending_aux_vlm: list[tuple[str, Future, dict]] | None = None,
 ) -> None:
     if light is not None:
         state, ambiguous = light.update(frame, timestamp_s)
         if ambiguous is not None and vlm_pool.is_available():
-            vlm_pool.submit(VLMRequest(
+            fut = vlm_pool.submit(VLMRequest(
                 task=VLMTask.LIGHT_STATE,
                 image=ambiguous,
                 context={"timestamp_s": timestamp_s},
             ))
+            if pending_aux_vlm is not None:
+                pending_aux_vlm.append(("light", fut, {"t": timestamp_s}))
     if transit is not None and transit.near_capacity() and vlm_pool.is_available():
         # Density sanity check fires at most once per ~minute of video.
         # We piggyback on the polygon itself via a bounding-rect crop.
@@ -530,11 +809,13 @@ def _maybe_light_sample(
         x, y, w, h = cv2.boundingRect(poly.astype(np.int32))
         crop = frame[max(0, y):y + h, max(0, x):x + w]
         if crop.size > 0:
-            vlm_pool.submit(VLMRequest(
+            fut = vlm_pool.submit(VLMRequest(
                 task=VLMTask.DENSITY_CHECK,
                 image=crop,
                 context={"timestamp_s": timestamp_s, "reported_count": transit.peak_count},
             ))
+            if pending_aux_vlm is not None:
+                pending_aux_vlm.append(("density", fut, {"t": timestamp_s}))
 
 
 def _apply_vlm_results(
@@ -577,17 +858,66 @@ def _apply_vlm_results(
                                 state.plate_source = f"gemma:{state.plate_text}|easyocr:{easy['plate_text']}"
 
 
+def _apply_aux_vlm(
+    pending_aux_vlm: list[tuple[str, Future, dict]],
+    light: TrafficLightEngine | None,
+    transit: TransitEngine | None,
+) -> None:
+    """Drain side-channel VLM futures (LIGHT_STATE, DENSITY_CHECK).
+
+    Per-track VLM futures are handled by ``_apply_vlm_results``; this
+    function handles VLM calls that don't belong to a single track and
+    were previously submitted-and-forgotten. Failures are logged and
+    swallowed so a Vertex hiccup never tanks the whole job.
+    """
+    light_corrections = 0
+    density_corrections = 0
+    for kind, fut, ctx in pending_aux_vlm:
+        try:
+            result = fut.result(timeout=30)
+        except Exception as exc:
+            logger.warning("Aux VLM %s future failed: %s", kind, exc)
+            continue
+        if not result:
+            continue
+
+        if kind == "light" and light is not None:
+            state = result.get("state")
+            conf = float(result.get("confidence", 0.0))
+            if state in ("red", "yellow", "green") and conf >= 0.6:
+                light.apply_vlm_correction(float(ctx.get("t", 0.0)), state)
+                light_corrections += 1
+
+        elif kind == "density" and transit is not None:
+            count = result.get("person_count")
+            conf = float(result.get("confidence", 0.0))
+            if isinstance(count, (int, float)) and conf >= 0.5:
+                transit.apply_vlm_density_correction(
+                    float(ctx.get("t", 0.0)), int(count),
+                )
+                density_corrections += 1
+
+    if pending_aux_vlm:
+        logger.info(
+            "Aux VLM applied: %d light corrections, %d density corrections (of %d submitted)",
+            light_corrections, density_corrections, len(pending_aux_vlm),
+        )
+
+
 def _build_report(
     *,
     tracks: dict[int, TrackState],
     crossings: dict[int, int],
     count_line: sv.LineZone,
     intersection_zone_used: bool,
+    segment_counter: SegmentCounter | None,
+    count_vehicles: bool,
     speed_engine: SpeedEngine | None,
     transit_engine: TransitEngine | None,
     transit_output_path: str | None,
     light_engine: TrafficLightEngine | None,
     calibration: Calibration,
+    classified_output_path: str | None,
     elapsed_s: float,
     frames_total: int,
     frames_sampled: int,
@@ -595,12 +925,23 @@ def _build_report(
 ) -> dict[str, Any]:
 
     # ----- Decide which tracks to count and what class to assign each -----
-    # Polygon zone (when calibrated) is canonical: a track counts only if
-    # it was seen BOTH inside and outside the polygon during the clip — i.e.
-    # it genuinely crossed the intersection boundary. Tracks that were always
-    # inside (waiting at a red light) or always outside don't count. Without
-    # a polygon the tripwire-crossing set is the fallback.
-    if intersection_zone_used:
+    # Counting precedence:
+    #   1. Operator-drawn IN/OUT segment counter (if configured) — canonical
+    #      for sites with a per-camera-angle line setup.
+    #   2. Intersection polygon (if calibrated) — handles 3G/4G turns.
+    #   3. Legacy tripwire crossings.
+    # When the operator turned the `vehicles` task off entirely (e.g.
+    # bus-stop scenario), we skip vehicle counting altogether and the
+    # report carries a zero count + an empty breakdown.
+    if not count_vehicles:
+        candidate_tids: list[int] = []
+        inside_only = 0
+        counting_method = "disabled"
+    elif segment_counter is not None:
+        candidate_tids = list(segment_counter.crossed)
+        inside_only = 0
+        counting_method = "segment_lines"
+    elif intersection_zone_used:
         candidate_tids = [tid for tid, st in tracks.items() if st.polygon_crossed()]
         inside_only = sum(
             1 for st in tracks.values()
@@ -610,9 +951,11 @@ def _build_report(
             "Polygon traversal: %d crossed, %d inside-only excluded (likely waiting traffic)",
             len(candidate_tids), inside_only,
         )
+        counting_method = "intersection_polygon"
     else:
         candidate_tids = list(crossings.keys())
         inside_only = 0
+        counting_method = "tripwire"
 
     # Filter flash/phantom tracks (ByteTrack ID-switch noise, transient false
     # positives). Without this, the polygon-zone count inflates ~2× on noisy
@@ -691,13 +1034,21 @@ def _build_report(
         "vehicle_breakdown": breakdown_dict,
         "two_wheeler_breakdown": two_wheeler_breakdown,
         "counting": {
-            "method": "intersection_polygon" if intersection_zone_used else "tripwire",
+            "method": counting_method,
             "unique_tracks_counted": len(final_class),
             "candidate_tracks": len(tracks),
             "polygon_inside_only_excluded": inside_only,
             "observation_hist": _observation_histogram(tracks, countable_tids),
             "tripwire_crossings_in": count_line.in_count,
             "tripwire_crossings_out": count_line.out_count,
+            **(
+                {
+                    "in_line_crossings": segment_counter.in_crossings,
+                    "out_line_crossings": segment_counter.out_crossings,
+                    "segment_counted": len(segment_counter.crossed),
+                }
+                if segment_counter is not None else {}
+            ),
         },
         "meta": {
             "frames_total": frames_total,
@@ -708,6 +1059,8 @@ def _build_report(
         },
     }
 
+    if classified_output_path:
+        report["annotated_video"] = classified_output_path
     if speed_engine is not None:
         report["speed"] = speed_engine.report()
     if transit_engine is not None:

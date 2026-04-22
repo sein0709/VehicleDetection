@@ -23,8 +23,8 @@ Legend: ✅ done · 🚧 partial · ❌ not started
 | F3 | PM/오토바이/킥보드/자전거 2륜차 카운팅 | 🚧 detection wired, output schema TBD | `config.py` (`TWO_WHEELER_CLASS_IDS`) |
 | F4 | 속도분석 (두 라인) | ✅ code done, needs site calibration | `tasks_speed.py` |
 | F5 | 주거시설 상주/방문 (번호판) | 🚧 Gemma+EasyOCR wired, resident allowlist TBD | `ocr.py`, `vlm.py` |
-| F6 | 대중교통 승하차 + 밀집도 | 🚧 counting wired, head-based density TBD | `tasks_transit.py` |
-| F7 | 신호등 시간계산 | ✅ code done, needs per-site ROI | `tasks_light.py` |
+| F6 | 대중교통 승하차 + 밀집도 | ✅ counting + density wired, **VLM auto-calibration** ships polygons | `tasks_transit.py`, `auto_calibration.py` |
+| F7 | 신호등 시간계산 | ✅ multi-light + **VLM auto-ROI** + ambiguous-state correction wired | `tasks_light.py`, `auto_calibration.py` |
 
 ---
 
@@ -213,16 +213,17 @@ At a bus stop:
 - `sv.PolygonZone` for the bus-stop footprint (counts persons inside)
 - `sv.LineZone` per door for boarding/alighting counts
 - Density = `count_inside / max_capacity × 100`
-- Report schema: `{peak_count, avg_density_pct, boarding, alighting, samples: [...]}`
+- Bus-presence gate via optional `bus_zone_polygon`
+- Annotated MP4 output with head circles + boarding (green) / alighting (red) tags
+- Report schema: `{peak_count, avg_density_pct, boarding, alighting, samples: [...], bus_gated}`
+- **VLM auto-calibration** (`runpod/auto_calibration.py`): when the mobile client is in "auto" mode, the server samples one keyframe and asks Gemma to propose the stop polygon, door line, and bus zone — falls back to the wide-bottom-band default if the VLM is unavailable or low-confidence
+- **VLM density correction** (`TransitEngine.apply_vlm_density_correction`): on near-capacity scenes the CV count is overridden by Gemma's headcount when occlusion is suspected; the override never lowers an already-observed pixel-level count
 
 ### Gaps
 | Item | Fix |
 |---|---|
-| **Person detection** | Same blocker as F2 — `best.pt` has no person class. Wait on F2 (Path B secondary YOLO) |
-| **Head-based density** ("머리 동그라미로") | Stakeholder wants the density visual to mark each detected head with a circle, not bounding box. Two options: (a) use the top-center anchor of person bboxes as head position, draw circle; (b) add a head-detection model (e.g., YOLOv8-head). (a) is simpler and usually acceptable |
-| **Boarding vs alighting colour differentiation** | Viz concern. `sv.LineZone.trigger()` returns which tids crossed IN vs OUT — we already know direction. Need to annotate output video with different colours per direction |
-| **Output video (not just JSON)** | All existing analytics return JSON; bus stop operators want a rendered video with overlays. Needs `sv.BoxAnnotator` + `sv.LineZoneAnnotator` + circle drawing, encoded back to MP4 |
-| **Bus vs non-bus on the door LineZone** | Crossings should only count while a bus is present at the stop. Gate boarding counter with a `bus_in_stop_zone` predicate |
+| **Per-pedestrian boarding tag accuracy** | The current `_harvest_door_crossings` heuristic tags the first N "unseen" tracker IDs as the directional crossings; supervision 0.27 doesn't expose per-crossing tids directly. Counts themselves come from `LineZone` so totals are accurate, but the visual head-circle colouring is approximate |
+| **Validation footage** | Still need a labelled bus-stop clip with known boarding/alighting events to ground-truth the totals end-to-end |
 
 ### Approach
 1. Land F2 Path B first (secondary YOLO for person)
@@ -246,18 +247,17 @@ Compute red/yellow/green dwell times over the clip duration.
 
 ### Today
 Fully coded in `tasks_light.py`:
-- Static ROI (operator specifies in calibration)
+- Multi-light support — `traffic_lights: [{label, roi}, …]`
 - HSV mask per sampled frame, `cv2.inRange` on red (2 ranges), green, yellow
 - State machine appends `StateSpan` on transitions
-- Report: `{cycles: {red:{cycles, avg_duration_s, total_duration_s}, ...}, timeline: [...]}`
-- "Unknown" streak triggers Gemma fallback for state confirmation
+- Report: `{traffic_lights: [{label, cycles, timeline}, …]}` (singular `cycles`/`timeline` kept for back-compat when only one light is configured)
+- **VLM auto-ROI** (`auto_calibration.py`): mobile "auto" mode ships only the label; the server VLM proposes a tight bbox around the lamp housing from a keyframe
+- **VLM ambiguous-state correction** (now wired): when the HSV pass returns `unknown` for several frames in a row, the pipeline submits the crop as `LIGHT_STATE` to Gemma, drains the result in `_apply_aux_vlm`, and rewrites the matching `StateSpan` (was previously submitted-and-forgotten — fixed in this iteration)
 
 ### Gaps
 | Item | Fix |
 |---|---|
-| **Per-site ROI** | Operator must pick `[x, y, w, h]` per light per site. No UI yet |
-| **Multiple lights** | Real intersections have 2-4 signal heads (main, left-turn, pedestrian). Today we only support one. Extend to array |
-| **Arrow signals (좌회전/직진/보행)** | HSV can only distinguish red/yellow/green hues. Directional arrows within the same colour are indistinguishable without a shape classifier or Gemma per-frame |
+| **Arrow signals (좌회전/직진/보행)** | HSV can only distinguish red/yellow/green hues. Directional arrows within the same colour are indistinguishable without a shape classifier or per-transition Gemma call (cheap — only fires at state changes) |
 | **Validation** | No ground-truth signal-phase data for any test site |
 
 ### Approach
@@ -277,13 +277,16 @@ Fully coded in `tasks_light.py`:
 ## Cross-cutting concerns
 
 ### C1. Calibration workflow
-Today operators hand-write JSON. That doesn't scale. Three needs per site:
-- 4-point perspective quad (for F4 speed)
-- Polygon(s) for F1 (intersection), F6 (bus stop, door lines)
-- ROIs for F7 (each signal head)
-- Boundary lines for F6 (boarding direction)
+The mobile editor has split per-task screens (count line, speed quad, transit polygons, traffic-light ROI, plate allowlist) with persisted state — `apps/mobile_flutter/lib/features/sites/screens/`. As of this iteration the **default UX is "auto" mode** for the two tasks where the geometry is most painful to pick by hand:
 
-**Proposal:** a `scripts/calibration_studio.py` using OpenCV's click-point capture + first-frame display. Exports one JSON per site. Mobile team could wrap this in a web tool later.
+- **Transit (`transit_auto_mode`, default ON):** mobile ships only `max_capacity`. The server's `auto_calibration.autofill_calibration` samples one keyframe and asks Gemma (`VLMTask.BUS_STOP_LAYOUT`) to propose stop polygon, door line, and bus zone. Falls back to a wide-bottom-band default if the VLM is unavailable or returns confidence < `VLM_AUTOCALIBRATE_MIN_CONFIDENCE` (default 0.5).
+- **Traffic light (`light_auto_mode`, default ON):** mobile ships only the label. The server VLM proposes a tight bbox per signal head (`VLMTask.LIGHT_LAYOUT`).
+
+Manual mode (the existing per-task editors with full canvas + tap-to-draw) is one toggle away for power users. **Speed** stays manual because metric km/h needs a known scale (lane width / known length) — we added a "Apply preset (1 lane 3.5m × 10m)" button and a perspective-correction explainer card so the editor is at least self-documenting; auto-suggesting speed quads from a single frame is a future iteration that would still need a human-supplied metric measurement.
+
+Every editor (count line, speed, transit manual, traffic light manual, LPR allowlist) now shows an "이 설정은 무엇인가요?" expandable HelpCard explaining what the geometry means and how it feeds the analytics — addresses the previous UX gap where operators saw bare canvases with no context.
+
+The auto-calibration pre-pass runs server-side in `_process` (between `parse_calibration` and `run_pipeline`). Disable in CI/tests by setting `VLM_AUTOCALIBRATE=0`.
 
 ### C2. Model coverage gap (pedestrian / head)
 F2, F6 are both blocked on the same thing: no pedestrian detection. Picking Path B (secondary YOLO) unblocks both in one move. If the team wants to stay single-model long-term, start labelling people in the next RT-DETR training batch.

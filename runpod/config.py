@@ -53,6 +53,21 @@ VLM_CONCURRENCY = int(os.environ.get("VLM_CONCURRENCY", "6"))
 VLM_TIMEOUT_S = float(os.environ.get("VLM_TIMEOUT_S", "15.0"))
 VLM_CIRCUIT_THRESHOLD = int(os.environ.get("VLM_CIRCUIT_THRESHOLD", "5"))
 VLM_TEMPERATURE = float(os.environ.get("VLM_TEMPERATURE", "0.1"))
+# Auto-calibration pre-pass: when a transit/traffic_light task is enabled
+# without geometry, sample one keyframe and ask the VLM to propose ROIs.
+# Disable in CI/tests (no Vertex creds) by setting VLM_AUTOCALIBRATE=0.
+VLM_AUTOCALIBRATE = os.environ.get("VLM_AUTOCALIBRATE", "1") == "1"
+# How many seconds into the video to grab the auto-cal keyframe. The first
+# frame is often a black fade-in so we sample a bit later by default.
+VLM_AUTOCALIBRATE_KEYFRAME_S = float(
+    os.environ.get("VLM_AUTOCALIBRATE_KEYFRAME_S", "1.0"),
+)
+# Minimum confidence required to accept a VLM-proposed layout. Below this
+# we fall back to today's defaults so behaviour never regresses on a noisy
+# scene.
+VLM_AUTOCALIBRATE_MIN_CONFIDENCE = float(
+    os.environ.get("VLM_AUTOCALIBRATE_MIN_CONFIDENCE", "0.5"),
+)
 
 # ---------------------------------------------------------------------------
 # Class maps

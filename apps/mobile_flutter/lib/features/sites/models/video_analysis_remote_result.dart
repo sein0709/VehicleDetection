@@ -11,10 +11,24 @@ class VideoAnalysisBreakdownEntry {
 
 class VideoAnalysisRemoteResult {
   const VideoAnalysisRemoteResult({
+    required this.jobId,
     required this.totalVehiclesCounted,
     required this.breakdown,
     this.twoWheelerBreakdown = const [],
+    this.pedestriansCount = 0,
+    this.speed,
+    this.transit,
+    this.trafficLights = const [],
+    this.plateSummary,
+    this.plates = const [],
+    this.hasClassifiedVideo = false,
+    this.hasTransitVideo = false,
   });
+
+  /// Server-issued job identifier. Required to fetch the annotated MP4
+  /// from `/video/{jobId}`. Empty when the response omitted it (older
+  /// servers / mocked tests) — UI hides video download in that case.
+  final String jobId;
 
   /// Prefer server-provided `total_vehicles_counted` when numeric; otherwise
   /// the sum of [breakdown] counts (or flat class rows when building breakdown).
@@ -28,15 +42,332 @@ class VideoAnalysisRemoteResult {
   /// pipeline versions.
   final List<VideoAnalysisBreakdownEntry> twoWheelerBreakdown;
 
+  /// F2 — pedestrian count from `totals.pedestrians`. 0 when the server
+  /// didn't run pedestrian detection (`ENABLE_PEDESTRIAN_DETECTOR=0`).
+  final int pedestriansCount;
+
+  /// F4 — speed analytics block, present only when calibration enabled
+  /// the speed task and the source quad / line ratios were valid.
+  final VideoAnalysisSpeed? speed;
+
+  /// F6 — transit (boarding / alighting / density) analytics block,
+  /// present only when calibration enabled the transit task.
+  final VideoAnalysisTransit? transit;
+
+  /// F7 — per-light state-machine summary. Empty unless the calibration
+  /// included `traffic_light` / `traffic_lights`.
+  final List<VideoAnalysisTrafficLight> trafficLights;
+
+  /// F5 — high-level plate counts (resident vs visitor). Present only
+  /// when calibration enabled the LPR task.
+  final VideoAnalysisPlateSummary? plateSummary;
+
+  /// F5 — per-track plate records. Empty unless LPR ran.
+  final List<VideoAnalysisPlate> plates;
+
+  /// True when the server wrote a class-annotated MP4 for this job
+  /// (i.e. the request included `calibration.output_video=true`).
+  /// Drives visibility of the "Download annotated video" action.
+  final bool hasClassifiedVideo;
+
+  /// True when the transit task wrote its own head-circle / boarding-colour
+  /// overlay MP4 (`calibration.transit.output_video=true`).
+  final bool hasTransitVideo;
+
   factory VideoAnalysisRemoteResult.fromJson(Map<String, dynamic> json) {
     final breakdown = _parseBreakdown(json);
     final total = _resolveTotal(json, breakdown);
     return VideoAnalysisRemoteResult(
+      jobId: (json['job_id'] as Object?)?.toString() ?? '',
       totalVehiclesCounted: total,
       breakdown: _sortBreakdown(breakdown),
       twoWheelerBreakdown: _sortBreakdown(_parseTwoWheelerBreakdown(json)),
+      pedestriansCount: _parsePedestriansCount(json),
+      speed: VideoAnalysisSpeed.tryParse(json['speed']),
+      transit: VideoAnalysisTransit.tryParse(json['transit']),
+      trafficLights: VideoAnalysisTrafficLight.parseList(json['traffic_light']),
+      plateSummary:
+          VideoAnalysisPlateSummary.tryParse(json['plate_summary']),
+      plates: VideoAnalysisPlate.parseMap(json['plates']),
+      hasClassifiedVideo: _isNonEmptyString(json['annotated_video']),
+      hasTransitVideo: _hasTransitAnnotatedVideo(json),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// F4 — Speed
+// ---------------------------------------------------------------------------
+
+class VideoAnalysisSpeed {
+  const VideoAnalysisSpeed({
+    required this.vehiclesMeasured,
+    this.avgKmh,
+    this.minKmh,
+    this.maxKmh,
+    this.perTrack = const {},
+  });
+
+  final int vehiclesMeasured;
+  final double? avgKmh;
+  final double? minKmh;
+  final double? maxKmh;
+  /// Map of `track_id` (string) → measured km/h.
+  final Map<String, double> perTrack;
+
+  static VideoAnalysisSpeed? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final perTrackRaw = raw['per_track'];
+    final perTrack = <String, double>{};
+    if (perTrackRaw is Map) {
+      for (final e in perTrackRaw.entries) {
+        final v = _coerceDouble(e.value);
+        if (v != null) perTrack[e.key.toString()] = v;
+      }
+    }
+    final measured = _coerceNonNegativeInt(raw['vehicles_measured']) ?? 0;
+    return VideoAnalysisSpeed(
+      vehiclesMeasured: measured,
+      avgKmh: _coerceDouble(raw['avg_kmh']),
+      minKmh: _coerceDouble(raw['min_kmh']),
+      maxKmh: _coerceDouble(raw['max_kmh']),
+      perTrack: perTrack,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// F6 — Transit
+// ---------------------------------------------------------------------------
+
+class VideoAnalysisTransit {
+  const VideoAnalysisTransit({
+    required this.peakCount,
+    required this.avgDensityPct,
+    required this.boarding,
+    required this.alighting,
+    required this.busGated,
+  });
+
+  final int peakCount;
+  final double avgDensityPct;
+  final int boarding;
+  final int alighting;
+
+  /// True when door-line counting was gated on bus presence (i.e. a
+  /// `bus_zone_polygon` was configured). Surfaced so operators can spot
+  /// the difference between "0 boarding" because no bus arrived vs
+  /// because the gate was overly tight.
+  final bool busGated;
+
+  static VideoAnalysisTransit? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    return VideoAnalysisTransit(
+      peakCount: _coerceNonNegativeInt(raw['peak_count']) ?? 0,
+      avgDensityPct: _coerceDouble(raw['avg_density_pct']) ?? 0.0,
+      boarding: _coerceNonNegativeInt(raw['boarding']) ?? 0,
+      alighting: _coerceNonNegativeInt(raw['alighting']) ?? 0,
+      busGated: raw['bus_gated'] == true,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// F7 — Traffic Light
+// ---------------------------------------------------------------------------
+
+class VideoAnalysisTrafficLightCycle {
+  const VideoAnalysisTrafficLightCycle({
+    required this.cycles,
+    required this.avgDurationS,
+    required this.totalDurationS,
+  });
+
+  final int cycles;
+  final double avgDurationS;
+  final double totalDurationS;
+
+  static VideoAnalysisTrafficLightCycle parse(Object? raw) {
+    if (raw is! Map) {
+      return const VideoAnalysisTrafficLightCycle(
+        cycles: 0,
+        avgDurationS: 0,
+        totalDurationS: 0,
+      );
+    }
+    return VideoAnalysisTrafficLightCycle(
+      cycles: _coerceNonNegativeInt(raw['cycles']) ?? 0,
+      avgDurationS: _coerceDouble(raw['avg_duration_s']) ?? 0.0,
+      totalDurationS: _coerceDouble(raw['total_duration_s']) ?? 0.0,
+    );
+  }
+}
+
+class VideoAnalysisTrafficLight {
+  const VideoAnalysisTrafficLight({
+    required this.label,
+    required this.red,
+    required this.green,
+    required this.yellow,
+  });
+
+  final String label;
+  final VideoAnalysisTrafficLightCycle red;
+  final VideoAnalysisTrafficLightCycle green;
+  final VideoAnalysisTrafficLightCycle yellow;
+
+  /// Accepts the new `{traffic_lights: [...]}` shape AND the legacy
+  /// `{cycles: {...}}` single-light fallback. Returns an empty list when
+  /// neither is present.
+  static List<VideoAnalysisTrafficLight> parseList(Object? raw) {
+    if (raw is! Map) return const [];
+    final lights = raw['traffic_lights'];
+    if (lights is List) {
+      return [
+        for (final item in lights)
+          if (item is Map) _parseSingle(Map<String, Object?>.from(item)),
+      ];
+    }
+    final cycles = raw['cycles'];
+    if (cycles is Map) {
+      return [
+        _parseSingle(<String, Object?>{
+          'label': raw['label'] ?? 'main',
+          'cycles': cycles,
+        }),
+      ];
+    }
+    return const [];
+  }
+
+  static VideoAnalysisTrafficLight _parseSingle(Map<String, Object?> raw) {
+    final cycles = raw['cycles'];
+    final cyclesMap = cycles is Map ? cycles : const <Object?, Object?>{};
+    return VideoAnalysisTrafficLight(
+      label: (raw['label'] ?? 'main').toString(),
+      red: VideoAnalysisTrafficLightCycle.parse(cyclesMap['red']),
+      green: VideoAnalysisTrafficLightCycle.parse(cyclesMap['green']),
+      yellow: VideoAnalysisTrafficLightCycle.parse(cyclesMap['yellow']),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// F5 — Plates / LPR
+// ---------------------------------------------------------------------------
+
+class VideoAnalysisPlateSummary {
+  const VideoAnalysisPlateSummary({
+    required this.resident,
+    required this.visitor,
+    required this.total,
+    required this.privacyHashed,
+    required this.allowlistSize,
+  });
+
+  final int resident;
+  final int visitor;
+  final int total;
+  final bool privacyHashed;
+  final int allowlistSize;
+
+  static VideoAnalysisPlateSummary? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    return VideoAnalysisPlateSummary(
+      resident: _coerceNonNegativeInt(raw['resident']) ?? 0,
+      visitor: _coerceNonNegativeInt(raw['visitor']) ?? 0,
+      total: _coerceNonNegativeInt(raw['total']) ?? 0,
+      privacyHashed: raw['privacy_hashed'] == true,
+      allowlistSize: _coerceNonNegativeInt(raw['allowlist_size']) ?? 0,
+    );
+  }
+}
+
+class VideoAnalysisPlate {
+  const VideoAnalysisPlate({
+    required this.trackId,
+    required this.category,
+    this.text,
+    this.textHash,
+    this.source,
+  });
+
+  final String trackId;
+  /// One of `resident`, `visitor`, `unknown`. Falls back to `unknown` when
+  /// the server returned an unrecognised value.
+  final String category;
+  /// Raw normalized plate text. Null when the job ran with `hash_plates=true`.
+  final String? text;
+  /// SHA-256 prefix of the plate. Null when the job ran with `hash_plates=false`.
+  final String? textHash;
+  /// One of `gemma`, `easyocr`, `both`, or null if the server didn't tag.
+  final String? source;
+
+  static List<VideoAnalysisPlate> parseMap(Object? raw) {
+    if (raw is! Map) return const [];
+    final out = <VideoAnalysisPlate>[];
+    for (final e in raw.entries) {
+      final rec = e.value;
+      if (rec is! Map) continue;
+      final category = (rec['category'] ?? 'unknown').toString();
+      out.add(VideoAnalysisPlate(
+        trackId: e.key.toString(),
+        category: const {'resident', 'visitor', 'unknown'}.contains(category)
+            ? category
+            : 'unknown',
+        text: rec['text']?.toString(),
+        textHash: rec['text_hash']?.toString(),
+        source: rec['source']?.toString(),
+      ),);
+    }
+    out.sort((a, b) {
+      // Residents first (visitor allowlist is the alarm-worthy case for
+      // typical deployments — but residents are usually the smaller list,
+      // so showing them first reads as a more useful summary).
+      final byCat = _categoryOrder(a.category).compareTo(
+        _categoryOrder(b.category),
+      );
+      if (byCat != 0) return byCat;
+      return a.trackId.compareTo(b.trackId);
+    });
+    return out;
+  }
+}
+
+int _categoryOrder(String category) {
+  switch (category) {
+    case 'resident':
+      return 0;
+    case 'visitor':
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// F2 — Pedestrian
+// ---------------------------------------------------------------------------
+
+int _parsePedestriansCount(Map<String, dynamic> json) {
+  final totals = json['totals'];
+  if (totals is Map) {
+    final n = _coerceNonNegativeInt(totals['pedestrians']);
+    if (n != null) return n;
+  }
+  // Backwards compat: older pipelines may emit `pedestrians` at the top.
+  final n = _coerceNonNegativeInt(json['pedestrians']);
+  return n ?? 0;
+}
+
+bool _isNonEmptyString(Object? v) => v is String && v.trim().isNotEmpty;
+
+bool _hasTransitAnnotatedVideo(Map<String, dynamic> json) {
+  final transit = json['transit'];
+  if (transit is Map) {
+    return _isNonEmptyString(transit['annotated_video']);
+  }
+  return false;
 }
 
 /// Keys that are not per-class counts when reading a flat map.
@@ -58,6 +389,20 @@ const Set<String> _videoAnalysisMetadataKeys = {
   'job_id',
   'id',
   'timestamp',
+  // Server-local file paths surfaced by `/status` for the annotated MP4
+  // outputs. Never per-class counts — the values are absolute paths or
+  // nested objects, but pin them as metadata for defence-in-depth.
+  'annotated_video',
+  'transit',
+  'speed',
+  'traffic_light',
+  'traffic_lights',
+  'plates',
+  'plate_summary',
+  'totals',
+  'vehicle_breakdown',
+  'counting',
+  'meta',
   // Timestamp / lifecycle fields the server may stamp at the top level.
   // Triggered by the 2026-04-20 incident where a stray top-level
   // `finished_at: 1776681446.123` was rendered as "1.7B vehicles".
@@ -220,5 +565,18 @@ int? _coerceNonNegativeInt(dynamic value) {
     final i = value.round();
     return i < 0 ? null : i;
   }
+  return null;
+}
+
+/// Lossy double coercion that accepts int, double, and num. Returns null
+/// for NaN, infinity, and non-numeric values so callers can default
+/// without spreading null-coalescing through the parser.
+double? _coerceDouble(dynamic value) {
+  if (value is int) return value.toDouble();
+  if (value is double) {
+    if (value.isNaN || value.isInfinite) return null;
+    return value;
+  }
+  if (value is num) return value.toDouble();
   return null;
 }

@@ -1880,6 +1880,72 @@ abstract class AppLocalizations {
   /// **'Record Video'**
   String get videoAnalysisRecord;
 
+  /// No description provided for @videoAnalysisPickFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a video file (MP4 or DAV)'**
+  String get videoAnalysisPickFileTitle;
+
+  /// No description provided for @videoAnalysisStartAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Start analysis'**
+  String get videoAnalysisStartAnalysis;
+
+  /// No description provided for @videoAnalysisChooseDifferentFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a different file'**
+  String get videoAnalysisChooseDifferentFile;
+
+  /// No description provided for @videoAnalysisStagedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected: {filename}'**
+  String videoAnalysisStagedFile(String filename);
+
+  /// No description provided for @videoAnalysisStagedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the tasks below, then tap Start to upload and analyze.'**
+  String get videoAnalysisStagedHint;
+
+  /// No description provided for @videoAnalysisBusStopPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus stop preset'**
+  String get videoAnalysisBusStopPreset;
+
+  /// No description provided for @videoAnalysisBusStopPresetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One-tap setup for a bus stop: disables vehicle counting, enables transit (boarding / alighting) and pedestrians.'**
+  String get videoAnalysisBusStopPresetHint;
+
+  /// No description provided for @videoAnalysisBusStopApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus stop preset applied — vehicle counting is off.'**
+  String get videoAnalysisBusStopApplied;
+
+  /// No description provided for @videoAnalysisCountLineConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure count lines'**
+  String get videoAnalysisCountLineConfigure;
+
+  /// No description provided for @videoAnalysisCountLineConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'IN/OUT lines set'**
+  String get videoAnalysisCountLineConfigured;
+
+  /// No description provided for @videoAnalysisDavNotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'DAV files cannot be uploaded for analysis. Open the Speed, Transit, or Traffic-light editor to use this file as a calibration backdrop, or transcode it to MP4 first.'**
+  String get videoAnalysisDavNotSupported;
+
   /// No description provided for @videoAnalysisUploading.
   ///
   /// In en, this message translates to:
@@ -1927,6 +1993,949 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get videoAnalysisRetry;
+
+  /// No description provided for @videoAnalysisIncludeAnnotatedVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate annotated video'**
+  String get videoAnalysisIncludeAnnotatedVideo;
+
+  /// No description provided for @videoAnalysisIncludeAnnotatedVideoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a labeled MP4 you can download after analysis. Increases processing time.'**
+  String get videoAnalysisIncludeAnnotatedVideoHint;
+
+  /// No description provided for @videoAnalysisDownloadVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Download annotated video'**
+  String get videoAnalysisDownloadVideo;
+
+  /// No description provided for @videoAnalysisDownloadTransitVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Download transit overlay video'**
+  String get videoAnalysisDownloadTransitVideo;
+
+  /// No description provided for @videoAnalysisDownloadingVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading annotated video…'**
+  String get videoAnalysisDownloadingVideo;
+
+  /// No description provided for @videoAnalysisDownloadCanceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Download canceled.'**
+  String get videoAnalysisDownloadCanceled;
+
+  /// No description provided for @videoAnalysisDownloadSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved: {path}'**
+  String videoAnalysisDownloadSaved(String path);
+
+  /// No description provided for @videoAnalysisTasksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks to run'**
+  String get videoAnalysisTasksTitle;
+
+  /// No description provided for @videoAnalysisTasksHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each task needs site calibration to produce useful numbers. Defaults assume a centered road in the lower half of the frame.'**
+  String get videoAnalysisTasksHint;
+
+  /// No description provided for @videoAnalysisTaskVehicles.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicles (counting + classification)'**
+  String get videoAnalysisTaskVehicles;
+
+  /// No description provided for @videoAnalysisTaskPedestrians.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedestrians (people crossing)'**
+  String get videoAnalysisTaskPedestrians;
+
+  /// No description provided for @videoAnalysisTaskSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed (two-line measurement)'**
+  String get videoAnalysisTaskSpeed;
+
+  /// No description provided for @videoAnalysisTaskTransit.
+  ///
+  /// In en, this message translates to:
+  /// **'Transit (boarding / alighting / density)'**
+  String get videoAnalysisTaskTransit;
+
+  /// No description provided for @videoAnalysisTaskTrafficLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic-light timing'**
+  String get videoAnalysisTaskTrafficLight;
+
+  /// No description provided for @videoAnalysisTaskLpr.
+  ///
+  /// In en, this message translates to:
+  /// **'License plates (resident vs visitor)'**
+  String get videoAnalysisTaskLpr;
+
+  /// No description provided for @videoAnalysisPedestrianTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedestrians'**
+  String get videoAnalysisPedestrianTitle;
+
+  /// No description provided for @videoAnalysisPedestrianCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No pedestrians counted} one{1 pedestrian counted} other{{count} pedestrians counted}}'**
+  String videoAnalysisPedestrianCount(int count);
+
+  /// No description provided for @videoAnalysisPedestrianDetectorOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedestrian detector is off — set ENABLE_PEDESTRIAN_DETECTOR=1 on the server.'**
+  String get videoAnalysisPedestrianDetectorOff;
+
+  /// No description provided for @videoAnalysisSpeedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get videoAnalysisSpeedTitle;
+
+  /// No description provided for @videoAnalysisSpeedNoMeasurements.
+  ///
+  /// In en, this message translates to:
+  /// **'No vehicles crossed both speed lines.'**
+  String get videoAnalysisSpeedNoMeasurements;
+
+  /// No description provided for @videoAnalysisSpeedAvg.
+  ///
+  /// In en, this message translates to:
+  /// **'Average'**
+  String get videoAnalysisSpeedAvg;
+
+  /// No description provided for @videoAnalysisSpeedMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Min'**
+  String get videoAnalysisSpeedMin;
+
+  /// No description provided for @videoAnalysisSpeedMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get videoAnalysisSpeedMax;
+
+  /// No description provided for @videoAnalysisSpeedKmh.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} km/h'**
+  String videoAnalysisSpeedKmh(String value);
+
+  /// No description provided for @videoAnalysisSpeedMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 vehicle measured} other{{count} vehicles measured}}'**
+  String videoAnalysisSpeedMeasured(int count);
+
+  /// No description provided for @videoAnalysisSpeedPerTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Per-vehicle speeds'**
+  String get videoAnalysisSpeedPerTrack;
+
+  /// No description provided for @videoAnalysisSpeedTrackRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Track {trackId}'**
+  String videoAnalysisSpeedTrackRow(String trackId);
+
+  /// No description provided for @videoAnalysisTransitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Public transit'**
+  String get videoAnalysisTransitTitle;
+
+  /// No description provided for @videoAnalysisTransitBoarding.
+  ///
+  /// In en, this message translates to:
+  /// **'Boarding'**
+  String get videoAnalysisTransitBoarding;
+
+  /// No description provided for @videoAnalysisTransitAlighting.
+  ///
+  /// In en, this message translates to:
+  /// **'Alighting'**
+  String get videoAnalysisTransitAlighting;
+
+  /// No description provided for @videoAnalysisTransitPeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Peak inside stop'**
+  String get videoAnalysisTransitPeak;
+
+  /// No description provided for @videoAnalysisTransitDensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg density'**
+  String get videoAnalysisTransitDensity;
+
+  /// No description provided for @videoAnalysisTransitDensityValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}%'**
+  String videoAnalysisTransitDensityValue(String value);
+
+  /// No description provided for @videoAnalysisTransitBusGated.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts gated to bus presence.'**
+  String get videoAnalysisTransitBusGated;
+
+  /// No description provided for @videoAnalysisTransitNotGated.
+  ///
+  /// In en, this message translates to:
+  /// **'All door-line crossings counted (no bus-zone gate).'**
+  String get videoAnalysisTransitNotGated;
+
+  /// No description provided for @videoAnalysisTrafficLightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic-light timing'**
+  String get videoAnalysisTrafficLightTitle;
+
+  /// No description provided for @videoAnalysisTrafficLightLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Light: {label}'**
+  String videoAnalysisTrafficLightLabel(String label);
+
+  /// No description provided for @videoAnalysisTrafficLightCycles.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycles'**
+  String get videoAnalysisTrafficLightCycles;
+
+  /// No description provided for @videoAnalysisTrafficLightAvgDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg'**
+  String get videoAnalysisTrafficLightAvgDuration;
+
+  /// No description provided for @videoAnalysisTrafficLightTotalDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get videoAnalysisTrafficLightTotalDuration;
+
+  /// No description provided for @videoAnalysisTrafficLightSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}s'**
+  String videoAnalysisTrafficLightSeconds(String value);
+
+  /// No description provided for @videoAnalysisTrafficLightRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get videoAnalysisTrafficLightRed;
+
+  /// No description provided for @videoAnalysisTrafficLightGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get videoAnalysisTrafficLightGreen;
+
+  /// No description provided for @videoAnalysisTrafficLightYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get videoAnalysisTrafficLightYellow;
+
+  /// No description provided for @videoAnalysisLprTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'License plates'**
+  String get videoAnalysisLprTitle;
+
+  /// No description provided for @videoAnalysisLprResident.
+  ///
+  /// In en, this message translates to:
+  /// **'Resident'**
+  String get videoAnalysisLprResident;
+
+  /// No description provided for @videoAnalysisLprVisitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Visitor'**
+  String get videoAnalysisLprVisitor;
+
+  /// No description provided for @videoAnalysisLprAllowlistSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowlist: {count} plate(s)'**
+  String videoAnalysisLprAllowlistSize(int count);
+
+  /// No description provided for @videoAnalysisLprPrivacyHashed.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate text stored as SHA-256 prefix (privacy mode).'**
+  String get videoAnalysisLprPrivacyHashed;
+
+  /// No description provided for @videoAnalysisLprPlatePrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate'**
+  String get videoAnalysisLprPlatePrefix;
+
+  /// No description provided for @videoAnalysisLprHashPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Hash'**
+  String get videoAnalysisLprHashPrefix;
+
+  /// No description provided for @videoAnalysisConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get videoAnalysisConfigure;
+
+  /// No description provided for @videoAnalysisConfigureNoVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a video first to enable per-task configuration.'**
+  String get videoAnalysisConfigureNoVideo;
+
+  /// No description provided for @videoAnalysisRoiConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI set: {label} ({width}×{height}, {position})'**
+  String videoAnalysisRoiConfigured(
+      String label, String width, String height, String position);
+
+  /// No description provided for @roiEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic-light ROI'**
+  String get roiEditorTitle;
+
+  /// No description provided for @roiEditorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Light label (e.g. main, left_turn)'**
+  String get roiEditorLabel;
+
+  /// No description provided for @roiEditorReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get roiEditorReset;
+
+  /// No description provided for @roiEditorSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get roiEditorSave;
+
+  /// No description provided for @roiEditorCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get roiEditorCancel;
+
+  /// No description provided for @roiEditorPickStill.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a still image instead'**
+  String get roiEditorPickStill;
+
+  /// No description provided for @roiEditorPickBackdrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose backdrop file'**
+  String get roiEditorPickBackdrop;
+
+  /// No description provided for @roiEditorPickBackdropTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick MP4, DAV, or still image'**
+  String get roiEditorPickBackdropTitle;
+
+  /// No description provided for @roiEditorNoBackdrop.
+  ///
+  /// In en, this message translates to:
+  /// **'No backdrop loaded yet. Pick an MP4, DAV, or still image of the scene to start drawing.'**
+  String get roiEditorNoBackdrop;
+
+  /// No description provided for @roiEditorFrameLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t extract a frame from the video. Pick a still image of the same scene.'**
+  String get roiEditorFrameLoadFailed;
+
+  /// No description provided for @roiEditorRoiTooSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'ROI is too small. Pick two corners further apart.'**
+  String get roiEditorRoiTooSmall;
+
+  /// No description provided for @roiEditorHintTopLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the TOP-LEFT corner of the signal head.'**
+  String get roiEditorHintTopLeft;
+
+  /// No description provided for @roiEditorHintBottomRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the BOTTOM-RIGHT corner of the signal head.'**
+  String get roiEditorHintBottomRight;
+
+  /// No description provided for @roiEditorHintRefine.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to refine either corner. Press Save when ready.'**
+  String get roiEditorHintRefine;
+
+  /// No description provided for @lprAllowlistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Resident plates'**
+  String get lprAllowlistTitle;
+
+  /// No description provided for @lprAllowlistEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No resident plates yet. Add the first one below.'**
+  String get lprAllowlistEmpty;
+
+  /// No description provided for @lprAllowlistHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Korean format: NNga NNNN (e.g. 12가 3456). Spaces are stripped automatically.'**
+  String get lprAllowlistHint;
+
+  /// No description provided for @lprAllowlistAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate (e.g. 12가 3456)'**
+  String get lprAllowlistAddHint;
+
+  /// No description provided for @lprAllowlistAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get lprAllowlistAdd;
+
+  /// No description provided for @lprAllowlistInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate doesn\'t match the Korean format (NN(N)가 NNNN).'**
+  String get lprAllowlistInvalid;
+
+  /// No description provided for @lprAllowlistDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'That plate is already on the allowlist.'**
+  String get lprAllowlistDuplicate;
+
+  /// No description provided for @lprAllowlistRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get lprAllowlistRemove;
+
+  /// No description provided for @lprAllowlistCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No plates} one{1 plate} other{{count} plates}}'**
+  String lprAllowlistCount(int count);
+
+  /// No description provided for @lprAllowlistConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage allowlist'**
+  String get lprAllowlistConfigure;
+
+  /// No description provided for @speedEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed lines & quad'**
+  String get speedEditorTitle;
+
+  /// No description provided for @speedEditorResetQuad.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear quad'**
+  String get speedEditorResetQuad;
+
+  /// No description provided for @speedEditorModeQuad.
+  ///
+  /// In en, this message translates to:
+  /// **'Quad ({count}/4)'**
+  String speedEditorModeQuad(int count);
+
+  /// No description provided for @speedEditorModeLine1.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 1'**
+  String get speedEditorModeLine1;
+
+  /// No description provided for @speedEditorModeLine2.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 2'**
+  String get speedEditorModeLine2;
+
+  /// No description provided for @speedEditorWidthM.
+  ///
+  /// In en, this message translates to:
+  /// **'Width (m)'**
+  String get speedEditorWidthM;
+
+  /// No description provided for @speedEditorLengthM.
+  ///
+  /// In en, this message translates to:
+  /// **'Length (m)'**
+  String get speedEditorLengthM;
+
+  /// No description provided for @speedEditorHintQuad.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap {remaining} more corner(s) of a known real-world rectangle (e.g. lane markings).'**
+  String speedEditorHintQuad(int remaining);
+
+  /// No description provided for @speedEditorHintQuadDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Quad complete. Tap again to start over, or switch to Line 1 / Line 2.'**
+  String get speedEditorHintQuadDone;
+
+  /// No description provided for @speedEditorHintLine1Start.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the START point of Line 1 (entry).'**
+  String get speedEditorHintLine1Start;
+
+  /// No description provided for @speedEditorHintLine1End.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the END point of Line 1 (entry).'**
+  String get speedEditorHintLine1End;
+
+  /// No description provided for @speedEditorHintLine1Done.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 1 set. Tap again to redraw.'**
+  String get speedEditorHintLine1Done;
+
+  /// No description provided for @speedEditorHintLine2Start.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the START point of Line 2 (exit).'**
+  String get speedEditorHintLine2Start;
+
+  /// No description provided for @speedEditorHintLine2End.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the END point of Line 2 (exit).'**
+  String get speedEditorHintLine2End;
+
+  /// No description provided for @speedEditorHintLine2Done.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 2 set. Tap again to redraw.'**
+  String get speedEditorHintLine2Done;
+
+  /// No description provided for @speedEditorSnapHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap lines to horizontal'**
+  String get speedEditorSnapHorizontal;
+
+  /// No description provided for @speedEditorSnapHorizontalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Forces both lines to be perfectly horizontal — old behavior; uncheck for arbitrary lines.'**
+  String get speedEditorSnapHorizontalHint;
+
+  /// No description provided for @speedEditorQuadIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap all 4 quad corners before saving.'**
+  String get speedEditorQuadIncomplete;
+
+  /// No description provided for @speedEditorLinesIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Both speed lines need 2 endpoints each before saving.'**
+  String get speedEditorLinesIncomplete;
+
+  /// No description provided for @speedEditorLinesTooClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines must be at least 5% of frame height apart.'**
+  String get speedEditorLinesTooClose;
+
+  /// No description provided for @speedEditorBadMetres.
+  ///
+  /// In en, this message translates to:
+  /// **'Width and length must be positive numbers in metres.'**
+  String get speedEditorBadMetres;
+
+  /// No description provided for @countLineEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Count lines (IN / OUT)'**
+  String get countLineEditorTitle;
+
+  /// No description provided for @countLineEditorModeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'IN line'**
+  String get countLineEditorModeIn;
+
+  /// No description provided for @countLineEditorModeOut.
+  ///
+  /// In en, this message translates to:
+  /// **'OUT line'**
+  String get countLineEditorModeOut;
+
+  /// No description provided for @countLineEditorReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset line'**
+  String get countLineEditorReset;
+
+  /// No description provided for @countLineEditorHintInStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the START point of the IN line.'**
+  String get countLineEditorHintInStart;
+
+  /// No description provided for @countLineEditorHintInEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the END point of the IN line.'**
+  String get countLineEditorHintInEnd;
+
+  /// No description provided for @countLineEditorHintInDone.
+  ///
+  /// In en, this message translates to:
+  /// **'IN line set. Tap again to redraw.'**
+  String get countLineEditorHintInDone;
+
+  /// No description provided for @countLineEditorHintOutStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the START point of the OUT line.'**
+  String get countLineEditorHintOutStart;
+
+  /// No description provided for @countLineEditorHintOutEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the END point of the OUT line.'**
+  String get countLineEditorHintOutEnd;
+
+  /// No description provided for @countLineEditorHintOutDone.
+  ///
+  /// In en, this message translates to:
+  /// **'OUT line set. Tap again to redraw.'**
+  String get countLineEditorHintOutDone;
+
+  /// No description provided for @countLineEditorIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Both lines need 2 endpoints each before saving.'**
+  String get countLineEditorIncomplete;
+
+  /// No description provided for @countLineEditorDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicles count once when a track crosses both lines, in either order. Place IN where vehicles enter the scene and OUT where they leave.'**
+  String get countLineEditorDescription;
+
+  /// No description provided for @transitEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus stop & door line'**
+  String get transitEditorTitle;
+
+  /// No description provided for @transitEditorUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo last point'**
+  String get transitEditorUndo;
+
+  /// No description provided for @transitEditorModeStopPolygon.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop polygon'**
+  String get transitEditorModeStopPolygon;
+
+  /// No description provided for @transitEditorModeDoorLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Door line'**
+  String get transitEditorModeDoorLine;
+
+  /// No description provided for @transitEditorModeBusZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus zone'**
+  String get transitEditorModeBusZone;
+
+  /// No description provided for @transitEditorBusZoneEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate counting on bus presence'**
+  String get transitEditorBusZoneEnable;
+
+  /// No description provided for @transitEditorBusZoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, door-line crossings only count while a bus overlaps this polygon.'**
+  String get transitEditorBusZoneHint;
+
+  /// No description provided for @transitEditorBusZoneDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus-zone gating is off — every door-line crossing counts.'**
+  String get transitEditorBusZoneDisabled;
+
+  /// No description provided for @transitEditorCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Max capacity (persons)'**
+  String get transitEditorCapacity;
+
+  /// No description provided for @transitEditorCapacityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Density % = persons inside the stop polygon ÷ capacity.'**
+  String get transitEditorCapacityHint;
+
+  /// No description provided for @transitEditorHintStopPolygon.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add a polygon vertex. {remaining} more needed.'**
+  String transitEditorHintStopPolygon(int remaining);
+
+  /// No description provided for @transitEditorHintStopPolygonDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop polygon ready. Add more vertices or switch tabs.'**
+  String get transitEditorHintStopPolygonDone;
+
+  /// No description provided for @transitEditorHintDoorLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to set door-line endpoint {remaining} of 2.'**
+  String transitEditorHintDoorLine(int remaining);
+
+  /// No description provided for @transitEditorHintDoorLineDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Door line ready. Tap again to redraw.'**
+  String get transitEditorHintDoorLineDone;
+
+  /// No description provided for @transitEditorHintBusZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add a bus-zone vertex. {remaining} more needed.'**
+  String transitEditorHintBusZone(int remaining);
+
+  /// No description provided for @transitEditorHintBusZoneDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus zone ready.'**
+  String get transitEditorHintBusZoneDone;
+
+  /// No description provided for @transitEditorStopPolygonTooSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop polygon needs at least 3 vertices.'**
+  String get transitEditorStopPolygonTooSmall;
+
+  /// No description provided for @transitEditorDoorLineIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Door line needs exactly 2 endpoints.'**
+  String get transitEditorDoorLineIncomplete;
+
+  /// No description provided for @transitEditorBusZoneTooSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Bus zone needs at least 3 vertices (or turn it off).'**
+  String get transitEditorBusZoneTooSmall;
+
+  /// No description provided for @transitEditorBadCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Capacity must be a positive integer.'**
+  String get transitEditorBadCapacity;
+
+  /// No description provided for @calibrationModeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get calibrationModeAuto;
+
+  /// No description provided for @calibrationModeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get calibrationModeManual;
+
+  /// No description provided for @transitAutoModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI auto-detect mode'**
+  String get transitAutoModeTitle;
+
+  /// No description provided for @transitAutoModeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'AI analyses one keyframe of the video and finds the bus stop area, door line, and bus parking spot automatically. You only need to enter the capacity.'**
+  String get transitAutoModeBody;
+
+  /// No description provided for @transitManualModeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to Manual to draw the regions yourself.'**
+  String get transitManualModeBody;
+
+  /// No description provided for @transitWhatIsThisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this configure?'**
+  String get transitWhatIsThisTitle;
+
+  /// No description provided for @transitWhatIsThisBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The stop polygon (green) is where people stand — used to compute density (%). The door line (yellow) sits across the bus door — people crossing it count as boarding/alighting. The bus zone (blue) is where the bus parks — boarding only counts while a bus overlaps it.'**
+  String get transitWhatIsThisBody;
+
+  /// No description provided for @lightAutoModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI auto-detect mode'**
+  String get lightAutoModeTitle;
+
+  /// No description provided for @lightAutoModeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'AI finds the traffic light in the video automatically. Just provide a label (used to disambiguate when multiple lights are visible).'**
+  String get lightAutoModeBody;
+
+  /// No description provided for @lightManualModeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to Manual to draw the ROI yourself.'**
+  String get lightManualModeBody;
+
+  /// No description provided for @lightAutoLabelField.
+  ///
+  /// In en, this message translates to:
+  /// **'Label (e.g. straight, left_turn)'**
+  String get lightAutoLabelField;
+
+  /// No description provided for @lightWhatIsThisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this configure?'**
+  String get lightWhatIsThisTitle;
+
+  /// No description provided for @lightWhatIsThisBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The traffic-light ROI is a tight box around the lamp housing only — no sky, no pole, no signs. A loose box pulls in dark background pixels and confuses the colour state machine.'**
+  String get lightWhatIsThisBody;
+
+  /// No description provided for @speedWhatIsThisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this configure?'**
+  String get speedWhatIsThisTitle;
+
+  /// No description provided for @speedWhatIsThisBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The trapezoid removes the camera\'s perspective so the road looks like a top-down view. The width / length in metres convert pixels to metres, and the two lines time how long a vehicle takes to travel between them — that gives km/h. Use the lane width (usually 3.5 m) and a known distance.'**
+  String get speedWhatIsThisBody;
+
+  /// No description provided for @speedDefaultPresetButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply preset (1 lane 3.5m × 10m)'**
+  String get speedDefaultPresetButton;
+
+  /// No description provided for @speedDefaultPresetApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Default preset applied. Adjust to fit your video.'**
+  String get speedDefaultPresetApplied;
+
+  /// No description provided for @countLineWhatIsThisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this configure?'**
+  String get countLineWhatIsThisTitle;
+
+  /// No description provided for @countLineWhatIsThisBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Two virtual lines: a vehicle is counted as one only when its track crosses BOTH lines (order doesn\'t matter). More accurate than a single tripwire and separates IN vs OUT direction.'**
+  String get countLineWhatIsThisBody;
+
+  /// No description provided for @lprWhatIsThisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this configure?'**
+  String get lprWhatIsThisTitle;
+
+  /// No description provided for @lprWhatIsThisBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Plates on the allowlist are tagged \'resident\', others \'visitor\'. The AI reads plates automatically — no ROI needed.'**
+  String get lprWhatIsThisBody;
+
+  /// No description provided for @calibrationResetTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset site calibration'**
+  String get calibrationResetTooltip;
+
+  /// No description provided for @calibrationResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset calibration?'**
+  String get calibrationResetTitle;
+
+  /// No description provided for @calibrationResetMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clears every per-task setting saved for this site (enabled tasks, ROIs, speed lines, transit polygons, plate allowlist). Cannot be undone.'**
+  String get calibrationResetMessage;
+
+  /// No description provided for @calibrationResetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get calibrationResetConfirm;
+
+  /// No description provided for @calibrationResetDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Site calibration cleared.'**
+  String get calibrationResetDone;
 
   /// No description provided for @reportTitle.
   ///

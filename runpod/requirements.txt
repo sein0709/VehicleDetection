@@ -11,8 +11,10 @@ numpy>=1.26,<2.0            # pin <2.0 for easyocr + torch compatibility
 # OCR (plate verification pass — Gemma is primary)
 easyocr>=1.7
 
-# Vertex AI (Gemma multimodal)
-google-cloud-aiplatform>=1.70
+# Vertex AI / Gemini / Gemma (unified SDK — replaces deprecated
+# vertexai.generative_models). Accepts gemini-*, google/gemma-*, and
+# full endpoint resource names through the same Client interface.
+google-genai>=1.73
 
 # Web
 fastapi>=0.115

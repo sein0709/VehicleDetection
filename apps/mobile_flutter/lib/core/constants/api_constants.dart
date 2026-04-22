@@ -24,11 +24,18 @@ abstract final class ApiConstants {
 
   /// Polling endpoint for async job status.
   /// Derives the base URL from [analyzeVideoUrl] automatically.
-  static String jobStatusUrl(String jobId) {
+  static String jobStatusUrl(String jobId) => '${_analyzeBase()}/status/$jobId';
+
+  /// Annotated MP4 download endpoint. [kind] is `classified` (default) for the
+  /// per-class bbox overlay or `transit` for the head-circle / boarding overlay.
+  /// Only available when the job was submitted with `output_video: true` (or
+  /// `transit.output_video: true` for the transit variant).
+  static String videoUrl(String jobId, {String kind = 'classified'}) =>
+      '${_analyzeBase()}/video/$jobId?kind=$kind';
+
+  static String _analyzeBase() {
     final idx = analyzeVideoUrl.lastIndexOf('/analyze_video');
-    final base =
-        idx >= 0 ? analyzeVideoUrl.substring(0, idx) : analyzeVideoUrl;
-    return '$base/status/$jobId';
+    return idx >= 0 ? analyzeVideoUrl.substring(0, idx) : analyzeVideoUrl;
   }
 
   static String geminiGenerateContent(String model) =>

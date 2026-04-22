@@ -377,6 +377,22 @@
   "videoAnalysisDescription": "Record or choose a video (max 5 minutes) to run cloud-based vehicle detection and counting.",
   "videoAnalysisGallery": "Choose from Gallery",
   "videoAnalysisRecord": "Record Video",
+  "videoAnalysisPickFileTitle": "Choose a video file (MP4 or DAV)",
+  "videoAnalysisStartAnalysis": "Start analysis",
+  "videoAnalysisChooseDifferentFile": "Choose a different file",
+  "videoAnalysisStagedFile": "Selected: {filename}",
+  "@videoAnalysisStagedFile": {
+    "placeholders": {
+      "filename": { "type": "String" }
+    }
+  },
+  "videoAnalysisStagedHint": "Review the tasks below, then tap Start to upload and analyze.",
+  "videoAnalysisBusStopPreset": "Bus stop preset",
+  "videoAnalysisBusStopPresetHint": "One-tap setup for a bus stop: disables vehicle counting, enables transit (boarding / alighting) and pedestrians.",
+  "videoAnalysisBusStopApplied": "Bus stop preset applied — vehicle counting is off.",
+  "videoAnalysisCountLineConfigure": "Configure count lines",
+  "videoAnalysisCountLineConfigured": "IN/OUT lines set",
+  "videoAnalysisDavNotSupported": "DAV files cannot be uploaded for analysis. Open the Speed, Transit, or Traffic-light editor to use this file as a calibration backdrop, or transcode it to MP4 first.",
   "videoAnalysisUploading": "Uploading and analyzing…",
   "videoAnalysisUploadingHint": "This may take several minutes depending on video length.",
   "videoAnalysisProcessing": "Analyzing video on server…",
@@ -385,6 +401,265 @@
   "videoAnalysisBreakdown": "Breakdown by Class",
   "videoAnalysisExportCsv": "Export CSV",
   "videoAnalysisRetry": "Retry",
+  "videoAnalysisIncludeAnnotatedVideo": "Generate annotated video",
+  "videoAnalysisIncludeAnnotatedVideoHint": "Adds a labeled MP4 you can download after analysis. Increases processing time.",
+  "videoAnalysisDownloadVideo": "Download annotated video",
+  "videoAnalysisDownloadTransitVideo": "Download transit overlay video",
+  "videoAnalysisDownloadingVideo": "Downloading annotated video…",
+  "videoAnalysisDownloadCanceled": "Download canceled.",
+  "videoAnalysisDownloadSaved": "Saved: {path}",
+  "@videoAnalysisDownloadSaved": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+
+  "videoAnalysisTasksTitle": "Tasks to run",
+  "videoAnalysisTasksHint": "Each task needs site calibration to produce useful numbers. Defaults assume a centered road in the lower half of the frame.",
+  "videoAnalysisTaskVehicles": "Vehicles (counting + classification)",
+  "videoAnalysisTaskPedestrians": "Pedestrians (people crossing)",
+  "videoAnalysisTaskSpeed": "Speed (two-line measurement)",
+  "videoAnalysisTaskTransit": "Transit (boarding / alighting / density)",
+  "videoAnalysisTaskTrafficLight": "Traffic-light timing",
+  "videoAnalysisTaskLpr": "License plates (resident vs visitor)",
+
+  "videoAnalysisPedestrianTitle": "Pedestrians",
+  "videoAnalysisPedestrianCount": "{count, plural, =0{No pedestrians counted} one{1 pedestrian counted} other{{count} pedestrians counted}}",
+  "@videoAnalysisPedestrianCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "videoAnalysisPedestrianDetectorOff": "Pedestrian detector is off — set ENABLE_PEDESTRIAN_DETECTOR=1 on the server.",
+
+  "videoAnalysisSpeedTitle": "Speed",
+  "videoAnalysisSpeedNoMeasurements": "No vehicles crossed both speed lines.",
+  "videoAnalysisSpeedAvg": "Average",
+  "videoAnalysisSpeedMin": "Min",
+  "videoAnalysisSpeedMax": "Max",
+  "videoAnalysisSpeedKmh": "{value} km/h",
+  "@videoAnalysisSpeedKmh": {
+    "placeholders": {
+      "value": { "type": "String" }
+    }
+  },
+  "videoAnalysisSpeedMeasured": "{count, plural, =1{1 vehicle measured} other{{count} vehicles measured}}",
+  "@videoAnalysisSpeedMeasured": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "videoAnalysisSpeedPerTrack": "Per-vehicle speeds",
+  "videoAnalysisSpeedTrackRow": "Track {trackId}",
+  "@videoAnalysisSpeedTrackRow": {
+    "placeholders": {
+      "trackId": { "type": "String" }
+    }
+  },
+
+  "videoAnalysisTransitTitle": "Public transit",
+  "videoAnalysisTransitBoarding": "Boarding",
+  "videoAnalysisTransitAlighting": "Alighting",
+  "videoAnalysisTransitPeak": "Peak inside stop",
+  "videoAnalysisTransitDensity": "Avg density",
+  "videoAnalysisTransitDensityValue": "{value}%",
+  "@videoAnalysisTransitDensityValue": {
+    "placeholders": {
+      "value": { "type": "String" }
+    }
+  },
+  "videoAnalysisTransitBusGated": "Counts gated to bus presence.",
+  "videoAnalysisTransitNotGated": "All door-line crossings counted (no bus-zone gate).",
+
+  "videoAnalysisTrafficLightTitle": "Traffic-light timing",
+  "videoAnalysisTrafficLightLabel": "Light: {label}",
+  "@videoAnalysisTrafficLightLabel": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "videoAnalysisTrafficLightCycles": "Cycles",
+  "videoAnalysisTrafficLightAvgDuration": "Avg",
+  "videoAnalysisTrafficLightTotalDuration": "Total",
+  "videoAnalysisTrafficLightSeconds": "{value}s",
+  "@videoAnalysisTrafficLightSeconds": {
+    "placeholders": {
+      "value": { "type": "String" }
+    }
+  },
+  "videoAnalysisTrafficLightRed": "Red",
+  "videoAnalysisTrafficLightGreen": "Green",
+  "videoAnalysisTrafficLightYellow": "Yellow",
+
+  "videoAnalysisLprTitle": "License plates",
+  "videoAnalysisLprResident": "Resident",
+  "videoAnalysisLprVisitor": "Visitor",
+  "videoAnalysisLprAllowlistSize": "Allowlist: {count} plate(s)",
+  "@videoAnalysisLprAllowlistSize": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "videoAnalysisLprPrivacyHashed": "Plate text stored as SHA-256 prefix (privacy mode).",
+  "videoAnalysisLprPlatePrefix": "Plate",
+  "videoAnalysisLprHashPrefix": "Hash",
+
+  "videoAnalysisConfigure": "Configure",
+  "videoAnalysisConfigureNoVideo": "Pick a video first to enable per-task configuration.",
+  "videoAnalysisRoiConfigured": "ROI set: {label} ({width}\u00d7{height}, {position})",
+  "@videoAnalysisRoiConfigured": {
+    "placeholders": {
+      "label": { "type": "String" },
+      "width": { "type": "String" },
+      "height": { "type": "String" },
+      "position": { "type": "String" }
+    }
+  },
+
+  "roiEditorTitle": "Traffic-light ROI",
+  "roiEditorLabel": "Light label (e.g. main, left_turn)",
+  "roiEditorReset": "Clear",
+  "roiEditorSave": "Save",
+  "roiEditorCancel": "Cancel",
+  "roiEditorPickStill": "Pick a still image instead",
+  "roiEditorPickBackdrop": "Choose backdrop file",
+  "roiEditorPickBackdropTitle": "Pick MP4, DAV, or still image",
+  "roiEditorNoBackdrop": "No backdrop loaded yet. Pick an MP4, DAV, or still image of the scene to start drawing.",
+  "roiEditorFrameLoadFailed": "Couldn't extract a frame from the video. Pick a still image of the same scene.",
+  "roiEditorRoiTooSmall": "ROI is too small. Pick two corners further apart.",
+  "roiEditorHintTopLeft": "Tap the TOP-LEFT corner of the signal head.",
+  "roiEditorHintBottomRight": "Tap the BOTTOM-RIGHT corner of the signal head.",
+  "roiEditorHintRefine": "Tap to refine either corner. Press Save when ready.",
+
+  "lprAllowlistTitle": "Resident plates",
+  "lprAllowlistEmpty": "No resident plates yet. Add the first one below.",
+  "lprAllowlistHint": "Korean format: NNga NNNN (e.g. 12\uAC00 3456). Spaces are stripped automatically.",
+  "lprAllowlistAddHint": "Plate (e.g. 12\uAC00 3456)",
+  "lprAllowlistAdd": "Add",
+  "lprAllowlistInvalid": "Plate doesn't match the Korean format (NN(N)\uAC00 NNNN).",
+  "lprAllowlistDuplicate": "That plate is already on the allowlist.",
+  "lprAllowlistRemove": "Remove",
+  "lprAllowlistCount": "{count, plural, =0{No plates} one{1 plate} other{{count} plates}}",
+  "@lprAllowlistCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "lprAllowlistConfigure": "Manage allowlist",
+
+  "speedEditorTitle": "Speed lines & quad",
+  "speedEditorResetQuad": "Clear quad",
+  "speedEditorModeQuad": "Quad ({count}/4)",
+  "@speedEditorModeQuad": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "speedEditorModeLine1": "Line 1",
+  "speedEditorModeLine2": "Line 2",
+  "speedEditorWidthM": "Width (m)",
+  "speedEditorLengthM": "Length (m)",
+  "speedEditorHintQuad": "Tap {remaining} more corner(s) of a known real-world rectangle (e.g. lane markings).",
+  "@speedEditorHintQuad": {
+    "placeholders": {
+      "remaining": { "type": "int" }
+    }
+  },
+  "speedEditorHintQuadDone": "Quad complete. Tap again to start over, or switch to Line 1 / Line 2.",
+  "speedEditorHintLine1Start": "Tap the START point of Line 1 (entry).",
+  "speedEditorHintLine1End": "Tap the END point of Line 1 (entry).",
+  "speedEditorHintLine1Done": "Line 1 set. Tap again to redraw.",
+  "speedEditorHintLine2Start": "Tap the START point of Line 2 (exit).",
+  "speedEditorHintLine2End": "Tap the END point of Line 2 (exit).",
+  "speedEditorHintLine2Done": "Line 2 set. Tap again to redraw.",
+  "speedEditorSnapHorizontal": "Snap lines to horizontal",
+  "speedEditorSnapHorizontalHint": "Forces both lines to be perfectly horizontal — old behavior; uncheck for arbitrary lines.",
+  "speedEditorQuadIncomplete": "Tap all 4 quad corners before saving.",
+  "speedEditorLinesIncomplete": "Both speed lines need 2 endpoints each before saving.",
+  "speedEditorLinesTooClose": "Lines must be at least 5% of frame height apart.",
+  "speedEditorBadMetres": "Width and length must be positive numbers in metres.",
+
+  "countLineEditorTitle": "Count lines (IN / OUT)",
+  "countLineEditorModeIn": "IN line",
+  "countLineEditorModeOut": "OUT line",
+  "countLineEditorReset": "Reset line",
+  "countLineEditorHintInStart": "Tap the START point of the IN line.",
+  "countLineEditorHintInEnd": "Tap the END point of the IN line.",
+  "countLineEditorHintInDone": "IN line set. Tap again to redraw.",
+  "countLineEditorHintOutStart": "Tap the START point of the OUT line.",
+  "countLineEditorHintOutEnd": "Tap the END point of the OUT line.",
+  "countLineEditorHintOutDone": "OUT line set. Tap again to redraw.",
+  "countLineEditorIncomplete": "Both lines need 2 endpoints each before saving.",
+  "countLineEditorDescription": "Vehicles count once when a track crosses both lines, in either order. Place IN where vehicles enter the scene and OUT where they leave.",
+
+  "transitEditorTitle": "Bus stop & door line",
+  "transitEditorUndo": "Undo last point",
+  "transitEditorModeStopPolygon": "Stop polygon",
+  "transitEditorModeDoorLine": "Door line",
+  "transitEditorModeBusZone": "Bus zone",
+  "transitEditorBusZoneEnable": "Gate counting on bus presence",
+  "transitEditorBusZoneHint": "When enabled, door-line crossings only count while a bus overlaps this polygon.",
+  "transitEditorBusZoneDisabled": "Bus-zone gating is off — every door-line crossing counts.",
+  "transitEditorCapacity": "Max capacity (persons)",
+  "transitEditorCapacityHint": "Density % = persons inside the stop polygon \u00f7 capacity.",
+  "transitEditorHintStopPolygon": "Tap to add a polygon vertex. {remaining} more needed.",
+  "@transitEditorHintStopPolygon": {
+    "placeholders": {
+      "remaining": { "type": "int" }
+    }
+  },
+  "transitEditorHintStopPolygonDone": "Stop polygon ready. Add more vertices or switch tabs.",
+  "transitEditorHintDoorLine": "Tap to set door-line endpoint {remaining} of 2.",
+  "@transitEditorHintDoorLine": {
+    "placeholders": {
+      "remaining": { "type": "int" }
+    }
+  },
+  "transitEditorHintDoorLineDone": "Door line ready. Tap again to redraw.",
+  "transitEditorHintBusZone": "Tap to add a bus-zone vertex. {remaining} more needed.",
+  "@transitEditorHintBusZone": {
+    "placeholders": {
+      "remaining": { "type": "int" }
+    }
+  },
+  "transitEditorHintBusZoneDone": "Bus zone ready.",
+  "transitEditorStopPolygonTooSmall": "Stop polygon needs at least 3 vertices.",
+  "transitEditorDoorLineIncomplete": "Door line needs exactly 2 endpoints.",
+  "transitEditorBusZoneTooSmall": "Bus zone needs at least 3 vertices (or turn it off).",
+  "transitEditorBadCapacity": "Capacity must be a positive integer.",
+
+  "calibrationModeAuto": "Auto",
+  "calibrationModeManual": "Manual",
+
+  "transitAutoModeTitle": "AI auto-detect mode",
+  "transitAutoModeBody": "AI analyses one keyframe of the video and finds the bus stop area, door line, and bus parking spot automatically. You only need to enter the capacity.",
+  "transitManualModeBody": "Switch to Manual to draw the regions yourself.",
+  "transitWhatIsThisTitle": "What does this configure?",
+  "transitWhatIsThisBody": "The stop polygon (green) is where people stand — used to compute density (%). The door line (yellow) sits across the bus door — people crossing it count as boarding/alighting. The bus zone (blue) is where the bus parks — boarding only counts while a bus overlaps it.",
+
+  "lightAutoModeTitle": "AI auto-detect mode",
+  "lightAutoModeBody": "AI finds the traffic light in the video automatically. Just provide a label (used to disambiguate when multiple lights are visible).",
+  "lightManualModeBody": "Switch to Manual to draw the ROI yourself.",
+  "lightAutoLabelField": "Label (e.g. straight, left_turn)",
+  "lightWhatIsThisTitle": "What does this configure?",
+  "lightWhatIsThisBody": "The traffic-light ROI is a tight box around the lamp housing only — no sky, no pole, no signs. A loose box pulls in dark background pixels and confuses the colour state machine.",
+
+  "speedWhatIsThisTitle": "What does this configure?",
+  "speedWhatIsThisBody": "The trapezoid removes the camera's perspective so the road looks like a top-down view. The width / length in metres convert pixels to metres, and the two lines time how long a vehicle takes to travel between them — that gives km/h. Use the lane width (usually 3.5 m) and a known distance.",
+  "speedDefaultPresetButton": "Apply preset (1 lane 3.5m × 10m)",
+  "speedDefaultPresetApplied": "Default preset applied. Adjust to fit your video.",
+
+  "countLineWhatIsThisTitle": "What does this configure?",
+  "countLineWhatIsThisBody": "Two virtual lines: a vehicle is counted as one only when its track crosses BOTH lines (order doesn't matter). More accurate than a single tripwire and separates IN vs OUT direction.",
+
+  "lprWhatIsThisTitle": "What does this configure?",
+  "lprWhatIsThisBody": "Plates on the allowlist are tagged 'resident', others 'visitor'. The AI reads plates automatically — no ROI needed.",
+
+  "calibrationResetTooltip": "Reset site calibration",
+  "calibrationResetTitle": "Reset calibration?",
+  "calibrationResetMessage": "Clears every per-task setting saved for this site (enabled tasks, ROIs, speed lines, transit polygons, plate allowlist). Cannot be undone.",
+  "calibrationResetConfirm": "Reset",
+  "calibrationResetDone": "Site calibration cleared.",
 
   "reportTitle": "GreyEye Traffic Report",
   "reportCamera": "Camera: {cameraId}",

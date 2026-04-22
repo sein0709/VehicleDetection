@@ -50,44 +50,79 @@ class SpeedEngine:
         )
         self.homography = cv2.getPerspectiveTransform(source, target)
 
-        y1 = int(self.frame_h * self.cfg.lines_y_ratio[0])
-        y2 = int(self.frame_h * self.cfg.lines_y_ratio[1])
-        self.line_upper = sv.LineZone(
-            start=sv.Point(0, y1), end=sv.Point(self.frame_w, y1)
-        )
-        self.line_lower = sv.LineZone(
-            start=sv.Point(0, y2), end=sv.Point(self.frame_w, y2)
-        )
-        # Real-world Y distance between the two lines, in meters:
-        # linear interpolation along the length axis of the target rectangle.
-        self._distance_m = abs(
-            self.cfg.lines_y_ratio[1] - self.cfg.lines_y_ratio[0]
-        ) * l_m
+        if self.cfg.lines_xy is not None and len(self.cfg.lines_xy) == 2:
+            # Operator drew 2 arbitrary line segments — use them as the
+            # entry/exit LineZones directly. World-distance is the
+            # Euclidean distance between the two line midpoints after the
+            # perspective warp, which collapses to the legacy
+            # `|y2-y1|*length` formula for parallel horizontal lines but
+            # also handles oblique lane configurations correctly.
+            (l1_p1, l1_p2) = self.cfg.lines_xy[0]
+            (l2_p1, l2_p2) = self.cfg.lines_xy[1]
+            self.line_upper = sv.LineZone(
+                start=sv.Point(int(l1_p1[0]), int(l1_p1[1])),
+                end=sv.Point(int(l1_p2[0]), int(l1_p2[1])),
+            )
+            self.line_lower = sv.LineZone(
+                start=sv.Point(int(l2_p1[0]), int(l2_p1[1])),
+                end=sv.Point(int(l2_p2[0]), int(l2_p2[1])),
+            )
+            mid1 = np.array(
+                [[(l1_p1[0] + l1_p2[0]) / 2, (l1_p1[1] + l1_p2[1]) / 2]],
+                dtype=np.float32,
+            ).reshape(-1, 1, 2)
+            mid2 = np.array(
+                [[(l2_p1[0] + l2_p2[0]) / 2, (l2_p1[1] + l2_p2[1]) / 2]],
+                dtype=np.float32,
+            ).reshape(-1, 1, 2)
+            world1 = cv2.perspectiveTransform(mid1, self.homography)[0, 0]
+            world2 = cv2.perspectiveTransform(mid2, self.homography)[0, 0]
+            self._distance_m = float(np.linalg.norm(world1 - world2))
+        else:
+            y1 = int(self.frame_h * self.cfg.lines_y_ratio[0])
+            y2 = int(self.frame_h * self.cfg.lines_y_ratio[1])
+            self.line_upper = sv.LineZone(
+                start=sv.Point(0, y1), end=sv.Point(self.frame_w, y1)
+            )
+            self.line_lower = sv.LineZone(
+                start=sv.Point(0, y2), end=sv.Point(self.frame_w, y2)
+            )
+            # Real-world Y distance between the two lines, in meters:
+            # linear interpolation along the length axis of the target rectangle.
+            self._distance_m = abs(
+                self.cfg.lines_y_ratio[1] - self.cfg.lines_y_ratio[0]
+            ) * l_m
 
     def update(self, detections: sv.Detections, frame_idx: int) -> None:
         """Call once per pipeline frame. Emits km/h into self.speeds_kmh as
-        vehicles cross both lines."""
+        vehicles cross both lines.
+
+        Uses sv.LineZone's own crossing return value (per-detection masks
+        of "crossed in / out this frame") rather than a y-coordinate
+        proximity check. The proximity check only worked for horizontal
+        lines; the mask-based approach handles operator-drawn oblique
+        lines too.
+        """
         if detections.tracker_id is None or len(detections) == 0:
             return
 
-        # Trigger LineZone crossings — supervision mutates internal state.
-        self.line_upper.trigger(detections)
-        self.line_lower.trigger(detections)
+        upper_in, upper_out = self.line_upper.trigger(detections)
+        lower_in, lower_out = self.line_lower.trigger(detections)
+        upper_crossed = upper_in | upper_out
+        lower_crossed = lower_in | lower_out
 
-        # Build {tid: center_y} to decide who just entered vs exited.
-        xy = detections.get_anchors_coordinates(anchor=sv.Position.CENTER)
-        for tid, (_, cy) in zip(detections.tracker_id, xy):
+        for i, tid in enumerate(detections.tracker_id):
             tid_int = int(tid)
-            y_top = self.line_upper.vector.start.y
-            y_bot = self.line_lower.vector.start.y
-
-            # First time we see tid above/below the upper line, record entry.
-            if tid_int not in self.entry_frames and abs(cy - y_top) < 5:
+            # Entry = first crossing of either line.
+            if tid_int not in self.entry_frames and (
+                upper_crossed[i] or lower_crossed[i]
+            ):
                 self.entry_frames[tid_int] = frame_idx
-
-            # When tid reaches the lower line, compute speed.
+                continue
+            # Exit = first crossing of the OTHER line (not the same sample
+            # as the entry — already short-circuited above).
             if tid_int in self.entry_frames and tid_int not in self.speeds_kmh \
-               and abs(cy - y_bot) < 5:
+               and (upper_crossed[i] or lower_crossed[i]):
                 elapsed_s = (frame_idx - self.entry_frames[tid_int]) / self.fps
                 if elapsed_s > 0:
                     kmh = (self._distance_m / elapsed_s) * 3.6

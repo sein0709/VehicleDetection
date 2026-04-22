@@ -933,6 +933,43 @@ class AppLocalizationsKo extends AppLocalizations {
   String get videoAnalysisRecord => '영상 촬영';
 
   @override
+  String get videoAnalysisPickFileTitle => '영상 파일 선택 (MP4 또는 DAV)';
+
+  @override
+  String get videoAnalysisStartAnalysis => '분석 시작';
+
+  @override
+  String get videoAnalysisChooseDifferentFile => '다른 파일 선택';
+
+  @override
+  String videoAnalysisStagedFile(String filename) {
+    return '선택됨: $filename';
+  }
+
+  @override
+  String get videoAnalysisStagedHint => '아래에서 분석 항목을 확인한 뒤 시작을 눌러 업로드하세요.';
+
+  @override
+  String get videoAnalysisBusStopPreset => '버스정류장 프리셋';
+
+  @override
+  String get videoAnalysisBusStopPresetHint =>
+      '한 번 탭으로 차량 계수를 끄고 대중교통(승하차)과 보행자 항목을 활성화합니다.';
+
+  @override
+  String get videoAnalysisBusStopApplied => '버스정류장 프리셋 적용됨 — 차량 계수가 꺼졌습니다.';
+
+  @override
+  String get videoAnalysisCountLineConfigure => '카운트 라인 설정';
+
+  @override
+  String get videoAnalysisCountLineConfigured => 'IN/OUT 라인 설정 완료';
+
+  @override
+  String get videoAnalysisDavNotSupported =>
+      'DAV 파일은 분석을 위해 업로드할 수 없습니다. 속도/대중교통/신호등 시간 설정 화면에서 보정 배경으로만 사용하거나, 먼저 MP4로 변환하세요.';
+
+  @override
   String get videoAnalysisUploading => '업로드 및 분석 중…';
 
   @override
@@ -956,6 +993,548 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get videoAnalysisRetry => '재시도';
+
+  @override
+  String get videoAnalysisIncludeAnnotatedVideo => '주석 영상 생성';
+
+  @override
+  String get videoAnalysisIncludeAnnotatedVideoHint =>
+      '분석 후 다운로드할 수 있는 라벨이 표시된 MP4를 생성합니다. 처리 시간이 늘어납니다.';
+
+  @override
+  String get videoAnalysisDownloadVideo => '주석 영상 다운로드';
+
+  @override
+  String get videoAnalysisDownloadTransitVideo => '대중교통 오버레이 영상 다운로드';
+
+  @override
+  String get videoAnalysisDownloadingVideo => '주석 영상 다운로드 중…';
+
+  @override
+  String get videoAnalysisDownloadCanceled => '다운로드가 취소되었습니다.';
+
+  @override
+  String videoAnalysisDownloadSaved(String path) {
+    return '저장 완료: $path';
+  }
+
+  @override
+  String get videoAnalysisTasksTitle => '분석 항목';
+
+  @override
+  String get videoAnalysisTasksHint =>
+      '각 항목은 정확한 결과를 위해 현장 보정이 필요합니다. 기본값은 화면 하단 중앙의 도로를 가정합니다.';
+
+  @override
+  String get videoAnalysisTaskVehicles => '차량 (계수 + 분류)';
+
+  @override
+  String get videoAnalysisTaskPedestrians => '보행자';
+
+  @override
+  String get videoAnalysisTaskSpeed => '속도 (두 라인 측정)';
+
+  @override
+  String get videoAnalysisTaskTransit => '대중교통 (승하차 / 밀집도)';
+
+  @override
+  String get videoAnalysisTaskTrafficLight => '신호등 시간';
+
+  @override
+  String get videoAnalysisTaskLpr => '차량번호판 (상주/방문)';
+
+  @override
+  String get videoAnalysisPedestrianTitle => '보행자';
+
+  @override
+  String videoAnalysisPedestrianCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '보행자 $count명 감지',
+      zero: '보행자 감지 없음',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoAnalysisPedestrianDetectorOff =>
+      '보행자 감지기가 꺼져 있습니다 — 서버에서 ENABLE_PEDESTRIAN_DETECTOR=1 설정 필요.';
+
+  @override
+  String get videoAnalysisSpeedTitle => '속도';
+
+  @override
+  String get videoAnalysisSpeedNoMeasurements => '두 속도 라인을 모두 통과한 차량이 없습니다.';
+
+  @override
+  String get videoAnalysisSpeedAvg => '평균';
+
+  @override
+  String get videoAnalysisSpeedMin => '최저';
+
+  @override
+  String get videoAnalysisSpeedMax => '최고';
+
+  @override
+  String videoAnalysisSpeedKmh(String value) {
+    return '$value km/h';
+  }
+
+  @override
+  String videoAnalysisSpeedMeasured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '차량 $count대 측정',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoAnalysisSpeedPerTrack => '차량별 속도';
+
+  @override
+  String videoAnalysisSpeedTrackRow(String trackId) {
+    return '트랙 $trackId';
+  }
+
+  @override
+  String get videoAnalysisTransitTitle => '대중교통';
+
+  @override
+  String get videoAnalysisTransitBoarding => '승차';
+
+  @override
+  String get videoAnalysisTransitAlighting => '하차';
+
+  @override
+  String get videoAnalysisTransitPeak => '정류장 최대 인원';
+
+  @override
+  String get videoAnalysisTransitDensity => '평균 밀집도';
+
+  @override
+  String videoAnalysisTransitDensityValue(String value) {
+    return '$value%';
+  }
+
+  @override
+  String get videoAnalysisTransitBusGated => '버스 도착 시에만 승하차를 카운트합니다.';
+
+  @override
+  String get videoAnalysisTransitNotGated => '모든 도어 라인 통과를 카운트합니다 (버스 게이트 없음).';
+
+  @override
+  String get videoAnalysisTrafficLightTitle => '신호등 시간';
+
+  @override
+  String videoAnalysisTrafficLightLabel(String label) {
+    return '신호: $label';
+  }
+
+  @override
+  String get videoAnalysisTrafficLightCycles => '주기';
+
+  @override
+  String get videoAnalysisTrafficLightAvgDuration => '평균';
+
+  @override
+  String get videoAnalysisTrafficLightTotalDuration => '합계';
+
+  @override
+  String videoAnalysisTrafficLightSeconds(String value) {
+    return '$value초';
+  }
+
+  @override
+  String get videoAnalysisTrafficLightRed => '빨강';
+
+  @override
+  String get videoAnalysisTrafficLightGreen => '초록';
+
+  @override
+  String get videoAnalysisTrafficLightYellow => '노랑';
+
+  @override
+  String get videoAnalysisLprTitle => '차량번호판';
+
+  @override
+  String get videoAnalysisLprResident => '상주';
+
+  @override
+  String get videoAnalysisLprVisitor => '방문';
+
+  @override
+  String videoAnalysisLprAllowlistSize(int count) {
+    return '허용 목록: $count개';
+  }
+
+  @override
+  String get videoAnalysisLprPrivacyHashed =>
+      '번호판 텍스트가 SHA-256 해시로 저장됩니다 (개인정보 보호 모드).';
+
+  @override
+  String get videoAnalysisLprPlatePrefix => '번호';
+
+  @override
+  String get videoAnalysisLprHashPrefix => '해시';
+
+  @override
+  String get videoAnalysisConfigure => '설정';
+
+  @override
+  String get videoAnalysisConfigureNoVideo => '각 항목을 설정하려면 먼저 영상을 선택하세요.';
+
+  @override
+  String videoAnalysisRoiConfigured(
+      String label, String width, String height, String position) {
+    return 'ROI 설정 완료: $label ($width×$height, $position)';
+  }
+
+  @override
+  String get roiEditorTitle => '신호등 ROI';
+
+  @override
+  String get roiEditorLabel => '신호 라벨 (예: main, left_turn)';
+
+  @override
+  String get roiEditorReset => '초기화';
+
+  @override
+  String get roiEditorSave => '저장';
+
+  @override
+  String get roiEditorCancel => '취소';
+
+  @override
+  String get roiEditorPickStill => '정지 이미지 선택';
+
+  @override
+  String get roiEditorPickBackdrop => '배경 파일 선택';
+
+  @override
+  String get roiEditorPickBackdropTitle => 'MP4, DAV 또는 정지 이미지 선택';
+
+  @override
+  String get roiEditorNoBackdrop =>
+      '배경이 아직 로드되지 않았습니다. 동일 장면의 MP4, DAV 또는 정지 이미지를 선택하여 시작하세요.';
+
+  @override
+  String get roiEditorFrameLoadFailed =>
+      '영상에서 프레임을 추출할 수 없습니다. 동일 장면의 정지 이미지를 선택하세요.';
+
+  @override
+  String get roiEditorRoiTooSmall => 'ROI가 너무 작습니다. 두 모서리를 더 멀리 잡아주세요.';
+
+  @override
+  String get roiEditorHintTopLeft => '신호등의 좌측 상단을 탭하세요.';
+
+  @override
+  String get roiEditorHintBottomRight => '신호등의 우측 하단을 탭하세요.';
+
+  @override
+  String get roiEditorHintRefine => '모서리를 다시 탭하여 조정하거나, 저장을 누르세요.';
+
+  @override
+  String get lprAllowlistTitle => '상주 차량번호판';
+
+  @override
+  String get lprAllowlistEmpty => '아직 상주 차량이 없습니다. 아래에서 추가하세요.';
+
+  @override
+  String get lprAllowlistHint =>
+      '한국식 형식: NN가 NNNN (예: 12가 3456). 공백은 자동으로 제거됩니다.';
+
+  @override
+  String get lprAllowlistAddHint => '번호판 (예: 12가 3456)';
+
+  @override
+  String get lprAllowlistAdd => '추가';
+
+  @override
+  String get lprAllowlistInvalid => '한국식 형식이 아닙니다 (NN(N)가 NNNN).';
+
+  @override
+  String get lprAllowlistDuplicate => '이미 허용 목록에 있는 번호판입니다.';
+
+  @override
+  String get lprAllowlistRemove => '삭제';
+
+  @override
+  String lprAllowlistCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '번호판 $count개',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lprAllowlistConfigure => '허용 목록 관리';
+
+  @override
+  String get speedEditorTitle => '속도 라인 & 사각형';
+
+  @override
+  String get speedEditorResetQuad => '사각형 초기화';
+
+  @override
+  String speedEditorModeQuad(int count) {
+    return '사각형 ($count/4)';
+  }
+
+  @override
+  String get speedEditorModeLine1 => '라인 1';
+
+  @override
+  String get speedEditorModeLine2 => '라인 2';
+
+  @override
+  String get speedEditorWidthM => '너비 (m)';
+
+  @override
+  String get speedEditorLengthM => '길이 (m)';
+
+  @override
+  String speedEditorHintQuad(int remaining) {
+    return '실측 가능한 사각형(예: 차선 표시)의 모서리를 $remaining개 더 탭하세요.';
+  }
+
+  @override
+  String get speedEditorHintQuadDone =>
+      '사각형 완성. 다시 탭하여 새로 시작하거나 라인 1/2로 전환하세요.';
+
+  @override
+  String get speedEditorHintLine1Start => '라인 1(진입)의 시작 점을 탭하세요.';
+
+  @override
+  String get speedEditorHintLine1End => '라인 1(진입)의 끝 점을 탭하세요.';
+
+  @override
+  String get speedEditorHintLine1Done => '라인 1 설정 완료. 다시 탭하여 새로 그리기.';
+
+  @override
+  String get speedEditorHintLine2Start => '라인 2(진출)의 시작 점을 탭하세요.';
+
+  @override
+  String get speedEditorHintLine2End => '라인 2(진출)의 끝 점을 탭하세요.';
+
+  @override
+  String get speedEditorHintLine2Done => '라인 2 설정 완료. 다시 탭하여 새로 그리기.';
+
+  @override
+  String get speedEditorSnapHorizontal => '라인을 수평으로 고정';
+
+  @override
+  String get speedEditorSnapHorizontalHint =>
+      '두 라인을 완전히 수평으로 강제합니다 — 이전 동작; 임의 라인은 해제하세요.';
+
+  @override
+  String get speedEditorQuadIncomplete => '저장 전에 사각형 모서리 4개를 모두 탭하세요.';
+
+  @override
+  String get speedEditorLinesIncomplete => '저장 전에 두 라인 각각의 끝 점 2개를 모두 설정하세요.';
+
+  @override
+  String get speedEditorLinesTooClose => '두 라인은 프레임 높이의 5% 이상 떨어져야 합니다.';
+
+  @override
+  String get speedEditorBadMetres => '너비와 길이는 0보다 큰 미터 값이어야 합니다.';
+
+  @override
+  String get countLineEditorTitle => '카운트 라인 (IN / OUT)';
+
+  @override
+  String get countLineEditorModeIn => 'IN 라인';
+
+  @override
+  String get countLineEditorModeOut => 'OUT 라인';
+
+  @override
+  String get countLineEditorReset => '라인 초기화';
+
+  @override
+  String get countLineEditorHintInStart => 'IN 라인의 시작 점을 탭하세요.';
+
+  @override
+  String get countLineEditorHintInEnd => 'IN 라인의 끝 점을 탭하세요.';
+
+  @override
+  String get countLineEditorHintInDone => 'IN 라인 설정 완료. 다시 탭하여 새로 그리기.';
+
+  @override
+  String get countLineEditorHintOutStart => 'OUT 라인의 시작 점을 탭하세요.';
+
+  @override
+  String get countLineEditorHintOutEnd => 'OUT 라인의 끝 점을 탭하세요.';
+
+  @override
+  String get countLineEditorHintOutDone => 'OUT 라인 설정 완료. 다시 탭하여 새로 그리기.';
+
+  @override
+  String get countLineEditorIncomplete => '저장 전에 두 라인 각각의 끝 점 2개를 모두 설정하세요.';
+
+  @override
+  String get countLineEditorDescription =>
+      '한 차량 트랙이 두 라인 모두를 통과(순서 무관)할 때 1대로 계수됩니다. IN은 차량이 진입하는 위치, OUT은 빠져나가는 위치에 배치하세요.';
+
+  @override
+  String get transitEditorTitle => '정류장 & 도어 라인';
+
+  @override
+  String get transitEditorUndo => '마지막 점 취소';
+
+  @override
+  String get transitEditorModeStopPolygon => '정류장 영역';
+
+  @override
+  String get transitEditorModeDoorLine => '도어 라인';
+
+  @override
+  String get transitEditorModeBusZone => '버스 영역';
+
+  @override
+  String get transitEditorBusZoneEnable => '버스 도착 시에만 카운트';
+
+  @override
+  String get transitEditorBusZoneHint =>
+      '활성화하면, 버스가 이 영역과 겹치는 동안에만 도어 라인 통과를 카운트합니다.';
+
+  @override
+  String get transitEditorBusZoneDisabled =>
+      '버스 영역 게이트 비활성화 — 모든 도어 라인 통과를 카운트합니다.';
+
+  @override
+  String get transitEditorCapacity => '최대 수용 인원';
+
+  @override
+  String get transitEditorCapacityHint => '밀집도 % = 정류장 영역 내 인원 ÷ 최대 수용 인원.';
+
+  @override
+  String transitEditorHintStopPolygon(int remaining) {
+    return '탭하여 정류장 꼭짓점을 추가하세요. $remaining개 더 필요합니다.';
+  }
+
+  @override
+  String get transitEditorHintStopPolygonDone =>
+      '정류장 영역 준비 완료. 꼭짓점을 추가하거나 탭을 전환하세요.';
+
+  @override
+  String transitEditorHintDoorLine(int remaining) {
+    return '도어 라인 엔드포인트 $remaining/2을 탭하세요.';
+  }
+
+  @override
+  String get transitEditorHintDoorLineDone => '도어 라인 준비 완료. 다시 탭하여 재설정.';
+
+  @override
+  String transitEditorHintBusZone(int remaining) {
+    return '탭하여 버스 영역 꼭짓점을 추가하세요. $remaining개 더 필요합니다.';
+  }
+
+  @override
+  String get transitEditorHintBusZoneDone => '버스 영역 준비 완료.';
+
+  @override
+  String get transitEditorStopPolygonTooSmall => '정류장 영역에는 최소 3개의 꼭짓점이 필요합니다.';
+
+  @override
+  String get transitEditorDoorLineIncomplete => '도어 라인에는 정확히 2개의 엔드포인트가 필요합니다.';
+
+  @override
+  String get transitEditorBusZoneTooSmall =>
+      '버스 영역에는 최소 3개의 꼭짓점이 필요합니다 (또는 비활성화하세요).';
+
+  @override
+  String get transitEditorBadCapacity => '수용 인원은 양의 정수여야 합니다.';
+
+  @override
+  String get calibrationModeAuto => '자동';
+
+  @override
+  String get calibrationModeManual => '수동';
+
+  @override
+  String get transitAutoModeTitle => 'AI 자동 감지 모드';
+
+  @override
+  String get transitAutoModeBody =>
+      'AI가 영상의 첫 프레임을 분석해 정류장 영역, 도어 라인, 버스 정차 위치를 자동으로 찾습니다. 정원만 입력하시면 됩니다.';
+
+  @override
+  String get transitManualModeBody => '직접 영역을 그리고 싶다면 수동으로 전환하세요.';
+
+  @override
+  String get transitWhatIsThisTitle => '이 설정은 무엇인가요?';
+
+  @override
+  String get transitWhatIsThisBody =>
+      '정류장 영역(녹색)은 사람이 서 있는 곳이며 밀집도(%)를 계산합니다. 도어 라인(노랑)은 버스 출입문 위치이며, 통과하는 사람을 승하차로 셉니다. 버스 영역(파랑)은 버스가 정차하는 자리로, 이 안에 버스가 있을 때만 승하차가 카운트됩니다.';
+
+  @override
+  String get lightAutoModeTitle => 'AI 자동 감지 모드';
+
+  @override
+  String get lightAutoModeBody =>
+      'AI가 영상에서 신호등 위치를 자동으로 찾습니다. 라벨만 입력하시면 됩니다 (여러 신호등이 있을 때 구분용).';
+
+  @override
+  String get lightManualModeBody => '직접 ROI를 그리고 싶다면 수동으로 전환하세요.';
+
+  @override
+  String get lightAutoLabelField => '신호 라벨 (예: 직진, 좌회전)';
+
+  @override
+  String get lightWhatIsThisTitle => '이 설정은 무엇인가요?';
+
+  @override
+  String get lightWhatIsThisBody =>
+      '신호등 ROI는 색상 판정을 위해 신호등 자체만 감싸는 작은 박스입니다. 박스가 크면 배경 픽셀이 색상 판정을 어둡게 만들어 정확도가 떨어집니다.';
+
+  @override
+  String get speedWhatIsThisTitle => '이 설정은 무엇인가요?';
+
+  @override
+  String get speedWhatIsThisBody =>
+      '사다리꼴은 카메라 화면을 위에서 본 것처럼 펴 줍니다(원근 보정). 가로/세로 미터 값으로 픽셀을 미터로 환산하고, 두 라인을 통과한 시간으로 km/h를 계산합니다. 실제 도로의 차선 폭(보통 3.5m)과 알려진 거리를 사용하세요.';
+
+  @override
+  String get speedDefaultPresetButton => '기본값 적용 (1차로 3.5m × 10m)';
+
+  @override
+  String get speedDefaultPresetApplied => '기본값을 적용했습니다. 영상에 맞게 조정하세요.';
+
+  @override
+  String get countLineWhatIsThisTitle => '이 설정은 무엇인가요?';
+
+  @override
+  String get countLineWhatIsThisBody =>
+      '두 가상의 선을 그으면 차량이 두 선을 모두 통과할 때 1대로 카운트됩니다(순서 무관). 단일 선보다 정확하며 진입(IN)/진출(OUT) 방향까지 분리됩니다.';
+
+  @override
+  String get lprWhatIsThisTitle => '이 설정은 무엇인가요?';
+
+  @override
+  String get lprWhatIsThisBody =>
+      '허용 목록(상주 차량)에 등록된 번호판은 ‘상주’로, 그 외는 ‘방문’으로 분류됩니다. 번호판 자체는 AI가 자동으로 인식하므로 ROI 설정이 필요 없습니다.';
+
+  @override
+  String get calibrationResetTooltip => '사이트 보정 초기화';
+
+  @override
+  String get calibrationResetTitle => '보정을 초기화할까요?';
+
+  @override
+  String get calibrationResetMessage =>
+      '이 사이트에 저장된 모든 항목(활성화된 작업, ROI, 속도 라인, 정류장 영역, 번호판 허용 목록)이 삭제됩니다. 되돌릴 수 없습니다.';
+
+  @override
+  String get calibrationResetConfirm => '초기화';
+
+  @override
+  String get calibrationResetDone => '사이트 보정이 초기화되었습니다.';
 
   @override
   String get reportTitle => 'GreyEye 교통 보고서';

@@ -55,9 +55,28 @@ dependencies:
   uuid: ^4.4.0
   file_picker: ^10.3.10
   excel: ^4.0.6
+  video_thumbnail: ^0.5.6
+  # FFmpeg-based first-frame extraction for codecs the platform thumbnailer
+  # cannot decode (notably .DAV files from Dahua CCTV recorders).
+  #
+  # IMPORTANT: the `_min` flavour ships with FFmpeg's built-in software
+  # codecs only — NOT system codecs. Specifically the macOS arm64 build
+  # has --disable-videotoolbox / --disable-avfoundation / --disable-png
+  # in its configure flags. We therefore force MJPEG output (always
+  # built in) in VideoFrameExtractor and accept either PNG or JPEG
+  # bytes downstream. Verified against ffmpeg-kit-flutter-new 3.1.0
+  # / FFmpeg 8.0 on 2026-04-22.
+  #
+  # The full-GPL flavour was avoided because it pulls in /opt/homebrew/*
+  # dynamic-link paths on macOS that crash at launch on machines without
+  # Homebrew installed. Used only by VideoFrameExtractor — the analysis
+  # pipeline still receives MP4.
+  ffmpeg_kit_flutter_new_min: ^3.1.0
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   build_runner: ^2.4.0
@@ -75,3 +94,4 @@ flutter:
     - lib/core/l10n/
     - assets/models/
     - assets/images/
+    - assets/test/

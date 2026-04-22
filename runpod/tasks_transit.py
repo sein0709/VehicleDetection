@@ -128,6 +128,35 @@ class TransitEngine:
             return False
         return self.density_samples[-1]["density_pct"] >= 80.0
 
+    def apply_vlm_density_correction(
+        self, timestamp_s: float, vlm_count: int,
+    ) -> None:
+        """Override the closest density sample with a VLM-confirmed headcount.
+
+        The CV path counts BOTTOM_CENTER anchors inside the stop polygon —
+        when the polygon gets crowded, occlusion makes the count an
+        under-estimate. The VLM gets the same crop and is more reliable on
+        a packed scene, so we replace the matching sample's count and
+        clamp ``peak_count`` upward (we never let the VLM lower a value
+        we've already observed at the pixel level).
+        """
+        if not self.density_samples or vlm_count < 0:
+            return
+
+        idx = min(
+            range(len(self.density_samples)),
+            key=lambda i: abs(self.density_samples[i]["t"] - timestamp_s),
+        )
+        sample = self.density_samples[idx]
+        sample["count"] = max(int(sample["count"]), vlm_count)
+        sample["density_pct"] = round(
+            (sample["count"] / self.cfg.max_capacity) * 100
+            if self.cfg.max_capacity else 0.0,
+            1,
+        )
+        sample["vlm_corrected"] = True
+        self.peak_count = max(self.peak_count, sample["count"])
+
     def report(self, annotated_video_path: str | None = None) -> dict[str, Any]:
         avg_pct = 0.0
         if self.density_samples:
